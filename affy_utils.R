@@ -77,7 +77,12 @@ inputs <- function(instructions="", two=F, box1="AL group name", box2="CR group 
   }
 }
 
-get_raw <- function (gse_name, data_dir) {
+get_raw <- function(gse_name, data_dir) {
+  #wrapper for get_raw_one
+  lapply(gse_name, get_raw_one, data_dir)
+}
+
+get_raw_one <- function (gse_name, data_dir) {
   #IN
   #OUT
   gse_dir <- paste(data_dir, gse_name, sep="/")
@@ -95,6 +100,13 @@ get_raw <- function (gse_name, data_dir) {
 }
 
 load_eset <- function (gse_name, data_dir) {
+  #wrapper for load_eset_one
+  esets <- lapply(gse_name, load_eset_one, data_dir)
+  names(esets) <- gse_name
+  return (esets)
+}
+
+load_eset_one <- function (gse_name, data_dir) {
   #IN
   #OUT
   gse_dir <- paste(data_dir, gse_name, sep="/")
@@ -133,16 +145,19 @@ load_eset <- function (gse_name, data_dir) {
 }
 
 diff_expr <- function (eset) {
+  #wrapper for diff_expr_one
+  top_tables <- mapply(diff_expr_one, eset, names(eset))
+  names(top_tables) <- names(eset)
+  return (top_tables)
+}
+
+diff_expr_one <- function (eset, name) {
   #INPUT:
   #OUTPUT:
   
   #BLOCKING VARIABLES:
   #-------------------
-  
-  #add scan date as blocking variable
-  message("Blocking for scan date")
-  pData(eset)$scan_date <- letters[pData(eset)$scan_date]  #change needed for makeContrasts
-  block_names <- c("scan_date")
+  block_names <- c()
   
   #ask if want to add blocking variable?
   choices <- paste(pData(eset)$scan_date, sampleNames(eset), pData(eset)$title)
@@ -178,7 +193,7 @@ diff_expr <- function (eset) {
   choices <- paste(sampleNames(eset), pData(eset)$title)
   contrasts <- c()
   group_levels <- c()
-  #selected_samples <- c()
+  selected_samples <- c()
   
   #repeat until all contrasts selected
   while (TRUE) {
@@ -203,10 +218,10 @@ diff_expr <- function (eset) {
     group_levels <- unique(c(group_levels, group_names[1], group_names[2]))
     
     #add to selected_samples
-    #selected_samples <- unique(c(selected_samples, AL, CR))
+    selected_samples <- unique(c(selected_samples, AL, CR))
   }
   #retain selected samples only
-  #eset <- eset[, selected_samples]
+  eset <- eset[, selected_samples]
   
   #make model/contrast matrix   
   variables <- c("~0", "group", block_names)
@@ -223,13 +238,13 @@ diff_expr <- function (eset) {
   #---------
   
   group <- factor(pData(eset)$group, levels=group_levels)
-  palette <- brewer.pal(nlevels(group), "Dark2")
+  palette <- brewer.pal(8, "Dark2")
   colours <- palette[group]
   
   pca <- prcomp(t(exprs(eset)))
   
   s3d <- scatterplot3d(pca$x[,1], pca$x[,2], pca$x[,3], 
-                       main = gse_name, 
+                       main = name, 
                        color = colours,
                        pch=19, type="h", lty.hplot=3)
   
