@@ -26,22 +26,22 @@ inputs <- function(instructions="", two=F, box1="AL group name", box2="CR group 
     }
 
     submit <- function() {
-    e <- parent.env(environment())   
-    x <- as.character(tclvalue(xvar))
-    e$x <- x
-    if (two) {
-      y <- as.character(tclvalue(yvar))
-      e$y <- y
-    }
-    tkdestroy(tt)
+        e <- parent.env(environment())   
+        x <- as.character(tclvalue(xvar))
+        e$x <- x
+        if (two) {
+        y <- as.character(tclvalue(yvar))
+        e$y <- y
+        }
+        tkdestroy(tt)
     }
     submit.but <- tkbutton(tt, text="Submit", command=submit)
 
     reset <- function() {
-    tclvalue(xvar)<-""
-    if (two) {
-      tclvalue(yvar)<-""
-    }
+        tclvalue(xvar)<-""
+        if (two) {
+        tclvalue(yvar)<-""
+        }
     }
     reset.but <- tkbutton(tt, text="Reset", command=reset)
 
@@ -145,17 +145,18 @@ load_eset_one <- function (gse_name, data_dir) {
 
 #------------------------
 
-diff_expr <- function (eset) {
+diff_expr <- function (eset, data_dir) {
     #wrapper for diff_expr_one
-    top_tables <- mapply(diff_expr_one, eset, names(eset))
-    names(top_tables) <- names(eset)
-    return (top_tables)
+    diff_expr <- mapply(diff_expr_one, eset, names(eset), data_dir, SIMPLIFY=F)
+    names(diff_expr) <- names(eset)
+    return (diff_expr)
 }
 
 
-diff_expr_one <- function (eset, name) {
+diff_expr_one <- function (eset, name, data_dir) {
     #INPUT:
     #OUTPUT:
+    gse_dir <- paste(data_dir, name, sep="/")
 
     #BLOCKING VARIABLES:
     #-------------------
@@ -164,7 +165,7 @@ diff_expr_one <- function (eset, name) {
     #ask if want to add blocking variable?
     choices <- paste(sampleNames(eset), pData(eset)$title)
     i <- 1  #block count
-    while (TRUE){
+    while (TRUE) {
         block <- tk_select.list(c(choices, "YES", "NO"), title="Add blocking variable?")
         if (block != "YES") {break}
 
@@ -176,17 +177,17 @@ diff_expr_one <- function (eset, name) {
 
         #select samples in each level of blocking variable (except 1)
         j <- 1  #level count 
-    while (TRUE) {
-      level <- tk_select.list(choices, multiple=T, title="Select samples in each level (except 1)")    
-      level <- str_extract(level, "GSM[0-9]+")
-      if (length(level) == 0) {break}  
+        while (TRUE) {
+            level <- tk_select.list(choices, multiple=T, title="Select samples in each level (except 1)")    
+            level <- str_extract(level, "GSM[0-9]+")
+            if (length(level) == 0) {break}  
 
-      #add level to pheno
-      level_name <- paste("level", j, sep="_")
-      pData(eset)[level, block_name] <- level_name
-      j <- j + 1
+            #add level to pheno
+            level_name <- paste("level", j, sep="_")
+            pData(eset)[level, block_name] <- level_name
+            j <- j + 1
+        }
     }
-}
   
   
     #CONTRASTS:        
@@ -250,18 +251,33 @@ diff_expr_one <- function (eset, name) {
     fmla0 <- as.formula(paste(vars0, collapse="+"))
     mod0 <- model.matrix(fmla0, data=pData(eset))
 
+    cat ("\nmod0:\n")
+    print (mod0)
+
     svobj <- sva(exprs(eset), mod, mod0)
-    modSv <- cbind(mod, SV1=svobj$sv)  #TODO: if #SV > 1
-    contrast_matrix <- makeContrasts(contrasts=contrasts, levels=modSv)
-    print (modSv)
+    modsv <- cbind(mod, svobj$sv)
+    colnames(modsv) <- c(colnames(mod), paste("SV", 1:svobj$n.sv, sep=""))
     
-    fit <- contrasts.fit (lmFit(exprs(eset),modSv), contrast_matrix)
+    cat ("\n\nmodsv:\n")
+    print (modsv)
+    
+    contrast_matrix <- makeContrasts(contrasts=contrasts, levels=modsv)
+    fit <- contrasts.fit (lmFit(exprs(eset),modsv), contrast_matrix)
     ebayes <- eBayes(fit)
 
     top_tables <- list()
     for (i in seq_along(contrasts)){
         top_genes <- topTable(ebayes, coef=i, n=Inf, resort.by="logFC", p.value=0.05, lfc=1)
+        num_sig <- dim(top_genes)[1]
         top_tables[[contrasts[i]]] <- top_genes
+        cat ("\n", contrasts[i], "(n significant):", num_sig)
     }
-    return (top_tables)
+
+
+    #save setup/analysis
+    diff_expr <- list(eset, modsv, contrast_matrix, top_tables)
+    names(diff_expr) <- c("eset", "modsv", "contrast_matrix", "top_tables")
+    save_name <- paste (name, "diff_expr.rds", sep="_")
+    saveRDS(diff_expr, file = paste(gse_dir, save_name, sep="/"))
+    return (diff_expr)
 }
