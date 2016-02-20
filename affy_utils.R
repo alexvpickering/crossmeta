@@ -7,11 +7,9 @@ library(stringr)
 library(affxparser)
 library(tcltk)
 library(RColorBrewer)
-library(scatterplot3d)
 library(limma)
 
-
-#function definitions
+#------------------------
 
 cel_dates <- function(cel_paths) {
   #IN: vector with paths to CEL files
@@ -25,6 +23,7 @@ cel_dates <- function(cel_paths) {
   return (as.factor(scan_dates))
 }
 
+#------------------------
 
 inputs <- function(instructions="", two=F, box1="AL group name", box2="CR group name"){
   #IN:
@@ -77,6 +76,8 @@ inputs <- function(instructions="", two=F, box1="AL group name", box2="CR group 
   }
 }
 
+#------------------------
+
 get_raw <- function(gse_name, data_dir) {
   #wrapper for get_raw_one
   lapply(gse_name, get_raw_one, data_dir)
@@ -99,11 +100,13 @@ get_raw_one <- function (gse_name, data_dir) {
   sapply(cel_paths, gunzip, overwrite=T)   
 }
 
+#------------------------
+
 load_eset <- function (gse_name, data_dir) {
   #wrapper for load_eset_one
-  esets <- lapply(gse_name, load_eset_one, data_dir)
-  names(esets) <- gse_name
-  return (esets)
+  eset <- lapply(gse_name, load_eset_one, data_dir)
+  names(eset) <- gse_name
+  return (eset)
 }
 
 load_eset_one <- function (gse_name, data_dir) {
@@ -139,10 +142,10 @@ load_eset_one <- function (gse_name, data_dir) {
   names(scan_dates) <- sampleNames(data)
   pData(eset)$scan_date <- scan_dates[sample_order]
   
-  #add batch
-  
   return (eset)
 }
+
+#------------------------
 
 diff_expr <- function (eset) {
   #wrapper for diff_expr_one
@@ -150,6 +153,7 @@ diff_expr <- function (eset) {
   names(top_tables) <- names(eset)
   return (top_tables)
 }
+
 
 diff_expr_one <- function (eset, name) {
   #INPUT:
@@ -234,25 +238,16 @@ diff_expr_one <- function (eset, name) {
   print (contrast_matrix)
   
   
-  #PCA PLOT:
+  #MDS PLOT:
   #---------
   
   group <- factor(pData(eset)$group, levels=group_levels)
   palette <- brewer.pal(8, "Dark2")
   colours <- palette[group]
-  
-  pca <- prcomp(t(exprs(eset)))
-  
-  s3d <- scatterplot3d(pca$x[,1], pca$x[,2], pca$x[,3], 
-                       main = name, 
-                       color = colours,
-                       pch=19, type="h", lty.hplot=3)
-  
-  s3d.coords <- s3d$xyz.convert(pca$x[,1], pca$x[,2], pca$x[,3])
-  legend("topleft", inset=.05, 
-         bty="n", cex=.8,
-         title="Group",
-         levels(group), fill=palette)
+    
+  plotMDS(exprs(eset), labels = group, 
+          main = name, col = colours)
+          
   
   
   #DIFFERENTIAL EXPRESSION (limma):
@@ -263,7 +258,7 @@ diff_expr_one <- function (eset, name) {
   
   top_tables <- list()
   for (i in seq_along(contrasts)){
-    top_genes <- topTable(ebayes, coef=i, n=Inf, resort.by="logFC", p.value=0.05)
+    top_genes <- topTable(ebayes, coef=i, n=Inf, resort.by="logFC", p.value=0.05, lfc=1)
     top_tables[[contrasts[i]]] <- top_genes
   }
   return (top_tables)
