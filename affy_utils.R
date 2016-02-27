@@ -113,7 +113,7 @@ diff_expr_one <- function (eset, name, data_dir) {
     block <- add_blocking(eset, choices)
 
     #select contrasts
-    cons <- add_contrasts(block$eset)
+    cons <- add_contrasts(block$eset, name)
 
    #differential expression
     setup <- diff_setup(cons$eset, cons$levels, block$names)

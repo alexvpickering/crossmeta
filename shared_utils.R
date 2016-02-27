@@ -132,7 +132,7 @@ add_blocking <- function (eset, choices) {
 }
 
 
-add_contrasts <- function (eset) {
+add_contrasts <- function (eset, gse_name) {
 
     choices <- paste(sampleNames(eset), pData(eset)$title)
     contrasts <- c()
@@ -156,7 +156,7 @@ add_contrasts <- function (eset) {
         pData(eset)[CR, "group"] <- group_names[2]
 
         #add to contrasts
-        contrasts <- c(contrasts, paste(group_names[2], group_names[1], sep="-"))
+        contrasts <- c(contrasts, paste(gse_name, group_names[2], group_names[1], sep="_"))
 
         #add to group_levels
         group_levels <- unique(c(group_levels, group_names[1], group_names[2]))
@@ -205,8 +205,6 @@ unique_genes <- function(top_genes) {
         slice(which.min(adj.P.Val)) %>%
         ungroup() %>%
         arrange(desc(abs(logFC)))
-
-
 }
 
 
@@ -221,10 +219,10 @@ diff_anal <- function(eset, contrasts, group_levels, mod, modsv, svobj, gse_dir,
     top_tables <- list()
     cat("\n\n")
     for (i in seq_along(contrasts)){
-        top_genes <- topTable(ebayes, coef=i, n=Inf)  #return all (for MetaDE)
+        top_genes <- topTable(ebayes, coef=i, n=Inf, p.value=0.05)
         gene_symbols <- fData(eset)[row.names(top_genes), "SYMBOL"]
         top_genes <- unique_genes(cbind(gene_symbols, top_genes))
-        num_sig <- dim(top_genes[top_genes$adj.P.Val < 0.05 & top_genes$logFC > 1,])[1]
+        num_sig <- dim(filter(top_genes, adj.P.Val <0.05 & logFC > 1))[1]
         top_tables[[contrasts[i]]] <- top_genes
         cat (contrasts[i], "(n significant):", num_sig, "\n")
     }
