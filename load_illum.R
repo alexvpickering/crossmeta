@@ -1,17 +1,18 @@
 library(GEOquery)
 library(stringr)
+library(limma)
 
-source("shared_utils.R")
+source("load_utils.R")
 
 #------------------------
 
-get_raw <- function(gse_name, data_dir) {
-    #wrapper for get_raw_one
-    lapply(gse_name, get_raw_one, data_dir)
+get_raw_illum <- function(gse_name, data_dir) {
+    #wrapper for get_raw_illum_one
+    lapply(gse_name, get_raw_illum_one, data_dir)
 }
 
 
-get_raw_one <- function (gse_name, data_dir) {
+get_raw_illum_one <- function (gse_name, data_dir) {
     #IN
     #OUT
     gse_dir <- paste(data_dir, gse_name, sep="/")
@@ -27,7 +28,7 @@ get_raw_one <- function (gse_name, data_dir) {
 
 #------------------------
 
-open_raw <- function (gse_names, data_dir) {
+open_raw_illum <- function (gse_names, data_dir) {
     #IN: opens non-normalized illumina data (change to below format)
     #OUT: names of successfully formated (probeid = "ID_REF",
     #                                     exprs = "AVG_Signal-sample_name",
@@ -55,15 +56,15 @@ open_raw <- function (gse_names, data_dir) {
 
 #------------------------
 
-load_eset <- function (gse_name, data_dir) {
-    #wrapper for load_eset_one
-    eset <- lapply(gse_name, load_eset_one, data_dir)
+load_illum <- function (gse_name, data_dir) {
+    #wrapper for load_illum_one
+    eset <- lapply(gse_name, load_illum_one, data_dir)
     names(eset) <- gse_name
     return (eset)
 }
 
 
-load_eset_one <- function (gse_name, data_dir) {
+load_illum_one <- function (gse_name, data_dir) {
     #IN: non-normalized illumina data (format: probeid = "ID_REF",
     #                                          exprs = "AVG_Signal-sample_name",
     #                                          pvals = "Detection-sample_name",
@@ -105,44 +106,3 @@ add_pvals <- function (eset, pvals) {
 }
 
 #------------------------
-
-diff_expr <- function (eset, data_dir) {
-    #wrapper for diff_expr_one
-    diff_expr <- mapply(diff_expr_one, eset, names(eset), data_dir, SIMPLIFY=F)
-    names(diff_expr) <- names(eset)
-    return (diff_expr)
-}
-
-
-diff_expr_one <- function (eset, name, data_dir) {
-    #INPUT:
-    #OUTPUT:
-    gse_dir <- paste(data_dir, name, sep="/")
-
-    #add blocking variables
-    choices <- paste(sampleNames(eset), pData(eset)$title)
-    block <- add_blocking(eset, choices)
-
-    #select contrasts
-    cons <- add_contrasts(block$eset, name)
-
-    #differential expression
-    setup <- diff_setup(cons$eset, cons$levels, block$names)
-
-    eset_filt <- pval_filt(cons$eset, cons$samples, cons$levels)
-
-    anal <- diff_anal(eset_filt, cons$contrasts, cons$levels,
-                      setup$mod, setup$modsv, setup$svobj, gse_dir, name)
-
-    return (anal)
-}
-
-
-pval_filt <- function (eset, selected_samples, group_levels) {
-
-    filt_num <- round (length(selected_samples) / length(group_levels))
-    pval_cnt <- rowSums (assayData(eset)$pvals < 0.05)
-    eset <- eset[pval_cnt >= filt_num,]
-
-    return (eset)
-}

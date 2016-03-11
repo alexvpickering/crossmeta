@@ -4,7 +4,7 @@ library(oligo)
 library(stringr)
 library(affxparser)
 
-source("shared_utils.R")
+source("load_utils.R")
 
 #------------------------
 
@@ -23,12 +23,12 @@ cel_dates <- function(cel_paths) {
 
 #------------------------
 
-get_raw <- function(gse_name, data_dir) {
-    #wrapper for get_raw_one
-    lapply(gse_name, get_raw_one, data_dir)
+get_raw_affy <- function(gse_name, data_dir) {
+    #wrapper for get_raw_affy_one
+    lapply(gse_name, get_raw_affy_one, data_dir)
 }
 
-get_raw_one <- function (gse_name, data_dir) {
+get_raw_affy_one <- function (gse_name, data_dir) {
     #IN
     #OUT
     gse_dir <- paste(data_dir, gse_name, sep="/")
@@ -47,14 +47,14 @@ get_raw_one <- function (gse_name, data_dir) {
 
 #------------------------
 
-load_eset <- function (gse_name, data_dir) {
-    #wrapper for load_eset_one
-    eset <- lapply(gse_name, load_eset_one, data_dir)
+load_affy <- function (gse_name, data_dir) {
+    #wrapper for load_affy_one
+    eset <- lapply(gse_name, load_affy_one, data_dir)
     names(eset) <- gse_name
     return (eset)
 }
 
-load_eset_one <- function (gse_name, data_dir) {
+load_affy_one <- function (gse_name, data_dir) {
     #IN
     #OUT
     gse_dir <- paste(data_dir, gse_name, sep="/")
@@ -95,31 +95,3 @@ load_eset_one <- function (gse_name, data_dir) {
 
 #------------------------
 
-diff_expr <- function (eset, data_dir) {
-    #wrapper for diff_expr_one
-    diff_expr <- mapply(diff_expr_one, eset, names(eset), data_dir, SIMPLIFY=F)
-    names(diff_expr) <- names(eset)
-    return (diff_expr)
-}
-
-
-diff_expr_one <- function (eset, name, data_dir) {
-    #INPUT:
-    #OUTPUT:
-    gse_dir <- paste(data_dir, name, sep="/")
-
-    #add blocking variables
-    choices <- paste(pData(eset)$scan_date, sampleNames(eset), pData(eset)$title)
-    block <- add_blocking(eset, choices)
-
-    #select contrasts
-    cons <- add_contrasts(block$eset, name)
-
-   #differential expression
-    setup <- diff_setup(cons$eset, cons$levels, block$names)
-
-    anal <- diff_anal(cons$eset, cons$contrasts, cons$levels,
-                      setup$mod, setup$modsv, setup$svobj, gse_dir, name)
-
-    return (anal)
-}
