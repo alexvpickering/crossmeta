@@ -39,7 +39,8 @@ get_biocpack_name <- function (gse_name) {
         "WHERE gse_gpl.gse=", shQuote(gse_name))
 
     biocpack_name <- dbGetQuery(con, query)[, "bioc_package"]
-
+    if (length(biocpack_name) == 0) biocpack_name <- NA
+    
     #manual entry if needed
     if (is.na (biocpack_name)) {
         title <- dbGetQuery(con, query)[, "title"]

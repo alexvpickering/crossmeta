@@ -72,6 +72,10 @@ load_affy_one <- function (gse_name, data_dir) {
         warning = function(cond) {
             raw_data <- read.celfiles(cel_paths)
             return (oligo::rma(raw_data))  
+        },
+        error = function(cond) {
+            raw_data <- read.celfiles(cel_paths)
+            return (oligo::rma(raw_data))  
         } 
     )
     #rename samples in data
@@ -80,7 +84,18 @@ load_affy_one <- function (gse_name, data_dir) {
     #transfer exprs from data to eset (maintaining eset sample/feature order)
     sample_order <- sampleNames(eset)
     feature_order <- featureNames(eset)
-    exprs(eset) <- exprs(data)[feature_order, sample_order]
+    eset <- tryCatch (
+        {
+        exprs(eset) <- exprs(data)[feature_order, sample_order]
+        eset
+        },
+        #if features don't match: also transfer featureData from data to eset
+        error = function(cond) {
+            exprs(eset) <- exprs(data)[, sample_order]
+            fData(eset) <- fData(data)
+            return(eset)
+        } 
+    )
 
     #add scan dates to pheno data (maintaining eset sample order)
     scan_dates <- cel_dates (cel_paths)

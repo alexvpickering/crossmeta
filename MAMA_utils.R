@@ -1,21 +1,25 @@
 library(MAMA)
 library(VennDiagram)
 library(GeneExpressionSignature)
-source("MAMA_edits.R")
+source("~/Documents/Batcave/GEO/1-meta/MAMA_edits.R")
 #-------------------
 
-load_diff <- function(gse_name, data_dir) {
+load_diff <- function(gse_name, data_dir, probe=F) {
     #wrapper for load_diff_one
-    anals <- lapply(gse_name, load_diff_one, data_dir)
+    anals <- lapply(gse_name, load_diff_one, data_dir, probe)
     names(anals) <- gse_name
     return (anals)
 }
 
 
-load_diff_one <- function(gse_name, data_dir) {
+load_diff_one <- function(gse_name, data_dir, probe=F) {
     #loads saved diff_data (rds file)
     gse_dir <- file.path (data_dir, gse_name)
-    diff_name <- paste (gse_name, "_diff_expr.rds", sep="")
+    if (probe) {
+        diff_name <- paste (gse_name, "_diff_expr_probe.rds", sep="")
+    } else {
+        diff_name <- paste (gse_name, "_diff_expr.rds", sep="")
+    }
     diff_path <- file.path (gse_dir, diff_name)
     return (readRDS (diff_path))    
 }
@@ -128,7 +132,7 @@ merge_ranks <- function(diff_exprs, n=NULL) {
     for (i in seq_along(top_tables)) {
         
         #get order from most positive to most negative modt-statistic
-        order.t <- order(top_tables[[i]]$t)
+        order.t <- order(top_tables[[i]]$t, decreasing=T)
         
         #add rank to top_table
         top_tables[[i]][order.t, "rank"] <- 1:nrow(top_tables[[i]])
@@ -140,7 +144,7 @@ merge_ranks <- function(diff_exprs, n=NULL) {
 
     #generate ExpressionSet needed for RankMerging
     rank_eset <- ExpressionSet(rank_matrix, featureData=featureData)
-    pData(rank_eset)$state <- "CR"
+    pData(rank_eset)$state <- "test"
 
     #merge ranks to obtain prototype ranked list (PRL)
     prl <- exprs(RankMerging(rank_eset,"Spearman",weighted=TRUE))
@@ -156,99 +160,4 @@ merge_ranks <- function(diff_exprs, n=NULL) {
         #return complete list
         return (prl_sorted)
     }    
-}
-
-#-------------------------
-
-
-random_TAB <- function(MAT) {
-
-    #number of genes in each method
-    gene_names <- row.names(MAT)
-    methods_n <- colSums(MAT)
-    method_names <- colnames(MAT)
-    TABS <- list()
-
-    for (i in 1:1000) {
-        #get random samples of methods_n genes
-        lists <- list()
-        for (j in seq_along(methods_n)) {
-
-            rs_genes <- sample(gene_names, methods_n[j])
-            lists[[j]] <- rs_genes
-        }
-        #turn it into a conting table
-        names(lists)<-c("PvalCom", "ESCom","ESCom2", "RankProduct", "MergeRanks")
-        TABS[[i]] <- conting.tab(lists)
-    }
-    return(TABS)      
-}
-
-#-------------------------
-#adapted from DOI: 10.1186/1471-2105-12-35
-
-draw_venn <- function(genes_list, filename) {
-
-    n_lists <- length(genes_list)
-
-    
-    if (n_lists == 2) {
-        venn.diagram(
-        x = genes_list,
-        filename = filename,
-        lwd = 4,
-        fill = c("cornflowerblue", "darkorchid1"),
-        alpha = 0.75,
-        label.col = "white",
-        cex = 4,
-        fontfamily = "serif",
-        fontface = "bold",
-        cat.col = c("cornflowerblue", "darkorchid1"),
-        cat.cex = 3,
-        cat.fontfamily = "serif",
-        cat.fontface = "bold",
-        cat.dist = c(0.03, 0.03),
-        cat.pos = c(-20, 14)
-        )
-    }
-
-
-    if (n_lists == 3) {
-        venn.diagram(
-        x = genes_list,
-        filename = filename,
-        col = "transparent",
-        fill = c("red", "blue", "green"),
-        alpha = 0.5,
-        label.col = c("darkred", "white", "darkblue", "white", "white", "white", "darkgreen"),
-        cex = 2.5,
-        fontfamily = "serif",
-        fontface = "bold",
-        cat.default.pos = "text",
-        cat.col = c("darkred", "darkblue", "darkgreen"),
-        cat.cex = 2.5,
-        cat.fontfamily = "serif",
-        cat.dist = c(0.06, 0.06, 0.03),
-        cat.pos = 0
-        )
-    }
-
-    if (n_lists == 4) {
-        venn.diagram(
-        x = genes_list,
-        filename = filename,
-        col = "black",
-        lty = "dotted",
-        lwd = 4,
-        fill = c("cornflowerblue", "green", "yellow", "darkorchid1"),
-        alpha = 0.50,
-        label.col = c("orange", "white", "darkorchid4", "white", "white", "white", "white", "white", "darkblue", "white", "white", "white", "white", "darkgreen", "white"),
-        cex = 2.5,
-        fontfamily = "serif",
-        fontface = "bold",
-        cat.col = c("darkblue", "darkgreen", "orange", "darkorchid4"),
-        cat.cex = 2.5,
-        cat.fontfamily = "serif"
-        )
-    }
 }
