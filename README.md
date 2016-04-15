@@ -1,23 +1,23 @@
-# caloric-restriction (CR)
+# 1-meta
 
 ###Description:
-These scripts are used to streamline the meta-analysis of microarray data. The analysis requires a list of Affymetrix and/or Illumina GSE numbers (from GEO). Although developed for meta-analysis of CR microarray data, should be appropriate for other microarray data.
+These scripts are used to streamline the meta-analysis of microarray data. The analysis requires a list of Affymetrix, Illumina, and/or Agilent GSE numbers (from GEO).
 
 ####Features:
 1. Download/save raw data from GEO ('Supplementary file')
 
 2. Consistently normalize raw data:
   * __Affymetrix__: RMA (includes norm-exp bg correct, inter array quantile normalization, and log2 transformation)
-  * __Illumina__: neqc (includes norm-exp bg correct, inter array quantile normalization, and log2 transformation)
+  * __Illumina/Agilent__: neqc (includes norm-exp bg correct, inter array quantile normalization, and log2 transformation)
   
 3. Annotate using Bioconductor annotation data:
   * uses SYMBOL (NAs removed)
   * one-to-many: expands to keep all
-  * many-to-one: keeps highest interquartile range samples selected in (4)
+  * many-to-one: keeps highest interquartile range of samples selected in (4)
   
 4. Differential expression analysis:
   * control for unknown surogate variables (SVA)
-  * select desired contrasts (CR=test, AL=control)
+  * select desired contrasts (interactive)
   * multidimensional scaling plot (SVA-adjusted)
 
 5. Meta-Analysis of results:
@@ -25,6 +25,5 @@ These scripts are used to streamline the meta-analysis of microarray data. The a
     * pvalcombination & EScombination edited:
         * use results from (4) 
           * p/t-values reflect SVA/multi-contrast analysis
-    * VennDiagram for 2, 3, or 4 methods
     * Incorporate RankMerging from GeneExpressionSignature
         

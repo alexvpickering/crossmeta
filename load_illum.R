@@ -26,6 +26,7 @@ get_raw_illum_one <- function (gse_name, data_dir) {
     sapply(gz_paths, gunzip)  
 }
 
+
 #------------------------
 
 open_raw_illum <- function (gse_names, data_dir) {
@@ -92,7 +93,8 @@ load_illum_one <- function (gse_name, data_dir) {
     eset <- add_pvals(eset, pvals)
 
     #add SYMBOL annotation
-    eset <- symbol_annot(eset, gse_name)
+    gpl_name <- annotation(eset)
+    eset <- symbol_annot(eset, gpl_name)
 
     return (eset)
 }

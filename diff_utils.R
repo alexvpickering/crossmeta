@@ -9,21 +9,24 @@ source("~/Documents/Batcave/GEO/1-meta/load_utils.R")
 
 #------------------------
 
-diff_expr <- function (eset, data_dir, annot="gene") {
+diff_expr <- function (esets, data_dir, annot="SYMBOL", prev_anals=list(NULL)) {
     #wrapper for diff_expr_one
-    diff_expr <- mapply(diff_expr_one, eset, names(eset), data_dir, annot, SIMPLIFY=F)
-    names(diff_expr) <- names(eset)
-    return (diff_expr)
+    anals <- mapply(diff_expr_one, esets, names(esets), data_dir,
+                    annot, prev_anals[names(esets)], SIMPLIFY=F)
+
+    names(anals) <- names(esets)
+    return (anals)
 }
 
 
-diff_expr_one <- function (eset, gse_name, data_dir, annot) {
+diff_expr_one <- function (eset, gse_name, data_dir, annot, prev_anal) {
     #INPUT:
     #OUTPUT:
-    gse_dir <- paste(data_dir, gse_name, sep="/")
+    gse_folder <- strsplit(gse_name, "\\.")[[1]][1]  #name can be "GSE.GPL"
+    gse_dir <- paste(data_dir, gse_folder, sep="/")
 
     #select contrasts
-    cons <- add_contrasts(eset, gse_name, annot)
+    cons <- add_contrasts(eset, gse_name, annot, prev_anal)
 
    #differential expression
     setup <- diff_setup(cons$eset, cons$levels)
@@ -35,71 +38,98 @@ diff_expr_one <- function (eset, gse_name, data_dir, annot) {
     return (anal)
 }
 
+#-----------------------
+
+match_prev_eset <- function(eset, prev_anal) {
+    #used by add_contrasts to re-use selections from previous analysis
+
+    #retain previously selected samples only
+    selected_samples <- sampleNames(prev_anal$eset)
+    eset <- eset[, selected_samples]
+
+    #transfer previous treatment, tissue & group to eset
+    pData(eset)$treatment <- pData(prev_anal$eset)$treatment
+    pData(eset)$tissue    <- pData(prev_anal$eset)$tissue
+    pData(eset)$group     <- pData(prev_anal$eset)$group
+
+    return (eset)
+}
 
 #------------------------
 
-add_contrasts <- function (eset, gse_name, annot="gene") {
+add_contrasts <- function (eset, gse_name, annot="SYMBOL", prev_anal) {
 
-    choices <- paste(sampleNames(eset), pData(eset)$title)
-    contrasts <- c()
-    group_levels <- c()
-    selected_samples <- c()
+    if (!is.null(prev_anal)) {
 
-    #for MAMA data
-    mama_samples <- list()
-    mama_clinicals <- list()
+        #re-use selections/sample labels from previous analysis
+        eset <- match_prev_eset(eset, prev_anal)
 
-    #repeat until all contrasts selected
-    while (TRUE) {
-        #select ctrl samples
-        ctrl <- tk_select.list(choices, multiple=T, title="Control samples for contrast")
-        ctrl <- str_extract(ctrl, "GSM[0-9]+")
-        if (length(ctrl) == 0) {break}
+        #get contrast info from previous analysis
+        mama_samples   <- prev_anal$mama_data$sample_names
+        mama_clinicals <- prev_anal$mama_data$clinicals
 
-        #select test samples
-        test <- tk_select.list(choices, multiple=T, title="Test samples for contrast")
-        test <- str_extract(test, "GSM[0-9]+")
+        contrasts    <- colnames(prev_anal$ebayes$contrasts)
+        group_levels <- colnames(prev_anal$ebayes$design)
+        selected_samples <- sampleNames(prev_anal$eset)
 
-        #add treatment to pheno
-        pData(eset)[ctrl, "treatment"] <- "ctrl"
-        pData(eset)[test, "treatment"] <- "test"
+    } else {
 
-        #add group names & tissue to pheno
-        tissue <- inputs("Tissue source", box1="eg. liver", def1="")
-        group_names <- paste(inputs("Group names", two=T), tissue, sep=".")
-        pData(eset)[c(ctrl, test), "tissue"] <- tissue
-        pData(eset)[ctrl, "group"] <- group_names[1]
-        pData(eset)[test, "group"] <- group_names[2]
+        #get contrast info from user input
+        choices <- paste(sampleNames(eset), pData(eset)$title)
+        contrasts <- c()
+        group_levels <- c()
+        selected_samples <- c()
 
-        #add to contrasts
-        contrast <- paste(group_names[2], group_names[1], sep="-")
-        contrasts <- c(contrasts, contrast)
+        #for MAMA data
+        mama_samples <- list()
+        mama_clinicals <- list()
 
-        #add to group_levels
-        group_levels <- unique(c(group_levels, group_names[1], group_names[2]))
+        #repeat until all contrasts selected
+        while (TRUE) {
+            #select ctrl samples
+            ctrl <- tk_select.list(choices, multiple=T, title="Control samples for contrast")
+            ctrl <- str_extract(ctrl, "GSM[0-9]+")
+            if (length(ctrl) == 0) {break}
 
-        #add to selected_samples
-        selected_samples <- unique(c(selected_samples, ctrl, test))
+            #select test samples
+            test <- tk_select.list(choices, multiple=T, title="Test samples for contrast")
+            test <- str_extract(test, "GSM[0-9]+")
 
-        #store sample names for each contrast
-        contrast_name <- paste(gse_name, contrast, sep="_")
-        mama_samples[[contrast_name]] <- c(ctrl, test)
+            #add treatment to pheno
+            pData(eset)[ctrl, "treatment"] <- "ctrl"
+            pData(eset)[test, "treatment"] <- "test"
 
-        #add labels for contrast to mama_clinicals
-        labels <- factor(pData(eset)[c(ctrl, test), "treatment"], levels = c("test", "ctrl"))   #  (test, ref)
-        clinical <- data.frame(treatment = labels, row.names = c(ctrl, test))
-        mama_clinicals[[contrast_name]] <- clinical
+            #add group names & tissue to pheno
+            tissue <- inputs("Tissue source", box1="eg. liver", def1="")
+            group_names <- paste(inputs("Group names", two=T), tissue, sep=".")
+            pData(eset)[c(ctrl, test), "tissue"] <- tissue
+            pData(eset)[ctrl, "group"] <- group_names[1]
+            pData(eset)[test, "group"] <- group_names[2]
+
+            #add to contrasts
+            contrast <- paste(group_names[2], group_names[1], sep="-")
+            contrasts <- c(contrasts, contrast)
+
+            #add to group_levels
+            group_levels <- unique(c(group_levels, group_names[1], group_names[2]))
+
+            #add to selected_samples
+            selected_samples <- unique(c(selected_samples, ctrl, test))
+
+            #store sample names for each contrast
+            contrast_name <- paste(gse_name, contrast, sep="_")
+            mama_samples[[contrast_name]] <- c(ctrl, test)
+
+            #add labels for contrast to mama_clinicals
+            labels <- factor(pData(eset)[c(ctrl, test), "treatment"], levels = c("test", "ctrl"))   #  (test, ref)
+            clinical <- data.frame(treatment = labels, row.names = c(ctrl, test))
+            mama_clinicals[[contrast_name]] <- clinical
+        }
+        #retain selected samples only
+        eset <- eset[, selected_samples]
     }
-    #retain selected samples only
-    eset <- eset[, selected_samples]
-
-    if (annot == "gene") {
-        #remove rows with duplicated SYMBOL
-        eset <- iqr_duplicates(eset)
-    } else if (annot == "probe") {
-        #remove rows with duplicated probes
-        eset <- eset[unique(featureNames(eset)), ]
-    }
+    #remove rows with duplicated/NA annot (SYMBOL or PROBE)
+    eset <- iqr_duplicates(eset, annot)
 
     #subset eset for each contrast (for MAMA)
     mama_esets <- get_contrast_esets(mama_samples, eset)
@@ -108,15 +138,17 @@ add_contrasts <- function (eset, gse_name, annot="gene") {
     mama_data <- list(esets=mama_esets, sample_names=mama_samples, clinicals=mama_clinicals)
 
     contrast_data <- list("eset"=eset, "contrasts"=contrasts, "levels"=group_levels,
-                       "samples"=selected_samples, "mama_data"=mama_data)
-
+                          "samples"=selected_samples, "mama_data"=mama_data)
     return (contrast_data)
 }
 
 #------------------------
 
-iqr_duplicates <- function (eset) {
-    #for rows with duplicated SYMBOL highested IQR retained
+iqr_duplicates <- function (eset, annot="SYMBOL") {
+    #for rows with duplicated annot, highested IQR retained
+
+    #remove rows with NA annot (occurs if annot is SYMBOL)
+    eset <- eset[!is.na(fData(eset)[, annot]),]
 
     data <- as.data.frame(exprs(eset))
     #add inter-quartile ranges to data
@@ -124,9 +156,9 @@ iqr_duplicates <- function (eset) {
     #add feature data
     data[, colnames(fData(eset))] <- fData(eset)
 
-    #for rows with same SYMBOL, keep highest IQR
+    #for rows with same annot, keep highest IQR
     data %>%
-        group_by(SYMBOL) %>%
+        group_by_(annot) %>%
         arrange(desc(IQR)) %>%
         slice(1) %>%
         ungroup ->
@@ -135,8 +167,8 @@ iqr_duplicates <- function (eset) {
     #seperate exprs and fdata columns
     exprs <- as.matrix(data[, sampleNames(eset)])
     fdata <- as.matrix(data[, colnames(fData(eset))])
-    row.names(exprs) <- data$SYMBOL
-    row.names(fdata) <- data$SYMBOL
+    row.names(exprs) <- fdata[, annot]
+    row.names(fdata) <- fdata[, annot]
 
     #put exprs and fdata into eset
     exprs(eset) <- exprs
@@ -168,7 +200,7 @@ diff_setup <- function(eset, group_levels){
 #------------------------
 
 diff_anal <- function(eset, contrasts, group_levels, mama_data,
-                      mod, modsv, svobj, gse_dir, gse_name, annot="gene"){
+                      mod, modsv, svobj, gse_dir, gse_name, annot="SYMBOL"){
 
     #differential expression (surrogate variables modeled and not)  
     ebayes_sv <- fit_ebayes(eset, contrasts, modsv)
@@ -203,12 +235,8 @@ diff_anal <- function(eset, contrasts, group_levels, mama_data,
     diff_expr <- list(eset=eset, top_tables=top_tables, 
                       ebayes_sv=ebayes_sv, ebayes=ebayes, mama_data=mama_data)
 
-    if (annot == "gene") {
-        save_name <- paste (gse_name, "diff_expr.rds", sep="_")
-
-    } else if (annot == "probe") {
-        save_name <- paste (gse_name, "diff_expr_probe.rds", sep="_")
-    }
+    if (annot == "SYMBOL") save_name <- paste (gse_name, "diff_expr.rds", sep="_")
+    if (annot == "PROBE")  save_name <- paste (gse_name, "diff_expr_probe.rds", sep="_")
 
     saveRDS(diff_expr, file = paste(gse_dir, save_name, sep="/"))
     return (diff_expr)

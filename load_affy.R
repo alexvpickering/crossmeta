@@ -45,13 +45,38 @@ get_raw_affy_one <- function (gse_name, data_dir) {
     sapply(cel_paths, gunzip, overwrite=T)   
 }
 
-#------------------------
 
-load_affy <- function (gse_name, data_dir) {
+
+#------------------------
+get_eset_names <- function(esets, gse_names) {
+    #used by load_affy to name esets
+
+    eset_names <- c()
+
+    for (i in seq_along(esets)) {
+        #get gse name
+        gse_name <- gse_names[i]
+        
+        if (length(esets[[i]]) > 1) {
+            #add gpl_name to make gse_name unique
+            gpl_name <- sapply(esets[[i]], annotation)
+            gse_name <- paste(gse_name, gpl_name, sep=".")
+        }
+        #add gse_name to eset_names
+        eset_names <- c(eset_names, gse_name)
+    }
+    return(eset_names)
+}
+
+
+load_affy <- function (gse_names, data_dir) {
     #wrapper for load_affy_one
-    eset <- lapply(gse_name, load_affy_one, data_dir)
-    names(eset) <- gse_name
-    return (eset)
+    esets <- lapply(gse_names, load_affy_one, data_dir)
+    eset_names <- get_eset_names(esets, gse_names)
+
+    esets <- unlist(esets)
+    names(esets) <- eset_names
+    return (esets)
 }
 
 load_affy_one <- function (gse_name, data_dir) {
@@ -60,10 +85,22 @@ load_affy_one <- function (gse_name, data_dir) {
     gse_dir <- paste(data_dir, gse_name, sep="/")
 
     #get GSEMatrix (for pheno data)
-    eset <- getGEO(gse_name, destdir=gse_dir, GSEMatrix=T)[[1]]
+    esets <- getGEO(gse_name, destdir=gse_dir, GSEMatrix=T)
 
-    #load celfiles and normalize
-    cel_paths <- list.files(gse_dir, pattern=".CEL", full.names=T, ignore.case=T)
+    #load eset for each platform in GSE
+    esets <- lapply(esets,load_affy_plat, gse_dir)
+
+    return(esets)
+}
+
+
+load_affy_plat <- function (eset, gse_dir) {
+    #used by load_affy_one to load eset for each platform in GSE
+    
+    sample_names <- sampleNames(eset)
+    pattern <- paste(".*", sample_names, ".*CEL", collapse="|", sep="")
+    
+    cel_paths <- list.files(gse_dir, pattern, full.names=T, ignore.case=T)
     data <- tryCatch (
         {
         raw_data <- ReadAffy (celfile.path=gse_dir)
@@ -103,10 +140,13 @@ load_affy_one <- function (gse_name, data_dir) {
     pData(eset)$scan_date <- scan_dates[sample_order]
 
     #add SYMBOL annotation
-    eset <- symbol_annot(eset, gse_name)
-
-    return (eset)
+    gpl_name <- annotation(eset)
+    eset <- symbol_annot(eset, gpl_name)
+    
+    return(eset)
+    
 }
+
 
 #------------------------
 

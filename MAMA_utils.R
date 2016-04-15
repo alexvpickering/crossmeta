@@ -4,10 +4,10 @@ library(GeneExpressionSignature)
 source("~/Documents/Batcave/GEO/1-meta/MAMA_edits.R")
 #-------------------
 
-load_diff <- function(gse_name, data_dir, probe=F) {
+load_diff <- function(gse_names, data_dir, probe=F) {
     #wrapper for load_diff_one
-    anals <- lapply(gse_name, load_diff_one, data_dir, probe)
-    names(anals) <- gse_name
+    anals <- lapply(gse_names, load_diff_one, data_dir, probe)
+    anals <- unlist(anals, recursive=F)
     return (anals)
 }
 
@@ -15,13 +15,21 @@ load_diff <- function(gse_name, data_dir, probe=F) {
 load_diff_one <- function(gse_name, data_dir, probe=F) {
     #loads saved diff_data (rds file)
     gse_dir <- file.path (data_dir, gse_name)
+
     if (probe) {
-        diff_name <- paste (gse_name, "_diff_expr_probe.rds", sep="")
+        anal_paths <- list.files(gse_dir, pattern=".*_diff_expr_probe.rds", full=T)
     } else {
-        diff_name <- paste (gse_name, "_diff_expr.rds", sep="")
+        anal_paths <- list.files(gse_dir, pattern=".*_diff_expr.rds", full=T)
     }
-    diff_path <- file.path (gse_dir, diff_name)
-    return (readRDS (diff_path))    
+    #load each diff path 
+    #multiple if more than one platform per GSE)
+    anals <- list()
+    for (path in anal_paths) {
+        anal <- readRDS(path)
+        anal_name <- strsplit(names(anal$top_tables), "_")[[1]][1]
+        anals[[anal_name]] <- anal
+    }
+    return (anals)    
 }
 
 #-------------------

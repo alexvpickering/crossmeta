@@ -22,7 +22,7 @@ get_biocpack <- function(biocpack_name) {
 }
 
 
-get_biocpack_name <- function (gse_name) {
+get_biocpack_name <- function (gpl_name) {
     #IN:
     #OUT:
 
@@ -35,14 +35,14 @@ get_biocpack_name <- function (gse_name) {
     #query metadata database
     query <- paste(
         "SELECT gpl.bioc_package, gpl.title",
-        "FROM gpl JOIN gse_gpl ON gpl.gpl=gse_gpl.gpl",
-        "WHERE gse_gpl.gse=", shQuote(gse_name))
+        "FROM gpl",
+        "WHERE gpl.gpl=", shQuote(gpl_name))
 
     biocpack_name <- dbGetQuery(con, query)[, "bioc_package"]
     if (length(biocpack_name) == 0) biocpack_name <- NA
     
     #manual entry if needed
-    if (is.na (biocpack_name)) {
+    if (is.na(biocpack_name)) {
         title <- dbGetQuery(con, query)[, "title"]
         biocpack_name <- inputs(box1="Enter biocpack_name", def1=title)
     }
@@ -53,10 +53,10 @@ get_biocpack_name <- function (gse_name) {
 
 #------------------------
 
-symbol_annot <- function (eset, gse_name) {
+symbol_annot <- function (eset, gpl_name) {
     #IN:
     #OUT:
-    biocpack_name <- get_biocpack_name(gse_name) 
+    biocpack_name <- get_biocpack_name(gpl_name) 
     SYMBOL <- NA  #value if no biocpack/selection
 
     if (biocpack_name != "") {
@@ -64,7 +64,6 @@ symbol_annot <- function (eset, gse_name) {
         get_biocpack(biocpack_name)
         ID <- featureNames(eset)
         map <- AnnotationDbi::select(get(biocpack_name), ID, "SYMBOL")
-        map <- map[!is.na(map$SYMBOL),]
         eset <- eset[map$PROBEID,]  #expands one-to-many mappings
         SYMBOL <- map$SYMBOL
     } else { 
@@ -76,21 +75,22 @@ symbol_annot <- function (eset, gse_name) {
             SYMBOL <- fData(eset)[, column]
         }
     }
+    fData(eset)$PROBE <- featureNames(eset)
     fData(eset)$SYMBOL <- SYMBOL
     return (eset)
 }
 
 
-commonize <- function(esets) {
+commonize <- function(esets, annot="SYMBOL") {
     #IN: esets
-    #OUT: esets with common genes
-    all_genes <- lapply(esets, function(x) unique(fData(x)$SYMBOL))   
+    #OUT: esets with common genes (SYMBOL or PROBE)
+    all_genes <- lapply(esets, function(x) unique(fData(x)[, annot]))   
     common_genes <- Reduce(intersect, all_genes)
 
     for (i in seq_along(esets)) {
-        #keep rows with SYMBOL in common_genes
-        SYMBOL <- fData(esets[[i]])$SYMBOL
-        filter <- SYMBOL %in% common_genes
+        #keep rows with annot (ID) in common_genes
+        ID <- fData(esets[[i]])[, annot]
+        filter <- ID %in% common_genes
         esets[[i]] <- esets[[i]][filter, ]
 
     }
