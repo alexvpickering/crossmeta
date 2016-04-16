@@ -1,14 +1,14 @@
-library(GEOquery)
-library(GEOmetadb)
-library(annotate)
-library(tcltk)
-
-#-------------------
-#  Load Utilities
-#-------------------
-
-# GPL platform maps are supplied by investigator and not updated.
-# Bioc platform maps are updated.
+#' Downloads bioconductor package.
+#'
+#' Used by symbol_annot to download annotation data packages from bioconductor.
+#'
+#' @importFrom BiocInstaller biocLite
+#' @param biocpack_name name of bioconductor package to download.
+#' @seealso \link{get_biocpack_name}, \link{symbol_annot}.
+#' @return NULL (downloads and loads requested package).
+#' @examples \dontrun{
+#'
+#'}
 
 get_biocpack <- function(biocpack_name) {
     #IN:
@@ -22,13 +22,30 @@ get_biocpack <- function(biocpack_name) {
 }
 
 
+#' Queries GEOmetadb sqlite file to obtain bioconductor annotation data package name.
+#'
+#' Function queries GEOmetadb.sqlite in order to obtain bioconductor annotation
+#' data package name for a given platform (GPL). If bioconductor package name
+#' not available, user must look up manually on bioconductor website and then
+#' enter.
+#'
+#' @importFrom DBI dbConnect dbGetQuery dbDisconnect
+#' @importFrom RSQLite SQLite
+#' @importFrom GEOmetadb getSQLiteFile
+#' @param gpl_name platform name of GSE.
+#' @seealso \link{symbol_annot}.
+#' @return name of bioconductor package.
+#' @examples \dontrun{
+#'
+#'}
+
 get_biocpack_name <- function (gpl_name) {
-    #IN:
-    #OUT:
 
     #connect to GEOmetadb database
-    if (!file.exists("~/Documents/Batcave/GEO/GEOmetadb.sqlite")) {
-        getSQLiteFile("~/Documents/Batcave/GEO/")
+    meta_dir <- file.path(getwd(), "GEOmetadb.sqlite")
+
+    if (!file.exists(meta_dir)) {
+        getSQLiteFile()
     }
     con <- dbConnect(SQLite(), "~/Documents/Batcave/GEO/GEOmetadb.sqlite")
 
@@ -40,7 +57,7 @@ get_biocpack_name <- function (gpl_name) {
 
     biocpack_name <- dbGetQuery(con, query)[, "bioc_package"]
     if (length(biocpack_name) == 0) biocpack_name <- NA
-    
+
     #manual entry if needed
     if (is.na(biocpack_name)) {
         title <- dbGetQuery(con, query)[, "title"]
@@ -51,12 +68,29 @@ get_biocpack_name <- function (gpl_name) {
     return (paste(biocpack_name, ".db", sep=""))
 }
 
+
 #------------------------
 
+
+#' Adds gene name (SYMBOL) column to fData slot of expression set.
+#'
+#' Function uses platform (GPL) to identify and download corresponding
+#' bioconductor annotation data package. Gene name ("SYMBOL") is then added to
+#' featureData slot of supplied eset.
+#'
+#' @importFrom Biobase featureNames fvarLabels fData
+#' @importFrom tcltk tk_select.list
+#' @param eset expression set object to add annotation data to.
+#' @param gpl_name platform name used to look up bioconductor
+#'        annotation data package.
+#' @seealso \link{load_affy}, \link{load_illum}, \link{load_agil}.
+#' @return eset with gene names (in "SYMBOL" column of fData slot).
+#' @examples \dontrun{
+#'
+#'}
+
 symbol_annot <- function (eset, gpl_name) {
-    #IN:
-    #OUT:
-    biocpack_name <- get_biocpack_name(gpl_name) 
+    biocpack_name <- get_biocpack_name(gpl_name)
     SYMBOL <- NA  #value if no biocpack/selection
 
     if (biocpack_name != "") {
@@ -66,7 +100,7 @@ symbol_annot <- function (eset, gpl_name) {
         map <- AnnotationDbi::select(get(biocpack_name), ID, "SYMBOL")
         eset <- eset[map$PROBEID,]  #expands one-to-many mappings
         SYMBOL <- map$SYMBOL
-    } else { 
+    } else {
         #TODO: remove NAs and subset eset
         #try fData column
         choices <- setdiff(fvarLabels(eset), "SYMBOL")
@@ -81,10 +115,30 @@ symbol_annot <- function (eset, gpl_name) {
 }
 
 
+#' Keep only common features for a list of esets.
+#'
+#' Used prior to differential expression analysis (diff_expr) to remove
+#' non-common features (either gene or probe name). The subsequent meta-analysis
+#' uses common features only, so eliminating non-common features reduces the number
+#' of comparisons made during differential expression analysis (increases power).
+#'
+#' @importFrom Biobase fData
+#' @param esets list of annotated expression sets to commonize.
+#' @param annot feature names to commonize by. Either "SYMBOL" or "PROBE".
+#' @export
+#' @seealso \link{load_affy}, \link{load_illum}, and \link{load_agil} to obtain
+#'          list of annotated esets.
+#'          \link{diff_expr} to run differential expression subsequent to
+#'          \code{commonize}.
+#' @return list of esets with where all features (probe or gene) are common.
+#' @examples \dontrun{
+#'
+#'}
+
 commonize <- function(esets, annot="SYMBOL") {
     #IN: esets
     #OUT: esets with common genes (SYMBOL or PROBE)
-    all_genes <- lapply(esets, function(x) unique(fData(x)[, annot]))   
+    all_genes <- lapply(esets, function(x) unique(fData(x)[, annot]))
     common_genes <- Reduce(intersect, all_genes)
 
     for (i in seq_along(esets)) {
@@ -97,7 +151,23 @@ commonize <- function(esets, annot="SYMBOL") {
     return (esets)
 }
 
+
 #-------------------
+
+
+#' Query user to provide description.
+#'
+#' Uses tcltk to request input from user for group or tissue names.
+#'
+#' @import tcltk
+#' @param msg Message to display in title bar.
+#' @param box1 Description beside box1.
+#' @param def1 Default value for box1.
+#' @param box2 Description beside box2.
+#' @param def2 Default value for box2.
+#' @param two Do you want two input boxes (one if FALSE)?
+#' @seealso \link{add_contrasts}
+#' @return Character vector with inputs typed into box1 and/or box2.
 
 inputs <- function(msg="", box1="eg. AL.obob", def1="AL", box2="eg. CR.obob", def2="CR", two=F) {
     #IN:
@@ -116,7 +186,7 @@ inputs <- function(msg="", box1="eg. AL.obob", def1="AL", box2="eg. CR.obob", de
     }
 
     submit <- function() {
-        e <- parent.env(environment())   
+        e <- parent.env(environment())
         x <- as.character(tclvalue(xvar))
         e$x <- x
         if (two) {

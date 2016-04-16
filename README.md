@@ -1,14 +1,18 @@
-# 1-meta
+#cross-meta
 
 ###Description:
-These scripts are used to streamline the meta-analysis of microarray data. The analysis requires a list of Affymetrix, Illumina, and/or Agilent GSE numbers (from GEO).
+These scripts are used to streamline the cross-platform meta-analysis of 
+microarray data. The analysis requires a list of Affymetrix, Illumina, and/or
+Agilent GSE numbers (from GEO). Only supports mouse and human.
 
 ####Features:
 1. Download/save raw data from GEO ('Supplementary file')
 
 2. Consistently normalize raw data:
-  * __Affymetrix__: RMA (includes norm-exp bg correct, inter array quantile normalization, and log2 transformation)
-  * __Illumina/Agilent__: neqc (includes norm-exp bg correct, inter array quantile normalization, and log2 transformation)
+  * __Affymetrix__: RMA (includes norm-exp bg correct, inter array quantile 
+  normalization, and log2 transformation)
+  * __Illumina/Agilent__: neqc (includes norm-exp bg correct, inter array 
+  quantile normalization, and log2 transformation)
   
 3. Annotate using Bioconductor annotation data:
   * uses SYMBOL (NAs removed)
