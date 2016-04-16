@@ -1,5 +1,4 @@
 library(MAMA)
-library(VennDiagram)
 library(GeneExpressionSignature)
 source("~/Documents/Batcave/GEO/1-meta/MAMA_edits.R")
 #-------------------
