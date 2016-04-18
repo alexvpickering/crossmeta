@@ -2,14 +2,14 @@
 % Please edit documentation in R/diff_utils.R
 \name{get_contrast_esets}
 \alias{get_contrast_esets}
-\title{Generate eSet for each contrast.}
+\title{Generate eset for each contrast.}
 \usage{
 get_contrast_esets(sample_names, eset, data = exprs(eset))
 }
 \arguments{
 \item{sample_names}{Character vector, sample names to include in eset.}
 
-\item{eset}{eSet to subset.}
+\item{eset}{eset to subset.}
 
 \item{data}{expression data for eset (sva-adjusted or not).}
 }
@@ -17,8 +17,9 @@ get_contrast_esets(sample_names, eset, data = exprs(eset))
 eset including only the supplied sample names.
 }
 \description{
-Sets up eSets for \link{MAMA}. An eset is generated using only the supplied
-sample names. Used to generate eSet for each contrast within a GSE.
+Sets up esets for \link[MAMA]{MetaArray-class}. An eset is generated using
+only the supplied sample names. Used to generate eset for each contrast
+within a GSE.
 }
 \seealso{
 \code{\link{clean_y}}.

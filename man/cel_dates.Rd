@@ -10,7 +10,7 @@ cel_dates(cel_paths)
 \item{cel_paths}{Charactor vector, full paths to CEL files.}
 }
 \value{
-Factor vector, CEL run dates.
+Factor vector of CEL run dates.
 }
 \description{
 Useful for defining sample batches for \code{\link{ComBat}}. No longer

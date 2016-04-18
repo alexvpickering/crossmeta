@@ -5,6 +5,7 @@
 #'
 #'
 #' @importFrom GEOquery getGEOSuppFiles gunzip
+#'
 #' @param gse_names Character vector of GSE names to download.
 #' @param data_dir base data directory (a folder for each GSE will be created
 #'        here).
@@ -37,22 +38,14 @@ get_raw_illum <- function(gse_names, data_dir) {
 #' Opens non-normalized Illumina txt and xls files.
 #'
 #' Helper utility to open non-normalized Illumina files. User must check and
-#' possibly edit the file. To help, I recommend downloading Sublime Text 2
-#' (a text editor with regular expression capabilities). A good regular
-#' expression cheat-sheat:
-#' https://www.cheatography.com/davechild/cheat-sheets/regular-expressions/
-#'
-#' Check: 1) p-values present (required: usually every second column)
-#'        2) file format is comma seperated txt file
-#'
-#' Column header formats: probeid = "ID_REF",
-#'                        expression data = "AVG_Signal-sample_name",
-#'                        pvals = "Detection-sample_name"
-#'
+#' possibly edit the files. To help, I recommend downloading Sublime Text 2
+#' (a text editor with regular expression capabilities).
 #'
 #' @importFrom tcltk tk_select.list
+#'
 #' @param gse_names Character vector of GSE names to open raw files for.
 #' @param data_dir base data directory (contains folder for each GSE).
+#'
 #' @export
 #' @seealso \code{\link{load_illum}}, \code{\link{get_raw_illum}}.
 #' @return Character vector of successfully formatted GSEs (only load these).
@@ -92,8 +85,9 @@ open_raw_illum <- function (gse_names, data_dir) {
 #' featureData slot.
 #'
 #' @importFrom GEOquery getGEO
-#' @importFrom limma read.ilmn neqc
+#' @importFrom limma read.ilmn neqc backgroundCorrect
 #' @importFrom Biobase featureNames sampleNames pData exprs
+#'
 #' @param gse_names Character vector of GSE names to load and pre-process.
 #' @param data_dir Character, base data directory (contains a folder with raw
 #'        data for each GSE to be loaded).
@@ -118,7 +112,11 @@ load_illum <- function (gse_names, data_dir) {
       #load non-normalized txt files and normalize
       data_paths <- list.files(gse_dir, pattern="non.norm.*txt", full.names=T)
       data <- read.ilmn(data_paths, probeid="ID_REF")
-      data <- neqc(data)
+      data <- tryCatch (
+        neqc(data),
+        error = function(cond) {
+          return(backgroundCorrect(data,method="normexp"))}
+        )
 
       #transfer exprs from data to eset (maintaining eset feature order)
       feature_order <- featureNames(eset)
@@ -146,9 +144,11 @@ load_illum <- function (gse_names, data_dir) {
 #' Adds detection p-vals to pvals slot of illumina expression set.
 #'
 #' @importFrom Biobase storageMode assayData
+#'
 #' @param eset Illumina expression set to add pvals slot to.
 #' @param pvals in Detection slot obtained from \link{read.ilmn}
-#' @return expression slot with pvals slot containing detection p-values.
+#'
+#' @return expression set with pvals slot containing detection p-values.
 #' @examples \dontrun{
 #'
 #'}

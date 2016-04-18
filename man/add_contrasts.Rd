@@ -7,7 +7,7 @@
 add_contrasts(eset, gse_name, annot = "SYMBOL", prev_anal)
 }
 \arguments{
-\item{eset}{single eSet passed to diff_expr.}
+\item{eset}{expression set with "SYMBOL" column in \code{fData}.}
 
 \item{gse_name}{Character, GSE name of eset.}
 
@@ -21,9 +21,9 @@ the highest interquartile range across selected samples will be kept.}
 list needed for \code{\link{diff_setup}}
 }
 \description{
-Function is use by diff_expr to get sample selections for each contrast from
-user. After selecting samples, duplicated features (probes or genes) are
-removed.
+Function is used by \code{diff_expr} to get sample selections for each
+contrast from user. After selecting samples, duplicated features
+(probes or genes) are removed.
 }
 \seealso{
 \code{\link{diff_expr}}

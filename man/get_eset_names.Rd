@@ -12,7 +12,7 @@ get_eset_names(esets, gse_names)
 \item{gse_names}{argument supplied to \code{load_affy}.}
 }
 \value{
-Character vector, GSE names with GPL appended to distinguish multiple
+Character vector of GSE names with GPL appended when multiple
         platforms per GSE.
 }
 \description{

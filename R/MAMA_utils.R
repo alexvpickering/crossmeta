@@ -1,62 +1,70 @@
-#library(MAMA)
-#library(GeneExpressionSignature)
-#source("~/Documents/Batcave/GEO/1-meta/MAMA_edits.R")
-#-------------------
-
+#' Load previous differential expression analysis.
+#'
+#' Previous runs of diff_expr are loaded.
+#'
+#' @param gse_names Character vector of GSE names to be loaded.
+#' @param data_dir base data directory containing a folder for each GSE name.
+#' @param probe Load probe level analysis? If FALSE, loads gene level analysis.
+#'
+#' @export
+#' @seealso \link{diff_expr}
+#' @return saved results from previous call to \code{diff_expr}.
+#' @examples
+#'
 load_diff <- function(gse_names, data_dir, probe=F) {
-    #wrapper for load_diff_one
-    anals <- lapply(gse_names, load_diff_one, data_dir, probe)
-    anals <- unlist(anals, recursive=F)
-    return (anals)
-}
 
-
-load_diff_one <- function(gse_name, data_dir, probe=F) {
-    #loads saved diff_data (rds file)
+  anals <- list()
+  for (gse_name in gse_names) {
     gse_dir <- file.path (data_dir, gse_name)
 
     if (probe) {
-        anal_paths <- list.files(gse_dir, pattern=".*_diff_expr_probe.rds", full=T)
+      anal_paths <- list.files(gse_dir, pattern=".*_diff_expr_probe.rds", full=T)
     } else {
-        anal_paths <- list.files(gse_dir, pattern=".*_diff_expr.rds", full=T)
+      anal_paths <- list.files(gse_dir, pattern=".*_diff_expr.rds", full=T)
     }
     #load each diff path
     #multiple if more than one platform per GSE)
-    anals <- list()
     for (path in anal_paths) {
-        anal <- readRDS(path)
-        anal_name <- strsplit(names(anal$top_tables), "_")[[1]][1]
-        anals[[anal_name]] <- anal
+      anal <- readRDS(path)
+      anal_name <- strsplit(names(anal$top_tables), "_")[[1]][1]
+      anals[[anal_name]] <- anal
     }
-    return (anals)
+  }
+  return (anals)
 }
 
 #-------------------
 
 
+#' Get ebayes info for each contrast.
+#'
+#' Helper utility in order to obtain ebayes info for each contrast.
+#'
+#' @param diff_exprs result of previous call to \code{diff_expr} of \code{load_diff}.
+#' @param sva Do you want ebayes info from model with surrogate variables?
+#'
+#' @export
+#' @seealso \link{diff_expr}, or \link{load_diff} to obtain diff_exprs.
+#'
+#'          \link{pvalcombination}, and \link{EScombination} for functions that
+#'          require result of \code{get_ebayes}.
+#' @return list of MArrayLM objects (one per contrast - contain ebayes info).
+#' @examples \dontrun{
+#'
+#'}
+
 get_ebayes <- function(diff_exprs, sva) {
-    # wrapper for ebayes_info_one
-    ebayes <- mapply (get_ebayes_one, diff_exprs, sva, SIMPLIFY=F)
-    ebayes <- unlist(ebayes, recursive=F, use.names=F)
 
-    names(ebayes) <- unlist(lapply(diff_exprs, function(x) names(x$top_tables)))
-    return(ebayes)
-}
+    ebayes <- list()
+    for (anal in diff_exprs) {
+      contrast_names <- names(anal$top_tables)
 
-
-get_ebayes_one <- function(diff_exprs, sva) {
-    # IN: diff_exprs
-    # OUT: ebayes_info for each contrast
-
-    ebayes_list <- list()
-    contrast_names <- names(diff_exprs$top_tables)
-
-    if (sva) {
-        ebayes <- diff_exprs$ebayes_sv
-    } else {
-        ebayes <- diff_exprs$ebayes
-    }
-    for (i in seq_along(contrast_names)) {
+      if (sva) {
+        ebayes <- anal$ebayes_sv
+      } else {
+        ebayes <- anal$ebayes
+      }
+      for (i in seq_along(contrast_names)) {
 
         eb <- new("MArrayLM")
         eb$coefficients <- ebayes$coefficients[,i]
@@ -65,12 +73,30 @@ get_ebayes_one <- function(diff_exprs, sva) {
         eb$df.prior <- ebayes$df.prior
         eb$t <- ebayes$t[,i]
 
-        ebayes_list[[contrast_names[i]]] <- eb
+        ebayes[[contrast_names[i]]] <- eb
+      }
     }
-    return (ebayes_list)
+    return(ebayes)
 }
 
 #---------------------------
+
+#' Make MetaArray object from results of differential expression.
+#'
+#' Function is used to construct a MetaArray object from results of call to
+#' \code{diff_expr} or \code{load_diff}. MetaArray object allows for use of
+#' all meta-analysis methods present in MAMA package.
+#'
+#' @importFrom Biobase exprs
+#'
+#' @param diff_exprs result of call to \code{diff_expr} or \code{load_diff}.
+#' @param sva Use esets with effect of surrogate variables removed? If FALSE,
+#'            none-adjusted esets will be used.
+#' @export
+#' @seealso \link[MAMA]{MetaArray-class} for possible meta-analysis methods.
+#'
+#'          \link{diff_expr} or \link{load_diff} to obtain \code{diff_expr}.
+#' @return MetaArray object.
 
 make_ma <- function(diff_exprs, sva) {
     #IN: diff_exprs
@@ -101,6 +127,19 @@ make_ma <- function(diff_exprs, sva) {
 
 #-------------------------
 
+
+#' Get topTables for each contrast.
+#'
+#' Helper function for \code{merge_ranks} meta-analysis method.
+#'
+#' @param diff_exprs result of call to \code{diff_expr} or \code{load_diff}.
+#'
+#' @seealso \link{merge_ranks}.
+#' @return list of topTables (one for each contrast in diff_exprs).
+#' @examples \dontrun{
+#'
+#'}
+
 get_tts <- function(diff_exprs) {
     #returns complete list of topTables for each contrast (SVs modeled)
     #needed for merge_ranks meta-analysis
@@ -120,6 +159,23 @@ get_tts <- function(diff_exprs) {
     return (top_tables)
 }
 
+
+#' Employ RankMerging meta-analysis from GeneExpressionSignature package.
+#'
+#' Wrapper for RankMerging function in GeneExpressionSignature.
+#'
+#' @importFrom Biobase ExpressionSet featureNames exprs
+#' @importFrom GeneExpressionSignature RankMerging
+#'
+#' @param diff_exprs result of call to \code{diff_expr} or \code{load_diff}.
+#' @param n number of top ranked (up-regulated) and bottom ranked (down-regulated)
+#'        genes to return.
+#' @export
+#' @seealso \link{RankMerging}, \link{diff_expr}, \link{load_diff}.
+#' @return Character vector of gene identifiers sorted by rank.
+#' @examples \dontrun{
+#'
+#'}
 
 merge_ranks <- function(diff_exprs, n=NULL) {
     #employs RankMerging from GeneExpressionSignature

@@ -5,6 +5,7 @@
 #'
 #' @importFrom GEOquery getGEOSuppFiles gunzip
 #' @importFrom utils untar
+#'
 #' @param gse_names Character vector of GSE names to download.
 #' @param data_dir base data directory (a folder for each GSE will be created
 #'        here).
@@ -42,10 +43,12 @@ get_raw_affy <- function (gse_names, data_dir) {
 #' used by crossmeta, which discovers nuissance variables using \code{\link{sva}}.
 #'
 #' @importFrom affxparser readCelHeader
+#'
 #' @param cel_paths Charactor vector, full paths to CEL files.
+#'
 #' @export
 #' @seealso \code{\link{ComBat}}
-#' @return Factor vector, CEL run dates.
+#' @return Factor vector of CEL run dates.
 #'
 cel_dates <- function(cel_paths) {
   #IN: vector with paths to CEL files
@@ -70,6 +73,7 @@ cel_dates <- function(cel_paths) {
 #' and gene SYMBOLs are added to featureData slots.
 #'
 #' @importFrom GEOquery getGEO
+#'
 #' @param gse_names Character vector of GSE names to load and pre-process.
 #' @param data_dir Character, base data directory (contains a folder with raw
 #'        data for each GSE to be loaded).
@@ -109,10 +113,12 @@ load_affy <- function (gse_names, data_dir) {
 #'
 #'
 #' @importFrom BiocGenerics annotation
+#'
 #' @param esets loaded by \code{load_affy}.
 #' @param gse_names argument supplied to \code{load_affy}.
+#'
 #' @seealso \code{\link{load_affy}}
-#' @return Character vector, GSE names with GPL appended to distinguish multiple
+#' @return Character vector of GSE names with GPL appended when multiple
 #'         platforms per GSE.
 #' @examples \dontrun{
 #'
@@ -147,8 +153,10 @@ get_eset_names <- function(esets, gse_names) {
 #' @importFrom oligo read.celfiles
 #' @importFrom stringr str_extract
 #' @importFrom BiocGenerics annotation
+#'
 #' @param eset GSEMatrix obtained by load_affy call to getGEO.
 #' @param gse_dir directory containing raw data for GSE.
+#'
 #' @seealso \code{\link{load_affy}}
 #' @return eset with scan_date in pData slot and SYMBOL in fData slot.
 #' @examples \dontrun{

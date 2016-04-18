@@ -1,10 +1,37 @@
-#library(MAMA)
+#' Edit of \link[metaMA]{pvalcombination} for multiple contrasts per study.
+#'
+#' Results from seperate differential expression can be supplied. This allows for
+#' multiple contrasts to be analysed within a study.
+#'
+#' @importFrom metaMA directpvalcombi IDDIRR
+#'
+#' @param esets list of expression sets (one per contrast).
+#' @param classes list of factor vectors indicating class labels for each contrast.
+#' @param ebayes result of call to limma eBayes function.
+#' @param BHth cutoff for false discovery rate.
+#'
+#' @export
+#' @seealso \link{make_ma} to make MetaArray object from result of call to diff_expr.
+#'
+#'          \link{GEDM} and \link{selectClass} to get esets and classes respectively.
+#'
+#'          \link{get_ebayes} to extract ebayes info for each contrast.
+#'
+#'          \link[metaMA]{pvalcombination} for original method.
+#' @return List
+#'         \item{Study1}{Vector of indices of differentially expressed genes in
+#'          study 1. Similar names are given for the other individual studies.}
+#'         \item{AllIndStudies}{Vector of indices of differentially expressed
+#'         genes found by at least one of the individual studies.}
+#'         \item{Meta}{Vector of indices of differentially expressed genes in
+#'         the meta-analysis.}
+#'         \item{TestStatistic}{Vector with test statistics for differential
+#'         expression in the meta-analysis.}
+#' @examples \dontrun{
+#'
+#'}
 
-#---------------------
-#   Edits of MAMA
-#---------------------
-
-pvalcombination_edit <- function (esets, classes, ebayes, BHth = 0.05) {
+pvalcombination <- function (esets, classes, ebayes, BHth = 0.05) {
 
     nbstudies = length(esets)
 
@@ -37,9 +64,44 @@ pvalcombination_edit <- function (esets, classes, ebayes, BHth = 0.05) {
     invisible(listgd)
 }
 
+
 #--------------------------
 
-EScombination_edit <- function (esets, classes, ebayes, BHth = 0.05) {
+
+#' Edit of metaMA::\link{EScombination} for multiple contrasts per study.
+#'
+#' Results from seperate differential expression can be supplied. This allows for
+#' multiple contrasts to be analysed within a study.
+#'
+#' @importFrom metaMA effectsize directEScombi IDDIRR
+#'
+#' @param esets list of expression sets (one per contrast).
+#' @param classes list of factor vectors indicating class labels for each contrast.
+#' @param ebayes result of call to \code{get_ebayes}.
+#' @param BHth cutoff for false discovery rate.
+#'
+#' @export
+#' @seealso \link{make_ma} to make MetaArray object from result of call to diff_expr.
+#'
+#'          \link{GEDM} and \link{selectClass} to get esets and classes respectively.
+#'
+#'          \link{get_ebayes} to extract ebayes info for each contrast.
+#'
+#'          \link[metaMA]{pvalcombination} for original method.
+#' @return List
+#'         \item{Study1}{Vector of indices of differentially expressed genes in
+#'          study 1. Similar names are given for the other individual studies.}
+#'         \item{AllIndStudies}{Vector of indices of differentially expressed
+#'         genes found by at least one of the individual studies.}
+#'         \item{Meta}{Vector of indices of differentially expressed genes in
+#'         the meta-analysis.}
+#'         \item{TestStatistic}{Vector with test statistics for differential
+#'         expression in the meta-analysis.}
+#' @examples \dontrun{
+#'
+#'}
+
+EScombination <- function (esets, classes, ebayes, BHth = 0.05) {
 
     nbstudies = length(esets)
 
@@ -74,7 +136,30 @@ EScombination_edit <- function (esets, classes, ebayes, BHth = 0.05) {
 
 #---------------------------
 
-join.DEG_edit <- function (..., genenames = NULL, type = NULL, cutoff)
+#' Fixes bug in MAMA join.DEG.
+#'
+#' Bug was present under condition \code{if (type[i] == 3)}. Column was selected
+#' by number, but is not in general constant. Fix refers to column by name
+#' ("FDR").
+#'
+#' @param ... Outputs from different function for methods of meta-analysis of
+#'        microarray
+#' @param genenames a character vector - names of all genes (or probe ID)
+#'        included in meta-analysis. It can be NULL if the wrapper functions were
+#'        used for the analysis.
+#' @param type a numeric vector idicating from which function the output is,
+#'        kth element in type corresponds to kth element of .... It is not
+#'        needed when wrapper functions where used.
+#' @param cutoff a numeric value - a cutoff level for p-value to select
+#'        significant genes
+#' @seealso \link[MAMA]{join.DEG} for original method.
+#' @return A list in which each slot refers to one meta-analytical method and
+#'         contains names of differentially expressed genes found by the method.
+#' @examples \dontrun{
+#'
+#'}
+
+join.DEG <- function (..., genenames = NULL, type = NULL, cutoff)
 {
     args <- list(...)
     N <- length(args)
@@ -127,7 +212,6 @@ join.DEG_edit <- function (..., genenames = NULL, type = NULL, cutoff)
             if (type[i] == 7) {
                 genelist[[i]] <- unique(unlist(args[[i]]))
             }
-
         }
     }
     return(genelist)

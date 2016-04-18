@@ -5,6 +5,7 @@
 #'
 #' @importFrom GEOquery getGEOSuppFiles gunzip
 #' @importFrom utils untar
+#'
 #' @param gse_names Character vector of GSE names to download.
 #' @param data_dir base data directory (a folder for each GSE will be created
 #'        here).
@@ -50,6 +51,7 @@ get_raw_agil <- function (gse_names, data_dir) {
 #' @importFrom limma read.maimages neqc
 #' @importFrom stringr str_match
 #' @importFrom BiocGenerics annotation
+#'
 #' @param gse_names Character vector of GSE names to load and pre-process.
 #' @param data_dir Character, base data directory (contains a folder with raw
 #'        data for each GSE to be loaded).

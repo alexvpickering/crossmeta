@@ -7,14 +7,14 @@
 iqr_duplicates(eset, annot = "SYMBOL")
 }
 \arguments{
-\item{eset}{eSet with fData column "SYMBOL" or "PROBE".}
+\item{eset}{expression set with fData column "SYMBOL" or "PROBE".}
 
 \item{annot}{Character, one of "PROBE" or "SYMBOL" for probe or gene level
 analysis respectively. For duplicated gene symbols,the feature with
 the highest interquartile range across selected samples will be kept.}
 }
 \value{
-eSet with unique features at probe or gene level.
+expression set with unique features at probe or gene level.
 }
 \description{
 For rows with duplicated annot, highested IQR retained.

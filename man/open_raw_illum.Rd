@@ -16,18 +16,8 @@ Character vector of successfully formatted GSEs (only load these).
 }
 \description{
 Helper utility to open non-normalized Illumina files. User must check and
-possibly edit the file. To help, I recommend downloading Sublime Text 2
-(a text editor with regular expression capabilities). A good regular
-expression cheat-sheat:
-https://www.cheatography.com/davechild/cheat-sheets/regular-expressions/
-}
-\details{
-Check: 1) p-values present (required: usually every second column)
-       2) file format is comma seperated txt file
-
-Column header formats: probeid = "ID_REF",
-                       expression data = "AVG_Signal-sample_name",
-                       pvals = "Detection-sample_name"
+possibly edit the files. To help, I recommend downloading Sublime Text 2
+(a text editor with regular expression capabilities).
 }
 \examples{
 \dontrun{

@@ -12,7 +12,7 @@ add_pvals(eset, pvals)
 \item{pvals}{in Detection slot obtained from \link{read.ilmn}}
 }
 \value{
-expression slot with pvals slot containing detection p-values.
+expression set with pvals slot containing detection p-values.
 }
 \description{
 Adds detection p-vals to pvals slot of illumina expression set.

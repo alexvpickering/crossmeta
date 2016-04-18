@@ -20,17 +20,26 @@ Imports:
     affy,
     affxparser,
     annotate,
+    AnnotationDbi,
     Biobase,
+    BiocGenerics,
+    BiocInstaller,
     dplyr,
+    DBI,
     GeneExpressionSignature,
     GEOmetadb,
     GEOquery,
     limma,
     matrixStats,
     MAMA,
+    metaMA,
     oligo,
     RColorBrewer,
+    RSQLite,
     stringr,
     sva,
     tcltk
 RoxygenNote: 5.0.1
+Suggests: knitr,
+    rmarkdown
+VignetteBuilder: knitr

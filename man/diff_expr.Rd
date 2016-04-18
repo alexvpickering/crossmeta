@@ -2,11 +2,13 @@
 % Please edit documentation in R/diff_utils.R
 \name{diff_expr}
 \alias{diff_expr}
-\title{Differential expression of list of eSets.}
+\title{Differential expression of list of expression sets.}
 \usage{
 diff_expr(esets, data_dir, annot = "SYMBOL", prev_anals = list(NULL))
 }
 \arguments{
+\item{esets}{list from load_affy, load_illum, or load_agil.}
+
 \item{data_dir}{Character, data directory containing GSE folders.}
 
 \item{annot}{Character, one of "PROBE" or "SYMBOL" for probe or gene level
@@ -14,11 +16,20 @@ analysis respectively. For duplicated genes symbols,the feature with
 the highest interquartile range across selected samples will be kept.}
 
 \item{prev_anals}{previous output to re-use previous contrast selections.}
-
-\item{eSet}{list from load_affy, load_illum, or load_agil.}
 }
 \value{
-list needed for subsequent meta-analysis.
+List of lists (one per GSE), each containing:
+        \item{eset}{expression set with selected samples and non-duplicate
+        features named by either gene symbol or probe. pData slot of eset also
+        contains treatment, tissue, and group columns.}
+        \item{top_tables}{list with results of \link{topTable} call (one per
+        contrast). These results model the effect of \link{sva} discovered
+        surrogate variables.}
+        \item{ebayes_sv}{results of call to \link{eBayes} with surrogate
+        variables included in the model matrix.}
+        \item{ebayes}{results of call to \link{eBayes} with surrogate
+        variables NOT included in the model matrix.}
+        \item{mama_data}{list used by \link{make_ma}.}
 }
 \description{
 User selects contrasts, then surrogate variable analysis (sva) and

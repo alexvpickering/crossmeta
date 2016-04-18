@@ -3,7 +3,9 @@
 #' Used by symbol_annot to download annotation data packages from bioconductor.
 #'
 #' @importFrom BiocInstaller biocLite
+#'
 #' @param biocpack_name name of bioconductor package to download.
+#'
 #' @seealso \link{get_biocpack_name}, \link{symbol_annot}.
 #' @return NULL (downloads and loads requested package).
 #' @examples \dontrun{
@@ -32,7 +34,9 @@ get_biocpack <- function(biocpack_name) {
 #' @importFrom DBI dbConnect dbGetQuery dbDisconnect
 #' @importFrom RSQLite SQLite
 #' @importFrom GEOmetadb getSQLiteFile
+#'
 #' @param gpl_name platform name of GSE.
+#'
 #' @seealso \link{symbol_annot}.
 #' @return name of bioconductor package.
 #' @examples \dontrun{
@@ -42,12 +46,12 @@ get_biocpack <- function(biocpack_name) {
 get_biocpack_name <- function (gpl_name) {
 
     #connect to GEOmetadb database
-    meta_dir <- file.path(getwd(), "GEOmetadb.sqlite")
+    meta_path <- file.path(getwd(), "GEOmetadb.sqlite")
 
-    if (!file.exists(meta_dir)) {
+    if (!file.exists(meta_path)) {
         getSQLiteFile()
     }
-    con <- dbConnect(SQLite(), "~/Documents/Batcave/GEO/GEOmetadb.sqlite")
+    con <- dbConnect(SQLite(), meta_path)
 
     #query metadata database
     query <- paste(
@@ -80,9 +84,11 @@ get_biocpack_name <- function (gpl_name) {
 #'
 #' @importFrom Biobase featureNames fvarLabels fData
 #' @importFrom tcltk tk_select.list
+#'
 #' @param eset expression set object to add annotation data to.
 #' @param gpl_name platform name used to look up bioconductor
 #'        annotation data package.
+#'
 #' @seealso \link{load_affy}, \link{load_illum}, \link{load_agil}.
 #' @return eset with gene names (in "SYMBOL" column of fData slot).
 #' @examples \dontrun{
@@ -123,8 +129,10 @@ symbol_annot <- function (eset, gpl_name) {
 #' of comparisons made during differential expression analysis (increases power).
 #'
 #' @importFrom Biobase fData
+#'
 #' @param esets list of annotated expression sets to commonize.
 #' @param annot feature names to commonize by. Either "SYMBOL" or "PROBE".
+#'
 #' @export
 #' @seealso \link{load_affy}, \link{load_illum}, and \link{load_agil} to obtain
 #'          list of annotated esets.
@@ -136,8 +144,15 @@ symbol_annot <- function (eset, gpl_name) {
 #'}
 
 commonize <- function(esets, annot="SYMBOL") {
-    #IN: esets
-    #OUT: esets with common genes (SYMBOL or PROBE)
+
+    esets <- lapply(esets, function(eset) {
+
+      #make gene symbols uppercase
+      fData(eset)[, "SYMBOL"] <- toupper(fData(eset)[, "SYMBOL"])
+      eset
+      })
+
+    #get common genes
     all_genes <- lapply(esets, function(x) unique(fData(x)[, annot]))
     common_genes <- Reduce(intersect, all_genes)
 
@@ -160,12 +175,14 @@ commonize <- function(esets, annot="SYMBOL") {
 #' Uses tcltk to request input from user for group or tissue names.
 #'
 #' @import tcltk
+#'
 #' @param msg Message to display in title bar.
 #' @param box1 Description beside box1.
 #' @param def1 Default value for box1.
 #' @param box2 Description beside box2.
 #' @param def2 Default value for box2.
 #' @param two Do you want two input boxes (one if FALSE)?
+#'
 #' @seealso \link{add_contrasts}
 #' @return Character vector with inputs typed into box1 and/or box2.
 

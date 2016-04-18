@@ -1,19 +1,31 @@
-#' Differential expression of list of eSets.
+#' Differential expression of list of expression sets.
 #'
 #' User selects contrasts, then surrogate variable analysis (sva) and
 #' differential expression (limma) is run.
 #'
-#' @param eSet list from load_affy, load_illum, or load_agil.
+#' @param esets list from load_affy, load_illum, or load_agil.
 #' @param data_dir Character, data directory containing GSE folders.
 #' @param annot Character, one of "PROBE" or "SYMBOL" for probe or gene level
 #'        analysis respectively. For duplicated genes symbols,the feature with
 #'        the highest interquartile range across selected samples will be kept.
 #' @param prev_anals previous output to re-use previous contrast selections.
 #' @export
-#' @return list needed for subsequent meta-analysis.
-#'
+#' @return List of lists (one per GSE), each containing:
+#'         \item{eset}{expression set with selected samples and non-duplicate
+#'         features named by either gene symbol or probe. pData slot of eset also
+#'         contains treatment, tissue, and group columns.}
+#'         \item{top_tables}{list with results of \link{topTable} call (one per
+#'         contrast). These results model the effect of \link{sva} discovered
+#'         surrogate variables.}
+#'         \item{ebayes_sv}{results of call to \link{eBayes} with surrogate
+#'         variables included in the model matrix.}
+#'         \item{ebayes}{results of call to \link{eBayes} with surrogate
+#'         variables NOT included in the model matrix.}
+#'         \item{mama_data}{list used by \link{make_ma}.}
+
 diff_expr <- function (esets, data_dir, annot="SYMBOL", prev_anals=list(NULL)) {
 
+  prev_anals <- prev_anals[names(esets)]
   anals <- list()
   for (i in seq_along(esets)) {
 
@@ -39,14 +51,17 @@ diff_expr <- function (esets, data_dir, annot="SYMBOL", prev_anals=list(NULL)) {
   return (anals)
 }
 
+
 #' Reuse contrast selections from previous analysis.
 #'
 #' Transfers user-supplied selections from previous call of diff_expr.
 #' @importFrom Biobase sampleNames pData
-#' @param eset eSet passed to diff_expr.
+#'
+#' @param eset expression set passed to diff_expr.
 #' @param prev_anal result of previous call to diff_expr.
+#'
 #' @seealso \code{\link{diff_expr}}
-#' @return eSet with samples and phenoData as in prev_anal.
+#' @return expression set with samples and pData as in prev_anal.
 #'
 match_prev_eset <- function(eset, prev_anal) {
 
@@ -68,22 +83,25 @@ match_prev_eset <- function(eset, prev_anal) {
 
 #' Select contrasts for each GSE.
 #'
-#' Function is use by diff_expr to get sample selections for each contrast from
-#' user. After selecting samples, duplicated features (probes or genes) are
-#' removed.
+#' Function is used by \code{diff_expr} to get sample selections for each
+#' contrast from user. After selecting samples, duplicated features
+#' (probes or genes) are removed.
 #'
 #' @importFrom Biobase sampleNames pData
 #' @importFrom tcltk tk_select.list
 #' @importFrom stringr str_extract
-#' @param eset single eSet passed to diff_expr.
+#'
+#' @param eset expression set with "SYMBOL" column in \code{fData}.
 #' @param gse_name Character, GSE name of eset.
 #' @param annot Character, one of "PROBE" or "SYMBOL" for probe or gene level
 #'        analysis respectively. For duplicated gene symbols,the feature with
 #'        the highest interquartile range across selected samples will be kept.
 #' @param prev_anal result of previous call to diff_expr
+#'
 #' @seealso \code{\link{diff_expr}}
 #' @return list needed for \code{\link{diff_setup}}
 #'
+
 add_contrasts <- function (eset, gse_name, annot="SYMBOL", prev_anal) {
 
     if (!is.null(prev_anal)) {
@@ -185,11 +203,12 @@ add_contrasts <- function (eset, gse_name, annot="SYMBOL", prev_anal) {
 #' @import dplyr
 #' @importFrom Biobase fData sampleNames exprs
 #' @importFrom matrixStats rowIQRs
-#' @param eset eSet with fData column "SYMBOL" or "PROBE".
+#'
+#' @param eset expression set with fData column "SYMBOL" or "PROBE".
 #' @param annot Character, one of "PROBE" or "SYMBOL" for probe or gene level
 #'        analysis respectively. For duplicated gene symbols,the feature with
 #'        the highest interquartile range across selected samples will be kept.
-#' @return eSet with unique features at probe or gene level.
+#' @return expression set with unique features at probe or gene level.
 #'
 iqr_duplicates <- function (eset, annot="SYMBOL") {
 
@@ -198,7 +217,7 @@ iqr_duplicates <- function (eset, annot="SYMBOL") {
 
     data <- as.data.frame(exprs(eset))
     #add inter-quartile ranges to data
-    data$IQR <- rowIQRs(data)
+    data$IQR <- rowIQRs(exprs(eset))
     #add feature data
     data[, colnames(fData(eset))] <- fData(eset)
 
@@ -234,8 +253,10 @@ iqr_duplicates <- function (eset, annot="SYMBOL") {
 #'
 #' @importFrom Biobase pData exprs
 #' @importFrom sva sva
-#' @param eset eSet with "group" column in phenoData.
+#'
+#' @param eset eset with "group" column in phenoData.
 #' @param group_levels unique group names created by \code{\link{add_contrasts}}.
+#'
 #' @seealso \code{\link{add_contrasts}}, \code{\link{diff_expr}}.
 #' @return list with model matrix(mod), model matrix with surrogate
 #'         variables(modsv), and result of \code{\link{sva}} function.
@@ -272,7 +293,8 @@ diff_setup <- function(eset, group_levels){
 #' @importFrom Biobase pData exprs
 #' @importFrom limma topTable plotMDS
 #' @importFrom RColorBrewer brewer.pal
-#' @param eset eSet, generated by \code{\link{add_contrasts}}.
+#'
+#' @param eset eset, generated by \code{\link{add_contrasts}}.
 #' @param contrasts Character vector, generated by \code{\link{add_contrasts}}.
 #' @param group_levels Character vector, generated by \code{\link{add_contrasts}}.
 #' @param mama_data List, generated by \code{\link{add_contrasts}}.
@@ -285,6 +307,7 @@ diff_setup <- function(eset, group_levels){
 #' @param gse_name Character, name of GSE.
 #' @param annot one of "SYMBOL" or "PROBE". Different save names used for each
 #'        so that can run analysis both at gene or probe level.
+#'
 #' @seealso \code{\link{diff_expr}}.
 #' @return List, final result of \code{diff_expr}. Used for subsequent meta-analysis.
 
@@ -344,10 +367,12 @@ diff_anal <- function(eset, contrasts, group_levels, mama_data,
 #'
 #' @importFrom Biobase exprs
 #' @importFrom limma makeContrasts lmFit eBayes contrasts.fit
-#' @param eset eSet, generated by \code{\link{add_contrasts}}.
+#'
+#' @param eset eset, generated by \code{\link{add_contrasts}}.
 #' @param contrasts Character vector, generated by \code{\link{add_contrasts}}.
 #' @param mod model matrix (with or without surrogate variables modeled),
 #'        generated by \code{\link{diff_setup}}.
+#'
 #' @return result from called to limma \code{\link{eBayes}}.
 
 fit_ebayes <- function(eset, contrasts, mod) {
@@ -360,15 +385,18 @@ fit_ebayes <- function(eset, contrasts, mod) {
 #------------------------
 
 
-#' Generate eSet for each contrast.
+#' Generate eset for each contrast.
 #'
-#' Sets up eSets for \link{MAMA}. An eset is generated using only the supplied
-#' sample names. Used to generate eSet for each contrast within a GSE.
+#' Sets up esets for \link[MAMA]{MetaArray-class}. An eset is generated using
+#' only the supplied sample names. Used to generate eset for each contrast
+#' within a GSE.
 #'
 #' @importFrom Biobase exprs
+#'
 #' @param sample_names Character vector, sample names to include in eset.
-#' @param eset eSet to subset.
+#' @param eset eset to subset.
 #' @param data expression data for eset (sva-adjusted or not).
+#'
 #' @seealso  \code{\link{clean_y}}.
 #' @return eset including only the supplied sample names.
 
@@ -391,6 +419,7 @@ get_contrast_esets <- function(sample_names, eset, data=exprs(eset)) {
 #' @param y expression data of eset.
 #' @param mod full model matrix supplied to \link{sva}.
 #' @param svs surrogate variables returned by \link{sva} (svobj$sv).
+#'
 #' @seealso \code{\link{get_contrast_esets}}.
 #' @return expression data with effect of svs removed.
 

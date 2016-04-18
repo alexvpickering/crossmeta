@@ -7,7 +7,7 @@
 diff_setup(eset, group_levels)
 }
 \arguments{
-\item{eset}{eSet with "group" column in phenoData.}
+\item{eset}{eset with "group" column in phenoData.}
 
 \item{group_levels}{unique group names created by \code{\link{add_contrasts}}.}
 }

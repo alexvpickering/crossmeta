@@ -2,3 +2,5 @@
 ^\.Rproj\.user$
 
 ^data\.+$
+^GEOmetadb.sqlite$
+^\.ipynb_checkpoints$

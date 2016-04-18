@@ -7,12 +7,12 @@
 match_prev_eset(eset, prev_anal)
 }
 \arguments{
-\item{eset}{eSet passed to diff_expr.}
+\item{eset}{expression set passed to diff_expr.}
 
 \item{prev_anal}{result of previous call to diff_expr.}
 }
 \value{
-eSet with samples and phenoData as in prev_anal.
+expression set with samples and pData as in prev_anal.
 }
 \description{
 Transfers user-supplied selections from previous call of diff_expr.
