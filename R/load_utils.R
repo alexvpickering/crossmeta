@@ -1,3 +1,46 @@
+#' Download and unpack microarray supplementary files from GEO.
+#'
+#' Downloads and unpacks microarray supplementary files from GEO.
+#' Files are stored in the supplied data directory under the GSE name.
+#'
+#' @importFrom GEOquery getGEOSuppFiles gunzip
+#' @importFrom utils untar
+#'
+#' @param gse_names Character vector of GSE names to download.
+#' @param data_dir base data directory (a folder for each GSE will be created
+#'        here).
+#' @export
+#' @seealso
+#' @return NULL (for download/unpack only).
+#' @examples \dontrun{
+#'
+#'}
+#'
+
+get_raw <- function (gse_names, data_dir) {
+
+  for (gse_name in gse_names) {
+
+    gse_dir <- paste(data_dir, gse_name, sep="/")
+    #get raw data
+    if (!file.exists(gse_dir)) {
+      getGEOSuppFiles(gse_name, baseDir=data_dir)
+    }
+    #untar
+    tar_names <- list.files(gse_dir, pattern="tar")
+    untar(paste(gse_dir, tar_names, sep="/"), exdir=gse_dir)
+
+    #unzip
+    paths <- list.files(gse_dir, pattern=".gz", full.names=T, ignore.case=T)
+    sapply(paths, gunzip, overwrite=T)
+  }
+}
+
+
+
+
+
+
 #' Downloads bioconductor package.
 #'
 #' Used by symbol_annot to download annotation data packages from bioconductor.

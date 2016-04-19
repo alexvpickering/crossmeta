@@ -27,7 +27,7 @@ In practice, it is best to select all GSEs matching the necessary criteria
 and from either Affymetrix, Illumina, or Agilent mouse/human platforms).
 
 After you have chosen all the GSEs that you want to run a meta-analysis on,
-the next step is to obtain the raw data:
+the next step is to obtain and uncompress the raw data:
 
 ```{r, eval=FALSE}
 library(crossmeta)
