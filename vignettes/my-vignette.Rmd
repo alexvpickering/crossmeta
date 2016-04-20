@@ -33,15 +33,15 @@ the next step is to obtain and uncompress the raw data:
 library(crossmeta)
 
 #specify where data will be downloaded
-data_dir <- file.path(getwd(), "data", "LY294002")
+data_dir <- file.path(getwd(), "data", "LY")
 
 #gather GSE names into a vector for each manufacturer
 affy_names  <- c("GSE9601", "GSE15069")
 illum_names <- c("GSE50841", "GSE34817", "GSE29689")
 
 #obtain the raw data(supplementary files).
-get_raw_affy(affy_names, data_dir)
-get_raw_illum(illum_names, data_dir)
+gse_names <- c(affy_names, illum_names)
+get_raw(gse_names, data_dir)
 
 ```
 
@@ -89,8 +89,7 @@ For **GSE29689** just change PROBE_ID to ID_REF.
 Now that the data is downloaded (and Illumina data is in correct format), we
 must load and annotate the data. Annotation requires the ~4Gb GEOmetadb.sqlite 
 file in your working directory (to lookup bioconductor annotation data packages).
-Transfer it here if you have it, otherwise it will be downloaded. All
-relevant bioconductor annotation data packages will also be downloaded. 
+Download/move GEOmetadb.sqlite to your working directory if required. All relevant bioconductor annotation data packages will be downloaded. 
 
 If GEOmetadb.sqlite lacks information on the bioconductor annotation data package
 for a given platform, entry will be requested. Use the default entry (platform title)

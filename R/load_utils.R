@@ -28,17 +28,14 @@ get_raw <- function (gse_names, data_dir) {
     }
     #untar
     tar_names <- list.files(gse_dir, pattern="tar")
-    untar(paste(gse_dir, tar_names, sep="/"), exdir=gse_dir)
-
+    if (length(tar_names) > 0) {
+      untar(paste(gse_dir, tar_names, sep="/"), exdir=gse_dir)
+    }
     #unzip
     paths <- list.files(gse_dir, pattern=".gz", full.names=T, ignore.case=T)
     sapply(paths, gunzip, overwrite=T)
   }
 }
-
-
-
-
 
 
 #' Downloads bioconductor package.
@@ -92,7 +89,8 @@ get_biocpack_name <- function (gpl_name) {
     meta_path <- file.path(getwd(), "GEOmetadb.sqlite")
 
     if (!file.exists(meta_path)) {
-        getSQLiteFile()
+        stop("GEOmetadb.sqlite not in working directory. See
+              ?GEOmetadb::getSQLiteFile")
     }
     con <- dbConnect(SQLite(), meta_path)
 
