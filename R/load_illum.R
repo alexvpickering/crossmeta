@@ -1,19 +1,24 @@
 #' Opens non-normalized Illumina txt and xls files.
 #'
-#' Helper utility to open non-normalized Illumina files. User must check and
-#' possibly edit the files. To help, I recommend downloading Sublime Text 2
-#' (a text editor with regular expression capabilities).
+#' Helper utility opens non-normalized Illumina files. User must check and
+#' possibly edit the files.
 #'
-#' @importFrom tcltk tk_select.list
+#' To help, I recommend Sublime Text 2 (a text editor with regular expression
+#' capabilities). See package vignette for example of process.
 #'
 #' @param gse_names Character vector of GSE names to open raw files for.
-#' @param data_dir base data directory (contains folder for each GSE).
+#' @param data_dir String specifying directory with GSE folders.
 #'
 #' @export
-#' @seealso \code{\link{load_illum}}, \code{\link{get_raw_illum}}.
-#' @return Character vector of successfully formatted GSEs (only load these).
+#' @seealso \code{\link{get_raw}}, \code{\link{load_raw}}.
+#' @return Character vector specifying successfully formatted GSEs. Only these
+#'   Illumina GSEs can be loaded by \code{load_raw}.
 #' @examples \dontrun{
+#' library(lydata)
+#' illum_names <- c("GSE50841", "GSE34817", "GSE29689")
 #'
+#' #this will open raw data using default program
+#' illum_names <- open_raw_illum(illum_names, data_dir)
 #'}
 
 open_raw_illum <- function (gse_names, data_dir) {
@@ -29,9 +34,9 @@ open_raw_illum <- function (gse_names, data_dir) {
         for (j in seq_along(data_paths)) system2("xdg-open", data_paths[j])
 
         #check success
-        success <- tk_select.list(choices = c("Yes", "No"),
-                                  title = paste(gse_names[i],
-                                                "formated successfully?"))
+        success <- tcltk::tk_select.list(choices = c("Yes", "No"),
+                                         title = paste(gse_names[i],
+                                                       "formated successfully?"))
         #remove unsuccessful
         if (success == "No") out_names <- setdiff(out_names, gse_names[i])
     }
@@ -40,27 +45,21 @@ open_raw_illum <- function (gse_names, data_dir) {
 
 #------------------------
 
-#' Load and pre-process raw Illum files for multiple GSEs.
-#'
-#' Load raw txt files previously downloaded with \code{get_raw_illum} and checked
-#' for format (see \code{\link{open_raw_illum}}). Data is normalized using neqc,
-#' detection p-values are added to pvals slot and gene SYMBOLs are added to
-#' featureData slot.
-#'
-#' @importFrom GEOquery getGEO
-#' @importFrom limma read.ilmn neqc backgroundCorrect
-#' @importFrom Biobase featureNames sampleNames pData exprs
-#'
-#' @param gse_names Character vector of GSE names to load and pre-process.
-#' @param data_dir Character, base data directory (contains a folder with raw
-#'        data for each GSE to be loaded).
-#' @export
-#' @seealso \code{\link{get_raw_illum}} to obtain raw Illumina files and
-#'          \code{\link{open_raw_illum}} to ensure their correctness.
-#' @return list of processed esets.
-#' @examples \dontrun{
-#'
-#'}
+# Load and pre-process raw Illum files.
+#
+# Load raw txt files previously downloaded with \code{get_raw} and checked
+# for format with \code{open_raw_illum}. Used by \code{load_raw}.
+#
+# Data is normalized, SYMBOL and PROBE annotation are added to fData slot, and
+# detection p-values are added to pvals slot.
+#
+# @param gse_names Character vector of Illumina GSE names.
+# @param data_dir String specifying directory with GSE folders.
+#
+# @seealso \code{\link{get_raw}} to obtain raw Illumina data.
+#   \code{\link{open_raw_illum}} to ensure their correctness.
+
+# @return List of annotated esets.
 
 load_illum <- function (gse_names, data_dir) {
 
@@ -70,16 +69,19 @@ load_illum <- function (gse_names, data_dir) {
       gse_dir <- paste(data_dir, gse_name, sep="/")
 
       #get GSEMatrix (for pheno data)
-      eset <- getGEO(gse_name, destdir=gse_dir, GSEMatrix=T)[[1]]
+      eset <- GEOquery::getGEO(gse_name, destdir=gse_dir, GSEMatrix=T)[[1]]
 
       #load non-normalized txt files and normalize
       data_paths <- list.files(gse_dir, pattern="non.norm.*txt", full.names=T)
-      data <- read.ilmn(data_paths, probeid="ID_REF")
+      data <- limma::read.ilmn(data_paths, probeid="ID_REF")
       data <- tryCatch (
-        neqc(data),
+          limma::neqc(data),
         error = function(cond) {
-          return(backgroundCorrect(data,method="normexp"))}
-        )
+          data <- limma::backgroundCorrect(data, method="normexp",
+                                           normexp.method="rma", offset=16)
+
+          return(limma::normalizeBetweenArrays(data, method="quantile"))
+        })
 
       #transfer exprs from data to eset (maintaining eset feature order)
       feature_order <- featureNames(eset)
@@ -102,19 +104,15 @@ load_illum <- function (gse_names, data_dir) {
 }
 
 
-#' Add detection p-values to Illumina expression set.
-#'
-#' Adds detection p-vals to pvals slot of illumina expression set.
-#'
-#' @importFrom Biobase storageMode assayData
-#'
-#' @param eset Illumina expression set to add pvals slot to.
-#' @param pvals in Detection slot obtained from \link{read.ilmn}
-#'
-#' @return expression set with pvals slot containing detection p-values.
-#' @examples \dontrun{
-#'
-#'}
+# Add detection p-values to Illumina expression set.
+#
+# Adds detection p-vals to pvals slot of illumina expression set. Used by
+# \code{load_illum}.
+#
+# @param eset Illumina expression set to add pvals slot to.
+# @param pvals Detection slot obtained from \link{read.ilmn}
+#
+# @return Expression set with detection p-values in pvals slot.
 
 add_pvals <- function (eset, pvals) {
     storageMode(eset) = "environment"

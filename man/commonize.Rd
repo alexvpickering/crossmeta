@@ -2,33 +2,44 @@
 % Please edit documentation in R/load_utils.R
 \name{commonize}
 \alias{commonize}
-\title{Keep only common features for a list of esets.}
+\title{Keep annotation features shared by a list of esets.}
 \usage{
 commonize(esets, annot = "SYMBOL")
 }
 \arguments{
-\item{esets}{list of annotated expression sets to commonize.}
+\item{esets}{List of annotated esets. Created by \code{load_raw}.}
 
-\item{annot}{feature names to commonize by. Either "SYMBOL" or "PROBE".}
+\item{annot}{String, either "PROBE" or "SYMBOL" to keep common probes or genes
+respectively. "PROBE" only useful if all esets from similar platforms by
+the same manufacturer.}
 }
 \value{
-list of esets with where all features (probe or gene) are common.
+List of esets with where annotation features (probe or gene) are common.
 }
 \description{
 Used prior to differential expression analysis (diff_expr) to remove
-non-common features (either gene or probe name). The subsequent meta-analysis
-uses common features only, so eliminating non-common features reduces the number
-of comparisons made during differential expression analysis (increases power).
+non-common features (either gene or probe name).
+The subsequent meta-analysis uses common features only, so eliminating
+non-common features reduces the number of comparisons made during differential
+expression analysis (increases power).
 }
 \examples{
 \dontrun{
+library(lydata)
+data_dir <- system.file("extdata", package = "lydata")
 
+#load esets
+gse_names<- c("GSE9601", "GSE34817")
+esets <- load_raw(gse_names, data_dir)
+
+#commonize
+esets_com <- commonize(esets)
 }
 }
 \seealso{
-\link{load_affy}, \link{load_illum}, and \link{load_agil} to obtain
-         list of annotated esets.
-         \link{diff_expr} to run differential expression subsequent to
-         \code{commonize}.
+\code{\link{load_raw}} to create list of annotated esets.
+
+  \code{\link{diff_expr}} to run differential expression analysis after
+  \code{commonize}.
 }
 

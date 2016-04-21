@@ -2,37 +2,73 @@
 % Please edit documentation in R/diff_utils.R
 \name{diff_expr}
 \alias{diff_expr}
-\title{Differential expression of list of expression sets.}
+\title{Differential expression of esets.}
 \usage{
 diff_expr(esets, data_dir, annot = "SYMBOL", prev_anals = list(NULL))
 }
 \arguments{
-\item{esets}{list from load_affy, load_illum, or load_agil.}
+\item{esets}{List of annotated esets. Created by \code{load_raw}.}
 
-\item{data_dir}{Character, data directory containing GSE folders.}
+\item{data_dir}{String specifying directory of GSE folders.}
 
-\item{annot}{Character, one of "PROBE" or "SYMBOL" for probe or gene level
+\item{annot}{String, either "PROBE" or "SYMBOL" for probe or gene level
 analysis respectively. For duplicated genes symbols,the feature with
 the highest interquartile range across selected samples will be kept.}
 
-\item{prev_anals}{previous output to re-use previous contrast selections.}
+\item{prev_anals}{Previous result of \code{diff_expr}. If Present, previous
+selections and names will be reused.}
 }
 \value{
 List of lists (one per GSE), each containing:
-        \item{eset}{expression set with selected samples and non-duplicate
-        features named by either gene symbol or probe. pData slot of eset also
-        contains treatment, tissue, and group columns.}
-        \item{top_tables}{list with results of \link{topTable} call (one per
-        contrast). These results model the effect of \link{sva} discovered
-        surrogate variables.}
-        \item{ebayes_sv}{results of call to \link{eBayes} with surrogate
-        variables included in the model matrix.}
-        \item{ebayes}{results of call to \link{eBayes} with surrogate
-        variables NOT included in the model matrix.}
-        \item{mama_data}{list used by \link{make_ma}.}
+  \item{eset}{Expression set with selected samples and non-duplicate
+     features named by either gene symbol or probe. Treatment (ctl or test),
+     tissue, and group columns have been added to the \code{pData} slot.}
+  \item{top_tables}{List with results of \code{\link{topTable}} call (one per
+     contrast). These results account for the effects of nuissance variables
+     discovered by surrogate variable analysis.}
+  \item{ebayes_sv, ebayes}{Results of call to \code{\link{eBayes}}, with
+     surrogate variables included and not included in the model matrix.}
+  \item{mama_data}{List used by \code{\link{make_ma}} to generate MetaArray
+     object.}
 }
 \description{
 User selects contrasts, then surrogate variable analysis (sva) and
-differential expression (limma) is run.
+differential expression analysis (limma) is performed.
+}
+\details{
+For each GSE, analysis results are saved in the corresponding GSE
+folder (in \code{data_dir}) that was created by \code{get_raw}. If analysis
+needs to be repeated, previous results can be reloaded with \code{load_diff}
+and supplied to the \code{prev_anals} parameter. In this case, previous
+selections/names will be reused.
+}
+\examples{
+\dontrun{
+library(lydata)
+
+#location of raw data
+data_dir <- system.file("extdata", package = "lydata")
+
+#gather GSE names
+affy_names  <- c("GSE9601", "GSE15069")
+illum_names <- c("GSE50841", "GSE34817", "GSE29689")
+gse_names   <- c(affy_names, illum_names)
+
+#load and commonize esets
+esets <- load_raw(gse_names, data_dir)
+com_esets <- commonize(esets)
+
+#run analysis
+anals <- diff_expr(com_esets, data_dir)
+
+#re-run analysis
+prev <- load_diff(gse_names, data_dir)
+anals <- diff_expr(com_esets, data_dir, prev_anals=prev)
+}
+
+}
+\seealso{
+\code{\link{get_raw}}, \code{\link{load_raw}}, and
+  \code{\link{load_diff}}.
 }
 

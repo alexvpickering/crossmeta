@@ -3,7 +3,7 @@
 .RData
 .ipynb_checkpoints/
 .sqlite
-.Rproj
+crossmeta.Rproj
 
 #directories
 literature/

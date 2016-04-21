@@ -1,5 +1,9 @@
-
-
+# Check for commonize.
+#
+# @param esets List of expression sets.
+#
+# @return TRUE if featureNames of all esets are the same. Otherwise, FALSE.
+#
 
 same_features <- function(esets) {
 

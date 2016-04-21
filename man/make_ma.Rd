@@ -7,22 +7,20 @@
 make_ma(diff_exprs, sva)
 }
 \arguments{
-\item{diff_exprs}{result of call to \code{diff_expr} or \code{load_diff}.}
+\item{diff_exprs}{Result from \code{diff_expr} or \code{load_diff}.}
 
 \item{sva}{Use esets with effect of surrogate variables removed? If FALSE,
-none-adjusted esets will be used.}
+non-adjusted esets will be used.}
 }
 \value{
 MetaArray object.
 }
 \description{
-Function is used to construct a MetaArray object from results of call to
-\code{diff_expr} or \code{load_diff}. MetaArray object allows for use of
-all meta-analysis methods present in MAMA package.
+Function is used to construct a MetaArray object from results of
+\code{diff_expr}. MetaArray object allows for use of meta-analysis methods
+present in MAMA package.
 }
 \seealso{
-\link[MAMA]{MetaArray-class} for possible meta-analysis methods.
-
-         \link{diff_expr} or \link{load_diff} to obtain \code{diff_expr}.
+\link[MAMA]{MetaArray-class}, \link{diff_expr}, and \link{load_diff}.
 }
 

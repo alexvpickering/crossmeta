@@ -7,22 +7,24 @@
 load_diff(gse_names, data_dir, probe = F)
 }
 \arguments{
-\item{gse_names}{Character vector of GSE names to be loaded.}
+\item{gse_names}{Character vector specifying GSE names to be loaded.}
 
-\item{data_dir}{base data directory containing a folder for each GSE name.}
+\item{data_dir}{String specifying directory of GSE folders.}
 
-\item{probe}{Load probe level analysis? If FALSE, loads gene level analysis.}
-}
-\value{
-saved results from previous call to \code{diff_expr}.
+\item{probe}{Load probe level analysis? Default loads gene level analysis.}
 }
 \description{
-Previous runs of diff_expr are loaded.
+Previous runs of \code{diff_expr} are loaded.
 }
 \examples{
+library(lydata)
+library(crossmeta)
 
+data_dir <- system.file("extdata", package = "lydata")
+gse_names<- c("GSE9601", "GSE34817")
+prev <- load_diff(gse_names, data_dir)
 }
 \seealso{
-\link{diff_expr}
+\code{\link{diff_expr}}.
 }
 

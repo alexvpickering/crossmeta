@@ -1,22 +1,18 @@
-#' Extract run date from Affymetrix CEL file.
-#'
-#' Useful for defining sample batches for \code{\link{ComBat}}. No longer
-#' used by crossmeta, which discovers nuissance variables using \code{\link{sva}}.
-#'
-#' @importFrom affxparser readCelHeader
-#'
-#' @param cel_paths Charactor vector, full paths to CEL files.
-#'
-#' @export
-#' @seealso \code{\link{ComBat}}
-#' @return Factor vector of CEL run dates.
-#'
+# Extract scan date from Affymetrix CEL file.
+#
+# Useful for defining sample batches for \code{ComBat}. No longer
+# used by crossmeta, which discovers nuissance variables using \code{sva}.
+#
+# @param cel_paths Charactor vector specifying full paths to CEL files.
+#
+# @seealso \code{\link{ComBat}}
+# @return Factor vector of CEL scan dates.
+
 cel_dates <- function(cel_paths) {
-  #IN: vector with paths to CEL files
-  #OUT: vector of CEL scan dates
+
   scan_dates <- c()
   for (i in seq_along(cel_paths)) {
-    datheader <- readCelHeader(cel_paths[i])$datheader
+    datheader <- affxparser::readCelHeader(cel_paths[i])$datheader
     scan_date <- gsub(".*([0-9]{2}/[0-9]{2}/[0-9]{2}).*", "\\1", datheader)
     scan_dates[i] <- scan_date
   }
@@ -27,24 +23,19 @@ cel_dates <- function(cel_paths) {
 #------------------------
 
 
-#' Load and pre-process raw Affymetrix CEL files for multiple GSEs.
-#'
-#' Load raw CEL files previously downloaded with \code{get_raw_affy}. Data is
-#' RMA normalized, CEL scan dates are extracted and added to phenoData slots,
-#' and gene SYMBOLs are added to featureData slots.
-#'
-#' @importFrom GEOquery getGEO
-#'
-#' @param gse_names Character vector of GSE names to load and pre-process.
-#' @param data_dir Character, base data directory (contains a folder with raw
-#'        data for each GSE to be loaded).
-#' @export
-#' @seealso \code{\link{get_raw_affy}} to obtain raw Affymetrix CEL files for
-#'          multiple GSEs.
-#' @return list of processed esets (one for each unique GSE/GPL platform).
-#' @examples \dontrun{
-#'
-#'}
+# Load and pre-process raw Affymetrix CEL files for multiple GSEs.
+#
+# Load raw CEL files previously downloaded with \code{get_raw_affy}. Used by
+# \code{load_raw}.
+
+# Data is normalized, SYMBOL and PROBE annotation are added to fData slot, and
+# scan dates are added to pData slot.
+#
+# @param gse_names Character vector of Affymetrix GSE names.
+# @param data_dir String specifying directory with GSE folders.
+#
+# @seealso \code{\link{get_raw}} to obtain raw data.
+# @return List of annotated esets (one for each unique GSE/GPL platform).
 
 load_affy <- function (gse_names, data_dir) {
 
@@ -53,7 +44,7 @@ load_affy <- function (gse_names, data_dir) {
       gse_dir <- paste(data_dir, gse_name, sep="/")
 
       #get GSEMatrix (for pheno data)
-      eset <- getGEO(gse_name, destdir=gse_dir, GSEMatrix=T)
+      eset <- GEOquery::getGEO(gse_name, destdir=gse_dir, GSEMatrix=T)
 
       #load eset for each platform in GSE
       esets[[gse_name]] <- lapply(eset,load_affy_plat, gse_dir)
@@ -66,25 +57,19 @@ load_affy <- function (gse_names, data_dir) {
 }
 
 
-#' Get eset names for load_affy.
-#'
-#' Helper function to get around issue of a single GSE having multiple platforms
-#' (and thus \link{getGEO} returns a list of esets). To distinguish these cases,
-#'  the GPL platform is appended to the GSE name.
-#'
-#'
-#' @importFrom BiocGenerics annotation
-#'
-#' @param esets loaded by \code{load_affy}.
-#' @param gse_names argument supplied to \code{load_affy}.
-#'
-#' @seealso \code{\link{load_affy}}
-#' @return Character vector of GSE names with GPL appended when multiple
-#'         platforms per GSE.
-#' @examples \dontrun{
-#'
-#'}
-#'
+# Get eset names for load_affy.
+#
+# Helper function to get around issue of a single GSE having multiple platforms
+# (and thus \code{getGEO} returns a list of esets). To distinguish these cases,
+# the GPL platform is appended to the GSE name.
+#
+# @param List of annotated esets. Created by \code{load_affy}.
+# @param gse_names Character vector of GSE names for each eset.
+#
+# @seealso \code{\link{load_affy}}
+# @return Character vector of GSE names with GPL appended when multiple
+#   platforms per GSE.
+
 get_eset_names <- function(esets, gse_names) {
   eset_names <- c()
 
@@ -104,28 +89,17 @@ get_eset_names <- function(esets, gse_names) {
 }
 
 
+# Helper utility for load_affy.
+#
+# Used by load_affy to load an eset for each GPL platform in a GSE.
+#
+# @param eset Expression set obtained by load_affy call to getGEO.
+# @param gse_dir String specifying path to GSE folder.
+#
+# @seealso \code{\link{load_affy}}.
+# @return Annotated eset with scan_date in pData slot.
 
-#' Helper utility for load_affy.
-#'
-#' Used by load_affy to load an eset for each GPL platform in a GSE.
-#'
-#' @importFrom Biobase sampleNames featureNames fData pData
-#' @importFrom affy ReadAffy
-#' @importFrom oligo read.celfiles
-#' @importFrom stringr str_extract
-#' @importFrom BiocGenerics annotation
-#'
-#' @param eset GSEMatrix obtained by load_affy call to getGEO.
-#' @param gse_dir directory containing raw data for GSE.
-#'
-#' @seealso \code{\link{load_affy}}
-#' @return eset with scan_date in pData slot and SYMBOL in fData slot.
-#' @examples \dontrun{
-#'
-#'}
-#'
 load_affy_plat <- function (eset, gse_dir) {
-    #used by load_affy to load eset for each platform in GSE
 
     sample_names <- sampleNames(eset)
     pattern <- paste(".*", sample_names, ".*CEL", collapse="|", sep="")
@@ -133,20 +107,20 @@ load_affy_plat <- function (eset, gse_dir) {
     cel_paths <- list.files(gse_dir, pattern, full.names=T, ignore.case=T)
     data <- tryCatch (
         {
-        raw_data <- ReadAffy (celfile.path=gse_dir)
+        raw_data <- affy::ReadAffy (celfile.path=gse_dir)
         affy::rma(raw_data)
         },
         warning = function(cond) {
-            raw_data <- read.celfiles(cel_paths)
+            raw_data <- oligo::read.celfiles(cel_paths)
             return (oligo::rma(raw_data))
         },
         error = function(cond) {
-            raw_data <- read.celfiles(cel_paths)
+            raw_data <- oligo::read.celfiles(cel_paths)
             return (oligo::rma(raw_data))
         }
     )
     #rename samples in data
-    sampleNames(data) <- str_extract(sampleNames(data), "GSM[0-9]+")
+    sampleNames(data) <- stringr::str_extract(sampleNames(data), "GSM[0-9]+")
 
     #transfer exprs from data to eset (maintaining eset sample/feature order)
     sample_order <- sampleNames(eset)
@@ -163,7 +137,6 @@ load_affy_plat <- function (eset, gse_dir) {
             return(eset)
         }
     )
-
     #add scan dates to pheno data (maintaining eset sample order)
     scan_dates <- cel_dates (cel_paths)
     names(scan_dates) <- sampleNames(data)

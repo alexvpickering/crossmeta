@@ -1,56 +1,101 @@
 #' Download and unpack microarray supplementary files from GEO.
 #'
-#' Downloads and unpacks microarray supplementary files from GEO.
-#' Files are stored in the supplied data directory under the GSE name.
-#'
-#' @importFrom GEOquery getGEOSuppFiles gunzip
-#' @importFrom utils untar
+#' Downloads and unpacks microarray supplementary files from GEO. Files are
+#' stored in the supplied data directory under the GSE name.
 #'
 #' @param gse_names Character vector of GSE names to download.
-#' @param data_dir base data directory (a folder for each GSE will be created
-#'        here).
-#' @export
-#' @seealso
+#' @param data_dir  String specifying directory for GSE folders.
+#'
+#' @seealso \code{\link{load_raw}}, \code{\link{open_raw_illum}}.
 #' @return NULL (for download/unpack only).
-#' @examples \dontrun{
-#'
-#'}
-#'
+#' @export
+#' @examples
+#' get_raw("GSE41845")
 
-get_raw <- function (gse_names, data_dir) {
+get_raw <- function (gse_names, data_dir=getwd()) {
 
   for (gse_name in gse_names) {
 
     gse_dir <- paste(data_dir, gse_name, sep="/")
     #get raw data
     if (!file.exists(gse_dir)) {
-      getGEOSuppFiles(gse_name, baseDir=data_dir)
+        GEOquery::getGEOSuppFiles(gse_name, baseDir=data_dir)
     }
     #untar
     tar_names <- list.files(gse_dir, pattern="tar")
     if (length(tar_names) > 0) {
-      untar(paste(gse_dir, tar_names, sep="/"), exdir=gse_dir)
+      utils::untar(paste(gse_dir, tar_names, sep="/"), exdir=gse_dir)
     }
     #unzip
     paths <- list.files(gse_dir, pattern=".gz", full.names=T, ignore.case=T)
-    sapply(paths, gunzip, overwrite=T)
+    sapply(paths, GEOquery::gunzip, overwrite=T)
   }
 }
 
+#-----------
 
-#' Downloads bioconductor package.
+#' Load and annotate raw data downloaded from GEO.
 #'
-#' Used by symbol_annot to download annotation data packages from bioconductor.
+#' Loads and annotates raw data previously downloaded with \code{get_raw}.
+#' Supported platforms include Affymetrix, Agilent, and Illumina.
 #'
-#' @importFrom BiocInstaller biocLite
 #'
-#' @param biocpack_name name of bioconductor package to download.
+#' @param gse_names Character vector of GSE names.
+#' @param data_dir  String specifying directory with GSE folders.
 #'
-#' @seealso \link{get_biocpack_name}, \link{symbol_annot}.
-#' @return NULL (downloads and loads requested package).
-#' @examples \dontrun{
+#' @seealso \code{\link{get_raw}} to obtain raw data.
 #'
-#'}
+#' @return List of annotated esets.
+#' @export
+#' @examples
+#' library(lydata)
+#' data_dir <- system.file("extdata", package = "lydata")
+#' eset <- load_raw("GSE9601", data_dir)
+
+load_raw <- function(gse_names, data_dir=getwd()) {
+
+    affy_names  <- c()
+    agil_names  <- c()
+    illum_names <- c()
+
+    for (gse_name in gse_names) {
+
+        #determine platform (based on filenames)
+        gse_dir <- paste(data_dir, gse_name, sep="/")
+
+        affy  <- list.files(gse_dir, ".CEL", ignore.case=T)
+        agil  <- list.files(gse_dir, "GSM.*txt", ignore.case=T)
+        illum <- list.files(gse_dir, "non.norm.*txt", ignore.case=T)
+
+        #add to appropriate names vector
+        if (length(affy) != 0) {
+            affy_names  <- c(affy_names, gse_name)
+
+        } else if  (length(agil) != 0) {
+            agil_names  <- c(agil_names, gse_name)
+
+        } else if (length(illum) != 0) {
+            illum_names <- c(illum_names, gse_name)
+        }
+    }
+
+    #load esets
+    affy_esets  <- load_affy(affy_names, data_dir)
+    agil_esets  <- load_agil(agil_names, data_dir)
+    illum_esets <- load_illum(illum_names, data_dir)
+
+    return (c(affy_esets, agil_esets, illum_esets))
+}
+
+
+# Downloads bioconductor package.
+#
+# Used by symbol_annot to download annotation data packages from bioconductor.
+#
+# @param biocpack_name String specifying bioconductor package to download.
+#
+# @seealso \link{get_biocpack_name}, \link{symbol_annot}.
+# @return NULL (downloads and loads requested package).
 
 get_biocpack <- function(biocpack_name) {
     #IN:
@@ -64,52 +109,28 @@ get_biocpack <- function(biocpack_name) {
 }
 
 
-#' Queries GEOmetadb sqlite file to obtain bioconductor annotation data package name.
-#'
-#' Function queries GEOmetadb.sqlite in order to obtain bioconductor annotation
-#' data package name for a given platform (GPL). If bioconductor package name
-#' not available, user must look up manually on bioconductor website and then
-#' enter.
-#'
-#' @importFrom DBI dbConnect dbGetQuery dbDisconnect
-#' @importFrom RSQLite SQLite
-#' @importFrom GEOmetadb getSQLiteFile
-#'
-#' @param gpl_name platform name of GSE.
-#'
-#' @seealso \link{symbol_annot}.
-#' @return name of bioconductor package.
-#' @examples \dontrun{
-#'
-#'}
+# Uses sysdata to obtain bioconductor annotation data package name.
+#
+# Function checks \code{gpl_bioc data.frame} from sysdata to obtain
+# bioconductor annotation data package name for a given platform (GPL).
+
+# If package name not available, user must look up manually on bioconductor
+# website and then enter. Reference data from gpl table in GEOmetadb.sqlite.
+#
+# @param gpl_name String specifying platform for GSE.
+#
+# @seealso \link{symbol_annot}.
+# @return String specifying name of bioconductor annotation data package.
 
 get_biocpack_name <- function (gpl_name) {
 
-    #connect to GEOmetadb database
-    meta_path <- file.path(getwd(), "GEOmetadb.sqlite")
-
-    if (!file.exists(meta_path)) {
-        stop("GEOmetadb.sqlite not in working directory. See
-              ?GEOmetadb::getSQLiteFile")
-    }
-    con <- dbConnect(SQLite(), meta_path)
-
-    #query metadata database
-    query <- paste(
-        "SELECT gpl.bioc_package, gpl.title",
-        "FROM gpl",
-        "WHERE gpl.gpl=", shQuote(gpl_name))
-
-    biocpack_name <- dbGetQuery(con, query)[, "bioc_package"]
-    if (length(biocpack_name) == 0) biocpack_name <- NA
+    #get from gpl_bioc
+    biocpack_name <- gpl_bioc[gpl_name, "bioc_package"]
 
     #manual entry if needed
     if (is.na(biocpack_name)) {
-        title <- dbGetQuery(con, query)[, "title"]
-        biocpack_name <- inputs(box1="Enter biocpack_name", def1=title)
+        biocpack_name <- inputs(box1="Enter biocpack_name", def1=gpl_name)
     }
-
-    dbDisconnect(con)
     return (paste(biocpack_name, ".db", sep=""))
 }
 
@@ -117,24 +138,18 @@ get_biocpack_name <- function (gpl_name) {
 #------------------------
 
 
-#' Adds gene name (SYMBOL) column to fData slot of expression set.
-#'
-#' Function uses platform (GPL) to identify and download corresponding
-#' bioconductor annotation data package. Gene name ("SYMBOL") is then added to
-#' featureData slot of supplied eset.
-#'
-#' @importFrom Biobase featureNames fvarLabels fData
-#' @importFrom tcltk tk_select.list
-#'
-#' @param eset expression set object to add annotation data to.
-#' @param gpl_name platform name used to look up bioconductor
-#'        annotation data package.
-#'
-#' @seealso \link{load_affy}, \link{load_illum}, \link{load_agil}.
-#' @return eset with gene names (in "SYMBOL" column of fData slot).
-#' @examples \dontrun{
-#'
-#'}
+# Add gene symbol to expression set.
+#
+# Function uses platform (GPL) to identify and download corresponding
+# bioconductor annotation data package. Gene ("SYMBOL") and probe ("PROBE")
+# names are then added to featureData slot of supplied eset.
+#
+# @param eset Expression set to annotate.
+# @param gpl_name Platform name used to look up annotation data package.
+#
+# @seealso \code{\link{load_raw}}, \code{\link{get_biocpack_name}},
+#   \code{\link{get_biocpack}}.
+# @return Annotated eset.
 
 symbol_annot <- function (eset, gpl_name) {
     biocpack_name <- get_biocpack_name(gpl_name)
@@ -148,10 +163,9 @@ symbol_annot <- function (eset, gpl_name) {
         eset <- eset[map$PROBEID,]  #expands one-to-many mappings
         SYMBOL <- map$SYMBOL
     } else {
-        #TODO: remove NAs and subset eset
         #try fData column
         choices <- setdiff(fvarLabels(eset), "SYMBOL")
-        column <- tk_select.list(choices, title="select SYMBOL column")
+        column <- tcltk::tk_select.list(choices, title="select SYMBOL column")
         if (column != "") {
             SYMBOL <- fData(eset)[, column]
         }
@@ -162,27 +176,38 @@ symbol_annot <- function (eset, gpl_name) {
 }
 
 
-#' Keep only common features for a list of esets.
+#' Keep annotation features shared by a list of esets.
 #'
 #' Used prior to differential expression analysis (diff_expr) to remove
-#' non-common features (either gene or probe name). The subsequent meta-analysis
-#' uses common features only, so eliminating non-common features reduces the number
-#' of comparisons made during differential expression analysis (increases power).
+#' non-common features (either gene or probe name).
+
+#' The subsequent meta-analysis uses common features only, so eliminating
+#' non-common features reduces the number of comparisons made during differential
+#' expression analysis (increases power).
 #'
-#' @importFrom Biobase fData
-#'
-#' @param esets list of annotated expression sets to commonize.
-#' @param annot feature names to commonize by. Either "SYMBOL" or "PROBE".
+#' @param esets List of annotated esets. Created by \code{load_raw}.
+#' @param annot String, either "PROBE" or "SYMBOL" to keep common probes or genes
+#'   respectively. "PROBE" only useful if all esets from similar platforms by
+#'   the same manufacturer.
 #'
 #' @export
-#' @seealso \link{load_affy}, \link{load_illum}, and \link{load_agil} to obtain
-#'          list of annotated esets.
-#'          \link{diff_expr} to run differential expression subsequent to
-#'          \code{commonize}.
-#' @return list of esets with where all features (probe or gene) are common.
-#' @examples \dontrun{
+#' @seealso \code{\link{load_raw}} to create list of annotated esets.
 #'
-#'}
+#'   \code{\link{diff_expr}} to run differential expression analysis after
+#'   \code{commonize}.
+#'
+#' @return List of esets with where annotation features (probe or gene) are common.
+#' @examples \dontrun{
+#' library(lydata)
+#' data_dir <- system.file("extdata", package = "lydata")
+#'
+#' #load esets
+#' gse_names<- c("GSE9601", "GSE34817")
+#' esets <- load_raw(gse_names, data_dir)
+#'
+#' #commonize
+#' esets_com <- commonize(esets)
+#' }
 
 commonize <- function(esets, annot="SYMBOL") {
 
@@ -211,25 +236,24 @@ commonize <- function(esets, annot="SYMBOL") {
 #-------------------
 
 
-#' Query user to provide description.
-#'
-#' Uses tcltk to request input from user for group or tissue names.
-#'
-#' @import tcltk
-#'
-#' @param msg Message to display in title bar.
-#' @param box1 Description beside box1.
-#' @param def1 Default value for box1.
-#' @param box2 Description beside box2.
-#' @param def2 Default value for box2.
-#' @param two Do you want two input boxes (one if FALSE)?
-#'
-#' @seealso \link{add_contrasts}
-#' @return Character vector with inputs typed into box1 and/or box2.
+# Query user to provide description.
+#
+# Uses tcltk to request input from user.
+#
+# @import tcltk
+#
+# @param msg Message to display in title bar.
+# @param box1 Description beside box1.
+# @param def1 Default value for box1.
+# @param box2 Description beside box2.
+# @param def2 Default value for box2.
+# @param two Do you want two input boxes? If FALSE, one box.
+#
+# @seealso \code{\link{add_contrasts}}, \code{\link{get_biocpack_name}}.
+# @return Character vector with inputs typed into box1 and/or box2.
 
-inputs <- function(msg="", box1="eg. AL.obob", def1="AL", box2="eg. CR.obob", def2="CR", two=F) {
-    #IN:
-    #OUT:
+inputs <- function(msg="", box1="eg. AL.obob",
+                   def1="AL", box2="eg. CR.obob", def2="CR", two=F) {
 
     xvar <- tclVar(def1)
     if (two) {

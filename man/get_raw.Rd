@@ -4,25 +4,24 @@
 \alias{get_raw}
 \title{Download and unpack microarray supplementary files from GEO.}
 \usage{
-get_raw(gse_names, data_dir)
+get_raw(gse_names, data_dir = getwd())
 }
 \arguments{
 \item{gse_names}{Character vector of GSE names to download.}
 
-\item{data_dir}{base data directory (a folder for each GSE will be created
-here).}
+\item{data_dir}{String specifying directory for GSE folders.}
 }
 \value{
 NULL (for download/unpack only).
 }
 \description{
-Downloads and unpacks microarray supplementary files from GEO.
-Files are stored in the supplied data directory under the GSE name.
+Downloads and unpacks microarray supplementary files from GEO. Files are
+stored in the supplied data directory under the GSE name.
 }
 \examples{
-\dontrun{
-
+get_raw("GSE41845")
 }
-
+\seealso{
+\code{\link{load_raw}}, \code{\link{open_raw_illum}}.
 }
 

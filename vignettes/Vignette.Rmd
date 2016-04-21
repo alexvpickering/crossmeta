@@ -1,5 +1,5 @@
 ---
-title: "Cross-Platform Microarray Meta-Analyses"
+title: "Cross-Platform Meta-Analysis of Microarrays"
 author: "Alex Pickering"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
@@ -11,7 +11,7 @@ vignette: >
 
 ### Introduction
 This package helps in the meta-analysis of microarray data obtained from Gene
-Expression Omnibus ([GEO](http://www.ncbi.nlm.nih.gov/gds/)).
+Expression Omnibus ([GEO](http://www.ncbi.nlm.nih.gov/geo/)).
 
 ### Obtaining Raw Data
 Search GEO to find some GSEs that you want to do a meta-analysis for. For
@@ -27,22 +27,23 @@ In practice, it is best to select all GSEs matching the necessary criteria
 and from either Affymetrix, Illumina, or Agilent mouse/human platforms).
 
 After you have chosen all the GSEs that you want to run a meta-analysis on,
-the next step is to obtain and uncompress the raw data:
+the next step is to obtain and decompress the raw data:
 
-```{r, eval=FALSE}
+```{r}
 library(crossmeta)
 
 #specify where data will be downloaded
 data_dir <- file.path(getwd(), "data", "LY")
 
-#gather GSE names into a vector for each manufacturer
+#gather GSE names
 affy_names  <- c("GSE9601", "GSE15069")
 illum_names <- c("GSE50841", "GSE34817", "GSE29689")
+gse_names   <- c(affy_names, illum_names)
+```
 
-#obtain the raw data(supplementary files).
-gse_names <- c(affy_names, illum_names)
+```{r, eval=FALSE}
+#download raw data
 get_raw(gse_names, data_dir)
-
 ```
 
 After the raw data has been obtained, it's time to load it. For raw Illumina
@@ -71,48 +72,53 @@ illum_names <- open_raw_illum(illum_names, data_dir)
 
 For **GSE50841**:
 
-  * using Sublime Text 2, click Find --> Replace and type
+  * using Sublime Text 2, click "Find --> Replace"
   * __Find What__: _(SAMPLE \\d+)\\tDetection Pval_
   * __Replace With__: _AVG_Signal-\\1\\tDetection-\\1_
 
 
 For **GSE34817**:
 
-  * using Sublime Text 2, click Find --> Replace and type
+  * using Sublime Text 2, click "Find --> Replace"
   * __Find What__: _(MDA.+?)\\tDetection Pval_
   * __Replace With__: _AVG_Signal-\\1\\tDetection-\\1_
 
 For **GSE29689** just change PROBE_ID to ID_REF.
 
+A bioconductor data package (lydata) is available where all the above was 
+performed. This data package will be used for subsequent demonstrations.
+
+```{r, message=FALSE, warning=FALSE}
+library(lydata)
+
+#location of raw data
+data_dir <- system.file("extdata", package = "lydata")
+```
+
 ### Loading Data
 
 Now that the data is downloaded (and Illumina data is in correct format), we
-must load and annotate the data. Annotation requires the ~4Gb GEOmetadb.sqlite 
-file in your working directory (to lookup bioconductor annotation data packages).
-Download/move GEOmetadb.sqlite to your working directory if required. All relevant bioconductor annotation data packages will be downloaded. 
+must load and annotate the data. All necessary bioconductor annotation data
+packages will be downloaded on the fly. 
 
-If GEOmetadb.sqlite lacks information on the bioconductor annotation data package
-for a given platform, entry will be requested. Use the default entry (platform title)
-to search online for the correct package name. 
+If crossmeta does not know the bioconductor annotation data package for a given
+platform, entry will be requested. Use the default entry (GPL) to search online
+for the correct package name. 
 
-For GSE29689, my version of GEOmetadb.sqlite lacked the bioconductor annotation 
-data package. A popup with a default value of "Illumina HumanRef-8 v3.0 
-expression beadchip" came up, so I went to [Bioconductor](https://bioconductor.org/)
-and searched "illuminahuman" to find the appropriate package (illuminaHumanv3).
+As an example, for GSE29689 crossmeta did not know the bioconductor annotation 
+data package. A popup with a default value of "GPL6883" came up, so I went to [GEO](http://www.ncbi.nlm.nih.gov/geo/) and searched for "GPL6883". The platform 
+title was "Illumina HumanRef-8 v3.0 expression beadchip" so I searched on [Bioconductor](https://bioconductor.org/) for "illuminahuman" to find the 
+appropriate package (illuminaHumanv3).
 
 
-```{r, eval=FALSE}
-affy_esets <- load_affy(affy_names, data_dir)
-illum_esets <- load_illum(illum_names, data_dir)
-
-#put esets together
-esets <- c(affy_esets, illum_esets)
+```{r, message=FALSE, warning=FALSE, results='hide'}
+esets <- load_raw(gse_names, data_dir)
 ```
 
 The next step is to select only features with gene symbols that are common 
 between all platforms.
 
-```{r, eval=FALSE}
+```{r}
 com_esets <- commonize(esets)
 ```
 
@@ -132,53 +138,56 @@ browser to lookup experimental details (e.g. tissue and group) for GSEs.
 anals <- diff_expr(com_esets, data_dir)
 ```
 
-If you realize that you selected the wrong groups or that you need to add or remove
-a GSE (and have to run `commonize` again with the updated eset list), you can 
-avoid having to reselect samples and rename groups that you already selected.
+If you realize that you selected the wrong samples or that you need to add or remove
+a GSE (and have to run `commonize` again with the updated esets), you can 
+avoid having to reselect samples and rename groups.
+
 For example:
 
-```{r, eval=FALSE}
-#load auto-saved results of diff_expr that you previously selected samples for
-prev_names <- c("GSE9601", "GSE15069")
-prev <- load_diff(prev_names, data_dir)
+```{r, fig.height=5, fig.width=5, message=FALSE, warning=FALSE}
+#load auto-saved results of previous call to diff_expr
+#(In this case, all of gse_names)
+prev <- load_diff(gse_names, data_dir)
 
 #supply prev to diff_expr
-anals <- diff_expr(com_esets, data_dir, prev_anals=prev)
+#omit "[1]" to analyze all esets
+anals <- diff_expr(com_esets[1], data_dir, prev_anals=prev)
 ```
 
-Multi-dimensional scaling plots are generated for each contrast. These plots
-are generated from data with the effects of surrogate variables removed.
+Multi-dimensional scaling plots are generated for each analyzed GSE. 
+These plots are generated from expression data with the effects of surrogate 
+variables removed.
 
 ### Meta-Analysis
 
 Now that differential expression analyses have been performed for each study,
 let's combine the studies.
 
-```{r, eval=FALSE}
+```{r, message=FALSE, warning=FALSE}
 #re-load previous analyses if need to
-gse_names  <- c("GSE9601", "GSE15069", "GSE50841", "GSE34817", "GSE29689")
 anals <- load_diff(gse_names, data_dir)
 
-#MetaArray object (effect of SVs removed)
+#MetaArray object (effects of surrogate variables removed)
 ma_sva <- make_ma(anals, sva=T)
 ```
 
-Now the whole world of [MAMA](http://is.muni.cz/www/184415/MAMA_full.pdf) 
-meta-analyses methods are available to you.
+Now, the variety of meta-analysis methods from [MAMA](http://is.muni.cz/www/184415/MAMA_full.pdf) are available to you.
 
-My favorite (which happens to integrate with my ccmap package - comming soon)
-is shown:
+One such method, which combines effect sizes is shown:
 
-```{r, eval=FALSE}
+```{r, message=FALSE, warning=FALSE}
 library(MAMA)
 
-es <- ES.GeneMeta(ma_sva, "treatment", nperm=100)
+es <- ES.GeneMeta(ma_sva, "treatment", nperm=10)
+
+#save signature for further analysis (e.g. by ccmap - see below)
+saveRDS(es, "es.rds")
 ```
 
-Let's save up then go find a drug combination to reverse or mimic your signature!
+One application of the signature generated by this meta-analysis method is to 
+search for a drug, or combination of drugs that is predicted to reverse or mimic
+your signature. These drugs might reverse diseases or reproduce other desirable
+states.
 
-ccmap (**C**ombination **C**onnectivity **M**aping comming soon)
-
-```{r, eval=FALSE}
-saveRDS(es, "LY_es.rds")
-```
+To predict a drug/combination to either mimic or reverse your signature, please
+see the ccmap (**C**ombination **C**onnectivity **M**aping) package.

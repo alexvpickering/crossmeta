@@ -1,4 +1,6 @@
 library(crossmeta)
+library(lydata)
+library(testthat)
 
 
 #------
@@ -6,21 +8,22 @@ library(crossmeta)
 #------
 
 setwd("~/Documents/Batcave/GEO/1-meta")
-data_dir <- paste(getwd(), "testdat", sep="/")
+data_dir <- system.file("extdata", package = "lydata")
 
 #load esets
-afy_name<- "GSE9601"
-ilm_name <- "GSE34817"
+gse_names<- c("GSE9601", "GSE34817")
 
-afy <- load_affy(afy_name,  data_dir)
-ilm <- load_illum(ilm_name, data_dir)
+esets <- load_raw(gse_names, data_dir)
+afy <- esets[1]
+ilm <- esets[2]
 
 #commonize
-esets <- commonize(c(afy, ilm))
+esets <- commonize(esets)
 
 #load and re-run analysis
-prev <- load_diff(c(afy_name, ilm_name), data_dir)
+prev <- load_diff(gse_names, data_dir)
 re_anal <- diff_expr(esets, data_dir, prev_anals=prev)
+
 
 #-------
 # TESTS
@@ -30,19 +33,20 @@ re_anal <- diff_expr(esets, data_dir, prev_anals=prev)
 test_that("get_raw downloads/unpacks affy, illum, and agil", {
   skip_on_bioc()
 
-  expect_null(get_raw("GSE54558", data_dir))  #affy
+  #download a small GSE from each manufacturer
+  expect_null(get_raw("GSM1318806", data_dir))  #affy
   expect_null(get_raw("GSE41845", data_dir))  #illum
   expect_null(get_raw("GSE66133", data_dir))  #agil
 })
 
 #cleanup
-unlink(paste(data_dir, c("GSE54558", "GSE41845", "GSE66133"), sep="/"),
+unlink(paste(data_dir, c("GSM1318806", "GSE41845", "GSE66133"), sep="/"),
        recursive=T)
 
 #---------
 
 
-test_that("load_affy/illum loads and annotates raw data", {
+test_that("load_raw loads and annotates raw data", {
   skip_on_bioc()
 
   #SYMBOL annotation?
@@ -69,7 +73,7 @@ test_that("load_diff and diff_expr work", {
   skip_on_bioc()
 
   #GSEs all load?
-  expect_equal(names(anals), gse_names)
+  expect_equal(names(prev), gse_names)
 
   #same features?
   expect_true(same_features(lapply(prev, function(x) x$eset)))

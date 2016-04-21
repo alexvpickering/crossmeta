@@ -23,13 +23,11 @@ Imports:
     AnnotationDbi,
     Biobase,
     BiocGenerics,
-    BiocInstaller,
     dplyr,
     DBI,
-    GeneExpressionSignature,
-    GEOmetadb,
     GEOquery,
     limma,
+    magrittr,
     matrixStats,
     MAMA,
     metaMA,
@@ -41,5 +39,6 @@ Imports:
     tcltk
 RoxygenNote: 5.0.1
 Suggests: knitr,
-    rmarkdown
+    rmarkdown,
+    lydata
 VignetteBuilder: knitr

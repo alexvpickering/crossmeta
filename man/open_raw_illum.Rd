@@ -9,22 +9,30 @@ open_raw_illum(gse_names, data_dir)
 \arguments{
 \item{gse_names}{Character vector of GSE names to open raw files for.}
 
-\item{data_dir}{base data directory (contains folder for each GSE).}
+\item{data_dir}{String specifying directory with GSE folders.}
 }
 \value{
-Character vector of successfully formatted GSEs (only load these).
+Character vector specifying successfully formatted GSEs. Only these
+  Illumina GSEs can be loaded by \code{load_raw}.
 }
 \description{
-Helper utility to open non-normalized Illumina files. User must check and
-possibly edit the files. To help, I recommend downloading Sublime Text 2
-(a text editor with regular expression capabilities).
+Helper utility opens non-normalized Illumina files. User must check and
+possibly edit the files.
+}
+\details{
+To help, I recommend Sublime Text 2 (a text editor with regular expression
+capabilities). See package vignette for example of process.
 }
 \examples{
 \dontrun{
+library(lydata)
+illum_names <- c("GSE50841", "GSE34817", "GSE29689")
 
+#this will open raw data using default program
+illum_names <- open_raw_illum(illum_names, data_dir)
 }
 }
 \seealso{
-\code{\link{load_illum}}, \code{\link{get_raw_illum}}.
+\code{\link{get_raw}}, \code{\link{load_raw}}.
 }
 
