@@ -1,3 +1,8 @@
+#hack to fool R CMD CHK
+#issue caused by dplyr in diff_anal
+globalVariables(c("x", "y", "adj.P.Val"))
+
+
 #' Differential expression of esets.
 #'
 #' User selects contrasts, then surrogate variable analysis (sva) and
@@ -36,7 +41,7 @@
 #'   \item{mama_data}{List used by \code{\link{make_ma}} to generate MetaArray
 #'      object.}
 #'
-#' @examples \dontrun{
+#' @examples
 #' library(lydata)
 #'
 #' #location of raw data
@@ -57,35 +62,34 @@
 #' #re-run analysis
 #' prev <- load_diff(gse_names, data_dir)
 #' anals <- diff_expr(com_esets, data_dir, prev_anals=prev)
-#' }
-#'
+
 
 diff_expr <- function (esets, data_dir, annot="SYMBOL", prev_anals=list(NULL)) {
 
-  prev_anals <- prev_anals[names(esets)]
-  anals <- list()
-  for (i in seq_along(esets)) {
+    prev_anals <- prev_anals[names(esets)]
+    anals <- list()
+    for (i in seq_along(esets)) {
 
-    eset <- esets[[i]]
-    gse_name <- names(esets)[i]
-    prev_anal <- prev_anals[[i]]
+        eset <- esets[[i]]
+        gse_name <- names(esets)[i]
+        prev_anal <- prev_anals[[i]]
 
-    gse_folder <- strsplit(gse_name, "\\.")[[1]][1]  #name can be "GSE.GPL"
-    gse_dir <- paste(data_dir, gse_folder, sep="/")
+        gse_folder <- strsplit(gse_name, "\\.")[[1]][1]  #name can be "GSE.GPL"
+        gse_dir <- paste(data_dir, gse_folder, sep="/")
 
-    #select contrasts
-    cons <- add_contrasts(eset, gse_name, annot, prev_anal)
+        #select contrasts
+        cons <- add_contrasts(eset, gse_name, annot, prev_anal)
 
-    #differential expression
-    setup <- diff_setup(cons$eset, cons$levels)
+        #differential expression
+        setup <- diff_setup(cons$eset, cons$levels)
 
-    anal <- diff_anal(cons$eset, cons$contrasts, cons$levels, cons$mama_data,
-                      setup$mod, setup$modsv, setup$svobj,
-                      gse_dir, gse_name, annot)
+        anal <- diff_anal(cons$eset, cons$contrasts, cons$levels, cons$mama_data,
+                          setup$mod, setup$modsv, setup$svobj,
+                          gse_dir, gse_name, annot)
 
-    anals[[gse_name]] <- anal
-  }
-  return (anals)
+        anals[[gse_name]] <- anal
+    }
+    return (anals)
 }
 
 
@@ -162,13 +166,13 @@ add_contrasts <- function (eset, gse_name, annot="SYMBOL", prev_anal) {
         #repeat until all contrasts selected
         while (TRUE) {
             #select ctrl samples
-            ctrl <- tcltk::tk_select.list(choices, multiple=T,
+            ctrl <- tcltk::tk_select.list(choices, multiple=TRUE,
                                           title="Control samples for contrast")
             ctrl <- stringr::str_extract(ctrl, "GSM[0-9]+")
             if (length(ctrl) == 0) {break}
 
             #select test samples
-            test <- tcltk::tk_select.list(choices, multiple=T,
+            test <- tcltk::tk_select.list(choices, multiple=TRUE,
                                           title="Test samples for contrast")
             test <- stringr::str_extract(test, "GSM[0-9]+")
 
@@ -178,7 +182,8 @@ add_contrasts <- function (eset, gse_name, annot="SYMBOL", prev_anal) {
 
             #add group names & tissue to pheno
             tissue <- inputs("Tissue source", box1="eg. liver", def1="")
-            group_names <- paste(inputs("Group names", two=T), tissue, sep=".")
+            group_names <- paste(inputs("Group names", two=TRUE),
+                                 tissue, sep=".")
             pData(eset)[c(ctrl, test), "tissue"] <- tissue
             pData(eset)[ctrl, "group"] <- group_names[1]
             pData(eset)[test, "group"] <- group_names[2]
@@ -253,7 +258,7 @@ iqr_duplicates <- function (eset, annot="SYMBOL") {
     #for rows with same annot, keep highest IQR
     data %>%
         dplyr::group_by_(annot) %>%
-        dplyr::arrange(desc(IQR)) %>%
+        dplyr::arrange(dplyr::desc(IQR)) %>%
         dplyr::slice(1) %>%
         dplyr::ungroup() ->
         data
@@ -346,7 +351,7 @@ diff_anal <- function(eset, contrasts, group_levels, mama_data,
 
     for (i in seq_along(contrast_names)) {
         top_genes <- limma::topTable(ebayes_sv, coef=i, n=Inf)
-        num_sig <- dim(dplyr::filter(top_genes, adj.P.Val <0.05))[1]
+        num_sig <- dim(dplyr::filter(top_genes, adj.P.Val < 0.05))[1]
         top_tables[[contrast_names[i]]] <- top_genes
         cat (contrast_names[i], "(n significant):", num_sig, "\n")
     }
@@ -397,7 +402,7 @@ diff_anal <- function(eset, contrasts, group_levels, mama_data,
 
 fit_ebayes <- function(eset, contrasts, mod) {
     contrast_matrix <- limma::makeContrasts(contrasts=contrasts, levels=mod)
-    fit <- limma::contrasts.fit (limma::lmFit(exprs(eset),mod), contrast_matrix)
+    fit <- limma::contrasts.fit(limma::lmFit(exprs(eset), mod), contrast_matrix)
     return (limma::eBayes(fit))
 }
 

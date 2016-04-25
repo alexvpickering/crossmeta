@@ -14,22 +14,23 @@
 
 get_raw <- function (gse_names, data_dir=getwd()) {
 
-  for (gse_name in gse_names) {
+    for (gse_name in gse_names) {
 
-    gse_dir <- paste(data_dir, gse_name, sep="/")
-    #get raw data
-    if (!file.exists(gse_dir)) {
-        GEOquery::getGEOSuppFiles(gse_name, baseDir=data_dir)
+        gse_dir <- paste(data_dir, gse_name, sep="/")
+        #get raw data
+        if (!file.exists(gse_dir)) {
+            GEOquery::getGEOSuppFiles(gse_name, baseDir=data_dir)
+        }
+        #untar
+        tar_names <- list.files(gse_dir, pattern="tar")
+        if (length(tar_names) > 0) {
+            utils::untar(paste(gse_dir, tar_names, sep="/"), exdir=gse_dir)
+        }
+        #unzip
+        paths <- list.files(gse_dir, pattern=".gz",
+                            full.names=TRUE, ignore.case=TRUE)
+        sapply(paths, GEOquery::gunzip, overwrite=TRUE)
     }
-    #untar
-    tar_names <- list.files(gse_dir, pattern="tar")
-    if (length(tar_names) > 0) {
-      utils::untar(paste(gse_dir, tar_names, sep="/"), exdir=gse_dir)
-    }
-    #unzip
-    paths <- list.files(gse_dir, pattern=".gz", full.names=T, ignore.case=T)
-    sapply(paths, GEOquery::gunzip, overwrite=T)
-  }
 }
 
 #-----------
@@ -39,6 +40,7 @@ get_raw <- function (gse_names, data_dir=getwd()) {
 #' Loads and annotates raw data previously downloaded with \code{get_raw}.
 #' Supported platforms include Affymetrix, Agilent, and Illumina.
 #'
+#' @import tcltk
 #'
 #' @param gse_names Character vector of GSE names.
 #' @param data_dir  String specifying directory with GSE folders.
@@ -52,6 +54,7 @@ get_raw <- function (gse_names, data_dir=getwd()) {
 #' data_dir <- system.file("extdata", package = "lydata")
 #' eset <- load_raw("GSE9601", data_dir)
 
+
 load_raw <- function(gse_names, data_dir=getwd()) {
 
     affy_names  <- c()
@@ -63,9 +66,9 @@ load_raw <- function(gse_names, data_dir=getwd()) {
         #determine platform (based on filenames)
         gse_dir <- paste(data_dir, gse_name, sep="/")
 
-        affy  <- list.files(gse_dir, ".CEL", ignore.case=T)
-        agil  <- list.files(gse_dir, "GSM.*txt", ignore.case=T)
-        illum <- list.files(gse_dir, "non.norm.*txt", ignore.case=T)
+        affy  <- list.files(gse_dir, ".CEL", ignore.case=TRUE)
+        agil  <- list.files(gse_dir, "GSM.*txt", ignore.case=TRUE)
+        illum <- list.files(gse_dir, "non.norm.*txt", ignore.case=TRUE)
 
         #add to appropriate names vector
         if (length(affy) != 0) {
@@ -98,13 +101,11 @@ load_raw <- function(gse_names, data_dir=getwd()) {
 # @return NULL (downloads and loads requested package).
 
 get_biocpack <- function(biocpack_name) {
-    #IN:
-    #OUT:
 
-    if (!require(biocpack_name , character.only=T)) {
+    if (!require(biocpack_name, character.only=TRUE)) {
         source("https://bioconductor.org/biocLite.R")
-        biocLite(biocpack_name)
-        require(biocpack_name , character.only=T)
+        BiocInstaller::biocLite(biocpack_name)
+        require(biocpack_name, character.only=TRUE)
     }
 }
 
@@ -160,7 +161,7 @@ symbol_annot <- function (eset, gpl_name) {
         get_biocpack(biocpack_name)
         ID <- featureNames(eset)
         map <- AnnotationDbi::select(get(biocpack_name), ID, "SYMBOL")
-        eset <- eset[map$PROBEID,]  #expands one-to-many mappings
+        eset <- eset[map$PROBEID, ]  #expands one-to-many mappings
         SYMBOL <- map$SYMBOL
     } else {
         #try fData column
@@ -182,22 +183,22 @@ symbol_annot <- function (eset, gpl_name) {
 #' non-common features (either gene or probe name).
 
 #' The subsequent meta-analysis uses common features only, so eliminating
-#' non-common features reduces the number of comparisons made during differential
-#' expression analysis (increases power).
+#' non-common features reduces the number of comparisons made during
+#' differential expression analysis (increases power).
 #'
 #' @param esets List of annotated esets. Created by \code{load_raw}.
-#' @param annot String, either "PROBE" or "SYMBOL" to keep common probes or genes
-#'   respectively. "PROBE" only useful if all esets from similar platforms by
-#'   the same manufacturer.
+#' @param annot String, either "PROBE" or "SYMBOL" to keep common probes or
+#'   genes respectively. "PROBE" only useful if all esets from similar platforms
+#'   by the same manufacturer.
 #'
 #' @export
 #' @seealso \code{\link{load_raw}} to create list of annotated esets.
 #'
 #'   \code{\link{diff_expr}} to run differential expression analysis after
 #'   \code{commonize}.
-#'
-#' @return List of esets with where annotation features (probe or gene) are common.
-#' @examples \dontrun{
+#' @return List of esets with where annotation features (probe or gene) are
+#'   common.
+#' @examples
 #' library(lydata)
 #' data_dir <- system.file("extdata", package = "lydata")
 #'
@@ -207,16 +208,15 @@ symbol_annot <- function (eset, gpl_name) {
 #'
 #' #commonize
 #' esets_com <- commonize(esets)
-#' }
 
 commonize <- function(esets, annot="SYMBOL") {
 
     esets <- lapply(esets, function(eset) {
 
-      #make gene symbols uppercase
-      fData(eset)[, "SYMBOL"] <- toupper(fData(eset)[, "SYMBOL"])
-      eset
-      })
+        #make gene symbols uppercase
+        fData(eset)[, "SYMBOL"] <- toupper(fData(eset)[, "SYMBOL"])
+        eset
+    })
 
     #get common genes
     all_genes <- lapply(esets, function(x) unique(fData(x)[, annot]))
@@ -240,8 +240,6 @@ commonize <- function(esets, annot="SYMBOL") {
 #
 # Uses tcltk to request input from user.
 #
-# @import tcltk
-#
 # @param msg Message to display in title bar.
 # @param box1 Description beside box1.
 # @param def1 Default value for box1.
@@ -253,18 +251,18 @@ commonize <- function(esets, annot="SYMBOL") {
 # @return Character vector with inputs typed into box1 and/or box2.
 
 inputs <- function(msg="", box1="eg. AL.obob",
-                   def1="AL", box2="eg. CR.obob", def2="CR", two=F) {
+                   def1="AL", box2="eg. CR.obob", def2="CR", two=FALSE) {
 
     xvar <- tclVar(def1)
     if (two) {
-    yvar <- tclVar(def2)
+        yvar <- tclVar(def2)
     }
 
     tt <- tktoplevel()
     tkwm.title(tt,"")
     x.entry <- tkentry(tt, textvariable=xvar)
     if (two) {
-    y.entry <- tkentry(tt, textvariable=yvar)
+        y.entry <- tkentry(tt, textvariable=yvar)
     }
 
     submit <- function() {
@@ -272,8 +270,8 @@ inputs <- function(msg="", box1="eg. AL.obob",
         x <- as.character(tclvalue(xvar))
         e$x <- x
         if (two) {
-        y <- as.character(tclvalue(yvar))
-        e$y <- y
+            y <- as.character(tclvalue(yvar))
+            e$y <- y
         }
         tkdestroy(tt)
     }
@@ -282,7 +280,7 @@ inputs <- function(msg="", box1="eg. AL.obob",
     reset <- function() {
         tclvalue(xvar)<-""
         if (two) {
-        tclvalue(yvar)<-""
+            tclvalue(yvar)<-""
         }
     }
     reset.but <- tkbutton(tt, text="Reset", command=reset)
@@ -290,14 +288,14 @@ inputs <- function(msg="", box1="eg. AL.obob",
     tkgrid(tklabel(tt,text=msg),columnspan=2)
     tkgrid(tklabel(tt,text=box1), x.entry, pady = 10, padx =10)
     if (two) {
-    tkgrid(tklabel(tt,text=box2), y.entry, pady = 10, padx =10)
+        tkgrid(tklabel(tt,text=box2), y.entry, pady = 10, padx =10)
     }
     tkgrid(submit.but, reset.but)
 
     tkwait.window(tt)
     if (two) {
-    return (c(x,y))
+        return (c(x,y))
     } else {
-    return (x)
+        return (x)
     }
 }

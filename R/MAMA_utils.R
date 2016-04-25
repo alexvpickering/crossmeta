@@ -8,6 +8,7 @@
 #'
 #' @export
 #' @seealso \code{\link{diff_expr}}.
+#' @return Result of previous call to \code{diff_expr}.
 #' @examples
 #' library(lydata)
 #' library(crossmeta)
@@ -16,26 +17,28 @@
 #' gse_names<- c("GSE9601", "GSE34817")
 #' prev <- load_diff(gse_names, data_dir)
 
-load_diff <- function(gse_names, data_dir, probe=F) {
+load_diff <- function(gse_names, data_dir, probe=FALSE) {
 
-  anals <- list()
-  for (gse_name in gse_names) {
-    gse_dir <- file.path (data_dir, gse_name)
+    anals <- list()
+    for (gse_name in gse_names) {
+        gse_dir <- file.path (data_dir, gse_name)
 
-    if (probe) {
-      anal_paths <- list.files(gse_dir, pattern=".*_diff_expr_probe.rds", full=T)
-    } else {
-      anal_paths <- list.files(gse_dir, pattern=".*_diff_expr.rds", full=T)
+        if (probe) {
+            anal_paths <- list.files(gse_dir, pattern=".*_diff_expr_probe.rds",
+                                     full.names=TRUE)
+        } else {
+            anal_paths <- list.files(gse_dir, pattern=".*_diff_expr.rds",
+                                     full.names=TRUE)
+        }
+        #load each diff path
+        #multiple if more than one platform per GSE)
+        for (path in anal_paths) {
+            anal <- readRDS(path)
+            anal_name <- strsplit(names(anal$top_tables), "_")[[1]][1]
+            anals[[anal_name]] <- anal
+        }
     }
-    #load each diff path
-    #multiple if more than one platform per GSE)
-    for (path in anal_paths) {
-      anal <- readRDS(path)
-      anal_name <- strsplit(names(anal$top_tables), "_")[[1]][1]
-      anals[[anal_name]] <- anal
-    }
-  }
-  return (anals)
+    return (anals)
 }
 
 
@@ -48,6 +51,8 @@ load_diff <- function(gse_names, data_dir, probe=F) {
 #' \code{diff_expr}. MetaArray object allows for use of meta-analysis methods
 #' present in MAMA package.
 #'
+#' @importClassesFrom MAMA MetaArray
+#'
 #' @param diff_exprs Result from \code{diff_expr} or \code{load_diff}.
 #' @param sva Use esets with effect of surrogate variables removed? If FALSE,
 #'            non-adjusted esets will be used.
@@ -55,6 +60,13 @@ load_diff <- function(gse_names, data_dir, probe=F) {
 #' @seealso \link[MAMA]{MetaArray-class}, \link{diff_expr}, and \link{load_diff}.
 #'
 #' @return MetaArray object.
+#' @examples
+#' library(lydata)
+#'
+#' #location of raw data
+#' data_dir <- system.file("extdata", package = "lydata")
+#' anals <- load_diff(gse_names, data_dir)
+#' ma_sva <- make_ma(anals, sva=TRUE)
 
 make_ma <- function(diff_exprs, sva) {
 
@@ -76,6 +88,7 @@ make_ma <- function(diff_exprs, sva) {
         gse_clinicals <- mama_datas[[i]]$clinicals
         all_clinicals <- c(all_clinicals, gse_clinicals)
     }
-    ma <- new("MetaArray", GEDM=GEDM, clinical=all_clinicals, datanames=names(GEDM))
+    ma <- new("MetaArray", GEDM=GEDM,
+              clinical=all_clinicals, datanames=names(GEDM))
     return(ma)
 }

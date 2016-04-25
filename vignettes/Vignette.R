@@ -13,9 +13,6 @@ gse_names   <- c(affy_names, illum_names)
 #  #download raw data
 #  get_raw(gse_names, data_dir)
 
-## ---- eval=FALSE---------------------------------------------------------
-#  illum_names <- open_raw_illum(illum_names, data_dir)
-
 ## ---- message=FALSE, warning=FALSE---------------------------------------
 library(lydata)
 
@@ -45,7 +42,7 @@ anals <- diff_expr(com_esets[1], data_dir, prev_anals=prev)
 anals <- load_diff(gse_names, data_dir)
 
 #MetaArray object (effects of surrogate variables removed)
-ma_sva <- make_ma(anals, sva=T)
+ma_sva <- make_ma(anals, sva=TRUE)
 
 ## ---- message=FALSE, warning=FALSE---------------------------------------
 library(MAMA)
@@ -53,5 +50,5 @@ library(MAMA)
 es <- ES.GeneMeta(ma_sva, "treatment", nperm=10)
 
 #save signature for further analysis (e.g. by ccmap - see below)
-saveRDS(es, "es.rds")
+#saveRDS(es, "es.rds")
 

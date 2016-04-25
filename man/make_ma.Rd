@@ -20,6 +20,14 @@ Function is used to construct a MetaArray object from results of
 \code{diff_expr}. MetaArray object allows for use of meta-analysis methods
 present in MAMA package.
 }
+\examples{
+library(lydata)
+
+#location of raw data
+data_dir <- system.file("extdata", package = "lydata")
+anals <- load_diff(gse_names, data_dir)
+ma_sva <- make_ma(anals, sva=TRUE)
+}
 \seealso{
 \link[MAMA]{MetaArray-class}, \link{diff_expr}, and \link{load_diff}.
 }

@@ -10,13 +10,13 @@
 
 cel_dates <- function(cel_paths) {
 
-  scan_dates <- c()
-  for (i in seq_along(cel_paths)) {
-    datheader <- affxparser::readCelHeader(cel_paths[i])$datheader
-    scan_date <- gsub(".*([0-9]{2}/[0-9]{2}/[0-9]{2}).*", "\\1", datheader)
-    scan_dates[i] <- scan_date
-  }
-  return (as.factor(scan_dates))
+    scan_dates <- c()
+    for (i in seq_along(cel_paths)) {
+        datheader <- affxparser::readCelHeader(cel_paths[i])$datheader
+        scan_date <- gsub(".*([0-9]{2}/[0-9]{2}/[0-9]{2}).*", "\\1", datheader)
+        scan_dates[i] <- scan_date
+    }
+    return (as.factor(scan_dates))
 }
 
 
@@ -41,13 +41,13 @@ load_affy <- function (gse_names, data_dir) {
 
     esets <- list()
     for (gse_name in gse_names) {
-      gse_dir <- paste(data_dir, gse_name, sep="/")
+        gse_dir <- paste(data_dir, gse_name, sep="/")
 
-      #get GSEMatrix (for pheno data)
-      eset <- GEOquery::getGEO(gse_name, destdir=gse_dir, GSEMatrix=T)
+        #get GSEMatrix (for pheno data)
+        eset <- GEOquery::getGEO(gse_name, destdir=gse_dir, GSEMatrix=TRUE)
 
-      #load eset for each platform in GSE
-      esets[[gse_name]] <- lapply(eset,load_affy_plat, gse_dir)
+        #load eset for each platform in GSE
+        esets[[gse_name]] <- lapply(eset,load_affy_plat, gse_dir)
     }
 
     eset_names <- get_eset_names(esets, gse_names)
@@ -71,21 +71,21 @@ load_affy <- function (gse_names, data_dir) {
 #   platforms per GSE.
 
 get_eset_names <- function(esets, gse_names) {
-  eset_names <- c()
+    eset_names <- c()
 
-  for (i in seq_along(esets)) {
-    #get gse name
-    gse_name <- gse_names[i]
+    for (i in seq_along(esets)) {
+        #get gse name
+        gse_name <- gse_names[i]
 
-    if (length(esets[[i]]) > 1) {
-      #add gpl_name to make gse_name unique
-      gpl_name <- sapply(esets[[i]], annotation)
-      gse_name <- paste(gse_name, gpl_name, sep=".")
+        if (length(esets[[i]]) > 1) {
+            #add gpl_name to make gse_name unique
+            gpl_name <- sapply(esets[[i]], annotation)
+            gse_name <- paste(gse_name, gpl_name, sep=".")
+        }
+        #add gse_name to eset_names
+        eset_names <- c(eset_names, gse_name)
     }
-    #add gse_name to eset_names
-    eset_names <- c(eset_names, gse_name)
-  }
-  return(eset_names)
+    return(eset_names)
 }
 
 
@@ -104,11 +104,11 @@ load_affy_plat <- function (eset, gse_dir) {
     sample_names <- sampleNames(eset)
     pattern <- paste(".*", sample_names, ".*CEL", collapse="|", sep="")
 
-    cel_paths <- list.files(gse_dir, pattern, full.names=T, ignore.case=T)
+    cel_paths <- list.files(gse_dir, pattern, full.names=TRUE, ignore.case=TRUE)
     data <- tryCatch (
         {
-        raw_data <- affy::ReadAffy (celfile.path=gse_dir)
-        affy::rma(raw_data)
+            raw_data <- affy::ReadAffy (celfile.path=gse_dir)
+            affy::rma(raw_data)
         },
         warning = function(cond) {
             raw_data <- oligo::read.celfiles(cel_paths)
@@ -127,8 +127,8 @@ load_affy_plat <- function (eset, gse_dir) {
     feature_order <- featureNames(eset)
     eset <- tryCatch (
         {
-        exprs(eset) <- exprs(data)[feature_order, sample_order]
-        eset
+            exprs(eset) <- exprs(data)[feature_order, sample_order]
+            eset
         },
         #if features don't match: also transfer featureData from data to eset
         error = function(cond) {
@@ -147,5 +147,4 @@ load_affy_plat <- function (eset, gse_dir) {
     eset <- symbol_annot(eset, gpl_name)
 
     return(eset)
-
 }

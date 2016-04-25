@@ -4,7 +4,7 @@
 \alias{load_diff}
 \title{Load previous differential expression analysis.}
 \usage{
-load_diff(gse_names, data_dir, probe = F)
+load_diff(gse_names, data_dir, probe = FALSE)
 }
 \arguments{
 \item{gse_names}{Character vector specifying GSE names to be loaded.}
@@ -12,6 +12,9 @@ load_diff(gse_names, data_dir, probe = F)
 \item{data_dir}{String specifying directory of GSE folders.}
 
 \item{probe}{Load probe level analysis? Default loads gene level analysis.}
+}
+\value{
+Result of previous call to \code{diff_expr}.
 }
 \description{
 Previous runs of \code{diff_expr} are loaded.

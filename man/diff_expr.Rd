@@ -43,7 +43,6 @@ and supplied to the \code{prev_anals} parameter. In this case, previous
 selections/names will be reused.
 }
 \examples{
-\dontrun{
 library(lydata)
 
 #location of raw data
@@ -64,8 +63,6 @@ anals <- diff_expr(com_esets, data_dir)
 #re-run analysis
 prev <- load_diff(gse_names, data_dir)
 anals <- diff_expr(com_esets, data_dir, prev_anals=prev)
-}
-
 }
 \seealso{
 \code{\link{get_raw}}, \code{\link{load_raw}}, and

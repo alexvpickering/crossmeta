@@ -1,6 +1,6 @@
 Package: crossmeta
 Title: Cross Platform Meta-Analysis of Microarrays
-Version: 0.0.0.9000
+Version: 0.99.0
 Authors@R: person("Alex", "Pickering", email = "alexvpickering@gmail.com", role = c("aut", "cre"))
 Description: Implements cross platform meta-analysis of Affymentrix, Illumina,
     and Agilent microarray data. This package automates common tasks such
@@ -11,29 +11,25 @@ Description: Implements cross platform meta-analysis of Affymentrix, Illumina,
     differential expression analysis are used by the MAMA package to perform various
     meta analysis methods.
 Depends:
-    R (>= 3.2.4),
-    methods
-License: What license is it under?
+    R (>= 3.2.4)
+License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Imports:
     affy,
     affxparser,
-    annotate,
     AnnotationDbi,
     Biobase,
     BiocGenerics,
+    BiocInstaller,
     dplyr,
-    DBI,
     GEOquery,
     limma,
     magrittr,
     matrixStats,
     MAMA,
-    metaMA,
     oligo,
     RColorBrewer,
-    RSQLite,
     stringr,
     sva,
     tcltk
@@ -42,3 +38,12 @@ Suggests: knitr,
     rmarkdown,
     lydata
 VignetteBuilder: knitr
+biocViews:
+    GeneExpression,
+    Transcription,
+    DifferentialExpression,
+    Microarray,
+    OneChannel,
+    Annotation,
+    BatchEffect,
+    Preprocessing
