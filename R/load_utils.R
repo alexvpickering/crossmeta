@@ -40,7 +40,7 @@ get_raw <- function (gse_names, data_dir=getwd()) {
 #' Loads and annotates raw data previously downloaded with \code{get_raw}.
 #' Supported platforms include Affymetrix, Agilent, and Illumina.
 #'
-#' @import tcltk
+#' @import tcltk data.table
 #'
 #' @param gse_names Character vector of GSE names.
 #' @param data_dir  String specifying directory with GSE folders.
@@ -67,7 +67,7 @@ load_raw <- function(gse_names, data_dir=getwd()) {
         gse_dir <- paste(data_dir, gse_name, sep="/")
 
         affy  <- list.files(gse_dir, ".CEL", ignore.case=TRUE)
-        agil  <- list.files(gse_dir, "GSM.*txt", ignore.case=TRUE)
+        agil  <- list.files(gse_dir, "^GSM.*txt", ignore.case=TRUE)
         illum <- list.files(gse_dir, "non.norm.*txt", ignore.case=TRUE)
 
         #add to appropriate names vector
@@ -88,6 +88,37 @@ load_raw <- function(gse_names, data_dir=getwd()) {
     illum_esets <- load_illum(illum_names, data_dir)
 
     return (c(affy_esets, agil_esets, illum_esets))
+}
+
+# Title
+#
+# @import data.table
+# @param eset
+# @param data
+#
+# @return
+#
+# @examples
+
+# !
+# USE FOR load_illum and load_agil if possible
+# !
+
+merge_fdata <- function(eset, data) {
+
+    #merge feature data from raw data and eset
+    fData(eset)$rn <- row.names(fData(eset))
+    fData(data)$rn <- row.names(fData(data))
+
+    dt1 <- data.table(fData(eset), key="rn")
+    dt2 <- data.table(fData(data), key="rn")
+
+    feature_data <- dt1[dt2]
+    feature_data <- as.data.frame(feature_data)
+    row.names(feature_data) <- feature_data$rn
+    feature_data$rn <- NULL
+
+    return(feature_data[featureNames(data), ])
 }
 
 
@@ -156,7 +187,7 @@ symbol_annot <- function (eset, gpl_name) {
     biocpack_name <- get_biocpack_name(gpl_name)
     SYMBOL <- NA  #value if no biocpack/selection
 
-    if (biocpack_name != "") {
+    if (!biocpack_name %in% c("", ".db")) {
         #get map for SYMBOL from biocpack
         get_biocpack(biocpack_name)
         ID <- featureNames(eset)
@@ -233,6 +264,11 @@ commonize <- function(esets, annot="SYMBOL") {
 }
 
 
+
+
+
+
+
 #-------------------
 
 
@@ -250,8 +286,8 @@ commonize <- function(esets, annot="SYMBOL") {
 # @seealso \code{\link{add_contrasts}}, \code{\link{get_biocpack_name}}.
 # @return Character vector with inputs typed into box1 and/or box2.
 
-inputs <- function(msg="", box1="eg. AL.obob",
-                   def1="AL", box2="eg. CR.obob", def2="CR", two=FALSE) {
+inputs <- function(msg="", box1="eg. CTRL",
+                   def1="CTRL", box2="eg. TEST", def2="TEST", two=FALSE) {
 
     xvar <- tclVar(def1)
     if (two) {

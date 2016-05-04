@@ -41,13 +41,26 @@ load_affy <- function (gse_names, data_dir) {
 
     esets <- list()
     for (gse_name in gse_names) {
-        gse_dir <- paste(data_dir, gse_name, sep="/")
 
-        #get GSEMatrix (for pheno data)
-        eset <- GEOquery::getGEO(gse_name, destdir=gse_dir, GSEMatrix=TRUE)
+        gse_dir <- file.path(data_dir, gse_name)
+        save_name <- paste(gse_name, "eset.rds", sep="_")
+        eset_path <- list.files(gse_dir, save_name, full.names=TRUE)
 
-        #load eset for each platform in GSE
-        esets[[gse_name]] <- lapply(eset,load_affy_plat, gse_dir)
+        #check if saved copy
+        if (length(eset_path) != 0) {
+            eset <- readRDS(eset_path)
+
+        } else {
+            #get GSEMatrix (for pheno data)
+            eset <- GEOquery::getGEO(gse_name, destdir=gse_dir, GSEMatrix=TRUE)
+
+            #load eset for each platform in GSE
+            eset <- lapply(eset,load_affy_plat, gse_dir)
+
+            #save to disc
+            saveRDS(eset, file.path(gse_dir, save_name))
+        }
+        esets[[gse_name]] <- eset
     }
 
     eset_names <- get_eset_names(esets, gse_names)
@@ -110,11 +123,18 @@ load_affy_plat <- function (eset, gse_dir) {
             raw_data <- affy::ReadAffy (celfile.path=gse_dir)
             affy::rma(raw_data)
         },
-        warning = function(cond) {
-            raw_data <- oligo::read.celfiles(cel_paths)
-            return (oligo::rma(raw_data))
+        warning = function(c) {
+            #is the warning to use oligo/xps?
+            if (grepl("oligo", c$message)) {
+                raw_data <- oligo::read.celfiles(cel_paths)
+                return (oligo::rma(raw_data))
+            #if not, use affy
+            } else {
+                raw_data <- affy::ReadAffy (celfile.path=gse_dir)
+                return(affy::rma(raw_data))
+            }
         },
-        error = function(cond) {
+        error = function(c) {
             raw_data <- oligo::read.celfiles(cel_paths)
             return (oligo::rma(raw_data))
         }
@@ -122,21 +142,13 @@ load_affy_plat <- function (eset, gse_dir) {
     #rename samples in data
     sampleNames(data) <- stringr::str_extract(sampleNames(data), "GSM[0-9]+")
 
-    #transfer exprs from data to eset (maintaining eset sample/feature order)
+    #transfer exprs from data to eset (maintaining eset sample order)
     sample_order <- sampleNames(eset)
-    feature_order <- featureNames(eset)
-    eset <- tryCatch (
-        {
-            exprs(eset) <- exprs(data)[feature_order, sample_order]
-            eset
-        },
-        #if features don't match: also transfer featureData from data to eset
-        error = function(cond) {
-            exprs(eset) <- exprs(data)[, sample_order]
-            fData(eset) <- fData(data)
-            return(eset)
-        }
-    )
+    exprs(eset) <- exprs(data)[, sample_order]
+
+    #transfer merged fdata
+    fData(eset) <- merge_fdata(eset, data)
+
     #add scan dates to pheno data (maintaining eset sample order)
     scan_dates <- cel_dates (cel_paths)
     names(scan_dates) <- sampleNames(data)

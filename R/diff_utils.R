@@ -154,7 +154,10 @@ add_contrasts <- function (eset, gse_name, annot="SYMBOL", prev_anal) {
 
     } else {
         #get contrast info from user input
-        choices <- paste(sampleNames(eset), pData(eset)$title)
+        geo <- "http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc="
+        gse_link <- paste(geo, gse_name, sep="")
+        choices <- c(gse_link, paste(sampleNames(eset), pData(eset)$title))
+
         contrasts <- c()
         group_levels <- c()
         selected_samples <- c()
@@ -303,10 +306,24 @@ diff_setup <- function(eset, group_levels){
     mod0 <- model.matrix(~1, data=pData(eset))
 
     #surrogate variable analysis
-    capture.output(svobj <- sva::sva(exprs(eset), mod, mod0))
-    modsv <- cbind(mod, svobj$sv)
-    colnames(modsv) <- c(colnames(mod), paste("SV", 1:svobj$n.sv, sep=""))
+    svobj <- tryCatch (
+        {capture.output(svobj <- sva::sva(exprs(eset), mod, mod0))
+        svobj},
 
+        error = function(cond) {
+            message("sva failed - continuing without. Could also try to: \n",
+                    " - re-select samples (if made mistake) \n",
+                    " - select more/fewer contrasts \n",
+                    " - remove offending eset \n")
+            return(list("sv"=NULL))
+        })
+
+    if (is.null(svobj$sv)) {
+        modsv <- mod
+    } else {
+        modsv <- cbind(mod, svobj$sv)
+        colnames(modsv) <- c(colnames(mod), paste("SV", 1:svobj$n.sv, sep=""))
+    }
     return (list("mod"=mod, "modsv"=modsv, "svobj"=svobj))
 }
 
@@ -353,19 +370,25 @@ diff_anal <- function(eset, contrasts, group_levels, mama_data,
         top_genes <- limma::topTable(ebayes_sv, coef=i, n=Inf)
         num_sig <- dim(dplyr::filter(top_genes, adj.P.Val < 0.05))[1]
         top_tables[[contrast_names[i]]] <- top_genes
-        cat (contrast_names[i], "(n significant):", num_sig, "\n")
+        cat (contrast_names[i], "(# p < 0.05):", num_sig, "\n")
     }
     cat("\n")
 
-    #plot MDS
+    #setup plot items
     group <- factor(pData(eset)$group, levels=group_levels)
     palette <- RColorBrewer::brewer.pal(12, "Paired")
     colours <- palette[group]
 
-    sva_exprs <- clean_y(exprs(eset), mod, svobj$sv)
+    #Add extra space to right of plot area
+    par(mar = c(5, 4, 2, 6))
 
+
+    #plot MDS
+    sva_exprs <- clean_y(exprs(eset), mod, svobj$sv)
     limma::plotMDS(sva_exprs, pch=19, main = gse_name, col = colours)
-    legend("center", legend=group_levels, fill=unique(colours))
+    legend("topright", inset=c(-0.4, 0), legend=group_levels,
+           fill=unique(colours), xpd=TRUE, bty="n", cex=0.65)
+
 
     #add sva adjusted exprs to mama_data
     mama_data$esets_sva <- get_contrast_esets(mama_data$sample_names,
