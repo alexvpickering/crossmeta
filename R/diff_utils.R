@@ -14,7 +14,7 @@ globalVariables(c("x", "y", "adj.P.Val"))
 #' and supplied to the \code{prev_anals} parameter. In this case, previous
 #' selections/names will be reused.
 #'
-#' @import magrittr Biobase
+#' @import magrittr Biobase shiny miniUI
 #' @importFrom BiocGenerics annotation
 #'
 #' @param esets List of annotated esets. Created by \code{load_raw}.
@@ -80,10 +80,18 @@ diff_expr <- function (esets, data_dir, annot="SYMBOL", prev_anals=list(NULL)) {
         #select contrasts
         cons <- add_contrasts(eset, gse_name, annot, prev_anal)
 
-        #differential expression
+        #setup for differential expression
         setup <- diff_setup(cons$eset, cons$levels)
 
-        anal <- diff_anal(cons$eset, cons$contrasts, cons$levels, cons$mama_data,
+        #remove rows with duplicated/NA annot (SYMBOL or PROBE)
+        dups <- iqr_duplicates(cons$eset, setup$mod, setup$svobj, annot)
+
+        #add esets (sva adjusted and not) to mama_data
+        cons$mama_data <- get_contrast_esets(cons$mama_data, dups)
+
+        #differential expression
+        anal <- diff_anal(dups$eset, dups$exprs_sva,
+                          cons$contrasts, cons$levels, cons$mama_data,
                           setup$mod, setup$modsv, setup$svobj,
                           gse_dir, gse_name, annot)
 
@@ -91,6 +99,59 @@ diff_expr <- function (esets, data_dir, annot="SYMBOL", prev_anals=list(NULL)) {
     }
     return (anals)
 }
+
+
+
+#------------------------
+
+
+# Removes features with duplicated annotation.
+#
+# For rows with duplicated annot, highested IQR retained.
+#
+# @param eset Annotated eset. Created by \code{load_raw}.
+# @param annot String, either "PROBE" or "SYMBOL" for probe or gene level
+#   analysis respectively. For duplicated genes symbols,the feature with
+#   the highest interquartile range across selected samples will be kept.
+#
+# @return Expression set with unique features at probe or gene level.
+
+iqr_duplicates <- function (eset, mod, svobj, annot="SYMBOL") {
+
+    #get eset with surrogate variables modeled out
+    exprs_sva <- clean_y(exprs(eset), mod, svobj$sv)
+
+    #add inter-quartile ranges, row, and feature data to exprs data
+    data <- as.data.frame(exprs_sva)
+    data$IQR <- matrixStats::rowIQRs(exprs_sva)
+    data$row <- 1:nrow(data)
+    data[, colnames(fData(eset))] <- fData(eset)
+
+    #remove rows with NA annot (occurs if annot is SYMBOL)
+    data <- data[!is.na(data[, annot]), ]
+
+    #for rows with same annot, keep highest IQR
+    data %>%
+        dplyr::group_by_(annot) %>%
+        dplyr::arrange(dplyr::desc(IQR)) %>%
+        dplyr::slice(1) %>%
+        dplyr::ungroup() ->
+        data
+
+
+    #use row number to keep selected features
+    eset <- eset[data$row, ]
+    exprs_sva <- exprs_sva[data$row, ]
+
+    #use annot for feature names
+    featureNames(eset) <- fData(eset)[, annot]
+    row.names(exprs_sva)   <- fData(eset)[, annot]
+
+    return (list(eset=eset, exprs_sva=exprs_sva))
+}
+
+
+#---------------------
 
 
 # Reuse contrast selections from previous analysis.
@@ -111,7 +172,6 @@ match_prev_eset <- function(eset, prev_anal) {
 
     #transfer previous treatment, tissue & group to eset
     pData(eset)$treatment <- pData(prev_anal$eset)$treatment
-    pData(eset)$tissue    <- pData(prev_anal$eset)$tissue
     pData(eset)$group     <- pData(prev_anal$eset)$group
 
     return (eset)
@@ -150,17 +210,14 @@ add_contrasts <- function (eset, gse_name, annot="SYMBOL", prev_anal) {
 
         contrasts    <- colnames(prev_anal$ebayes$contrasts)
         group_levels <- colnames(prev_anal$ebayes$design)
-        selected_samples <- sampleNames(prev_anal$eset)
 
     } else {
         #get contrast info from user input
-        geo <- "http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc="
-        gse_link <- paste(geo, gse_name, sep="")
-        choices <- c(gse_link, paste(sampleNames(eset), pData(eset)$title))
-
-        contrasts <- c()
-        group_levels <- c()
-        selected_samples <- c()
+        sels <- list()
+        cons <- data.frame(Test=character(0),
+                           Control=character(0), stringsAsFactors=FALSE)
+        pdata <- data.frame(Accession=sampleNames(eset),
+                            Title=pData(eset)$title)
 
         #for MAMA data
         mama_samples <- list()
@@ -168,116 +225,60 @@ add_contrasts <- function (eset, gse_name, annot="SYMBOL", prev_anal) {
 
         #repeat until all contrasts selected
         while (TRUE) {
-            #select ctrl samples
-            ctrl <- tcltk::tk_select.list(choices, multiple=TRUE,
-                                          title="Control samples for contrast")
-            ctrl <- stringr::str_extract(ctrl, "GSM[0-9]+")
-            if (length(ctrl) == 0) {break}
+            #select control and test samples
+            ctrl_sel <- select_samples(gse_name,
+                                       "Control Samples", pdata, cons, sels)
+            if (is.null(ctrl_sel)) break
+            sels <- c(sels, ctrl_sel)
 
-            #select test samples
-            test <- tcltk::tk_select.list(choices, multiple=TRUE,
-                                          title="Test samples for contrast")
-            test <- stringr::str_extract(test, "GSM[0-9]+")
+            test_sel <- select_samples(gse_name,
+                                       "Test Samples", pdata, cons, sels)
+            sels <- c(sels,  test_sel)
 
-            #add treatment to pheno
+            #add group names to contrast dataframe
+            cons[nrow(cons) + 1, ] <- c(names(test_sel), names(ctrl_sel))
+
+            #get sample names
+            ctrl <- sampleNames(eset)[ctrl_sel[[1]]]
+            test <- sampleNames(eset)[test_sel[[1]]]
+
+            #add treatment/group labels to pheno
             pData(eset)[ctrl, "treatment"] <- "ctrl"
             pData(eset)[test, "treatment"] <- "test"
 
-            #add group names & tissue to pheno
-            tissue <- inputs("Tissue source", box1="eg. liver", def1="")
-            group_names <- paste(inputs("Group names", two=TRUE),
-                                 tissue, sep=".")
-            pData(eset)[c(ctrl, test), "tissue"] <- tissue
-            pData(eset)[ctrl, "group"] <- group_names[1]
-            pData(eset)[test, "group"] <- group_names[2]
+            pData(eset)[ctrl, "group"] <- names(ctrl_sel)
+            pData(eset)[test, "group"] <- names(test_sel)
 
-            #add to contrasts
-            contrast <- paste(group_names[2], group_names[1], sep="-")
-            contrasts <- c(contrasts, contrast)
 
-            #add to group_levels
-            group_levels <- unique(c(group_levels,
-                                     group_names[1],
-                                     group_names[2]))
+            #add sample names for each contrast to mama_samples
+            con_name <- paste(names(test_sel), names(ctrl_sel), sep="-")
+            con_name <- paste(gse_name, con_name, sep="_")
+            mama_samples[[con_name]] <- c(ctrl, test)
 
-            #add to selected_samples
-            selected_samples <- unique(c(selected_samples, ctrl, test))
-
-            #store sample names for each contrast
-            contrast_name <- paste(gse_name, contrast, sep="_")
-            mama_samples[[contrast_name]] <- c(ctrl, test)
-
-            #add labels for contrast to mama_clinicals
+            #add treatment labels for contrast to mama_clinicals
             labels <- factor(pData(eset)[c(ctrl, test), "treatment"],
                              levels = c("test", "ctrl"))
-            clinical <- data.frame(treatment = labels,
-                                   row.names = c(ctrl, test))
-            mama_clinicals[[contrast_name]] <- clinical
+            clinical <- data.frame(treatment=labels, row.names=c(ctrl, test))
+            mama_clinicals[[con_name]] <- clinical
         }
-        #retain selected samples only
-        eset <- eset[, selected_samples]
-    }
-    #remove rows with duplicated/NA annot (SYMBOL or PROBE)
-    eset <- iqr_duplicates(eset, annot)
+        #create contrast names
+        contrasts <- paste(cons$Test, cons$Control, sep="-")
 
-    #subset eset for each contrast (for MAMA)
-    mama_esets <- get_contrast_esets(mama_samples, eset)
+        #store levels for group variable
+        group_levels <- unique(names(sels))
+
+        #retain selected samples only
+        eset <- eset[, unique(unlist(sels))]
+    }
 
     #put data together
-    mama_data <- list(esets=mama_esets, sample_names=mama_samples,
-                      clinicals=mama_clinicals)
+    mama_data <- list(sample_names=mama_samples, clinicals=mama_clinicals)
+    contrast_data <- list(eset=eset, contrasts=contrasts,
+                          levels=group_levels, mama_data=mama_data)
 
-    contrast_data <- list(eset=eset, contrasts=contrasts, levels=group_levels,
-                          samples=selected_samples, mama_data=mama_data)
     return (contrast_data)
 }
 
-
-#------------------------
-
-
-# Removes features with duplicated annotation.
-#
-# For rows with duplicated annot, highested IQR retained.
-#
-# @param eset Annotated eset. Created by \code{load_raw}.
-# @param annot String, either "PROBE" or "SYMBOL" for probe or gene level
-#   analysis respectively. For duplicated genes symbols,the feature with
-#   the highest interquartile range across selected samples will be kept.
-#
-# @return Expression set with unique features at probe or gene level.
-
-iqr_duplicates <- function (eset, annot="SYMBOL") {
-
-    #remove rows with NA annot (occurs if annot is SYMBOL)
-    eset <- eset[!is.na(fData(eset)[, annot]),]
-
-    data <- as.data.frame(exprs(eset))
-    #add inter-quartile ranges to data
-    data$IQR <- matrixStats::rowIQRs(exprs(eset))
-    #add feature data
-    data[, colnames(fData(eset))] <- fData(eset)
-
-    #for rows with same annot, keep highest IQR
-    data %>%
-        dplyr::group_by_(annot) %>%
-        dplyr::arrange(dplyr::desc(IQR)) %>%
-        dplyr::slice(1) %>%
-        dplyr::ungroup() ->
-        data
-
-    #seperate exprs and fData columns
-    exprs <- as.matrix(data[, sampleNames(eset)])
-    fData <- as.matrix(data[, colnames(fData(eset))])
-    row.names(exprs) <- fData[, annot]
-    row.names(fData) <- fData[, annot]
-
-    #put exprs and fData into eset
-    exprs(eset) <- exprs
-    fData(eset) <- as.data.frame(fData)
-
-    return (eset)
-}
 
 
 #------------------------
@@ -308,7 +309,7 @@ diff_setup <- function(eset, group_levels){
     #surrogate variable analysis
     svobj <- tryCatch (
         {capture.output(svobj <- sva::sva(exprs(eset), mod, mod0))
-        svobj},
+            svobj},
 
         error = function(cond) {
             message("sva failed - continuing without. Could also try to: \n",
@@ -355,7 +356,7 @@ diff_setup <- function(eset, group_levels){
 # @return List, final result of \code{diff_expr}. Used for subsequent
 #   meta-analysis.
 
-diff_anal <- function(eset, contrasts, group_levels, mama_data,
+diff_anal <- function(eset, exprs_sva, contrasts, group_levels, mama_data,
                       mod, modsv, svobj, gse_dir, gse_name, annot="SYMBOL"){
 
     #differential expression (surrogate variables modeled and not)
@@ -384,15 +385,10 @@ diff_anal <- function(eset, contrasts, group_levels, mama_data,
 
 
     #plot MDS
-    sva_exprs <- clean_y(exprs(eset), mod, svobj$sv)
-    limma::plotMDS(sva_exprs, pch=19, main = gse_name, col = colours)
+    limma::plotMDS(exprs_sva, pch=19, main = gse_name, col = colours)
     legend("topright", inset=c(-0.4, 0), legend=group_levels,
            fill=unique(colours), xpd=TRUE, bty="n", cex=0.65)
 
-
-    #add sva adjusted exprs to mama_data
-    mama_data$esets_sva <- get_contrast_esets(mama_data$sample_names,
-                                              eset, sva_exprs)
 
     #save to disk
     diff_expr <- list(eset=eset, top_tables=top_tables,
@@ -449,11 +445,16 @@ fit_ebayes <- function(eset, contrasts, mod) {
 # @seealso  \code{\link{clean_y}}.
 # @return List of expression sets (one per contrast).
 
-get_contrast_esets <- function(sample_names, eset, data=exprs(eset)) {
-    #used to setup esets for MAMA
-    #data = exprs_sva will return sva-adjusted eset for each contrast
-    exprs(eset) <- data
-    lapply(sample_names, function(x) eset[,x])
+get_contrast_esets <- function(mama_data, dups) {
+
+    sample_names <- mama_data$sample_names
+    eset <- dups$eset
+    mama_data$esets <- lapply(sample_names, function(x) eset[,x])
+
+    exprs(eset) <- dups$exprs_sva
+    mama_data$esets_sva <- lapply(sample_names, function(x) eset[,x])
+
+    return(mama_data)
 }
 
 
