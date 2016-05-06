@@ -1,19 +1,24 @@
-# Title
+# Shiny gadget to select samples.
 #
-# @param title
-# @param pdata
-# @param contrasts
-# @param previous
+# @param gse_name String, used to create link to Gene Expression Omnibus.
+# @param title String, displayed in gadget title bar.
+# @param pdata Dataframe with phenotype data to help with selection.
+# @param contrasts Dataframe with columns "Test" and "Control" specifying
+#    group names for previously selected contrasts.
+# @param previous Named lists of numeric vectors. List names are previous groups
+#    and numeric vectors are previously selected rows. Created by concatenating
+#    results of previous calls to select_samples. Used for reselection of
+#    previous groups.
 #
-# @return
-# @export
-#
-# @examples
+# @return Named list with a numeric vector. Name is typed group name,
+#    numeric vector is selected rows.
+
 select_samples <- function(gse_name, title, pdata, contrasts, previous) {
 
     gse_link <- paste("https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=",
                       gse_name, sep="")
     ui <- miniPage(
+        #title bar
         gadgetTitleBar(title, left = miniTitleBarButton("geo",
                                                         a("GEO",
                                                           href=gse_link))),

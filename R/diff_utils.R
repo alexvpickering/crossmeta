@@ -78,7 +78,7 @@ diff_expr <- function (esets, data_dir, annot="SYMBOL", prev_anals=list(NULL)) {
         gse_dir <- paste(data_dir, gse_folder, sep="/")
 
         #select contrasts
-        cons <- add_contrasts(eset, gse_name, annot, prev_anal)
+        cons <- add_contrasts(eset, gse_name, prev_anal)
 
         #setup for differential expression
         setup <- diff_setup(cons$eset, cons$levels)
@@ -102,55 +102,6 @@ diff_expr <- function (esets, data_dir, annot="SYMBOL", prev_anals=list(NULL)) {
 
 
 
-#------------------------
-
-
-# Removes features with duplicated annotation.
-#
-# For rows with duplicated annot, highested IQR retained.
-#
-# @param eset Annotated eset. Created by \code{load_raw}.
-# @param annot String, either "PROBE" or "SYMBOL" for probe or gene level
-#   analysis respectively. For duplicated genes symbols,the feature with
-#   the highest interquartile range across selected samples will be kept.
-#
-# @return Expression set with unique features at probe or gene level.
-
-iqr_duplicates <- function (eset, mod, svobj, annot="SYMBOL") {
-
-    #get eset with surrogate variables modeled out
-    exprs_sva <- clean_y(exprs(eset), mod, svobj$sv)
-
-    #add inter-quartile ranges, row, and feature data to exprs data
-    data <- as.data.frame(exprs_sva)
-    data$IQR <- matrixStats::rowIQRs(exprs_sva)
-    data$row <- 1:nrow(data)
-    data[, colnames(fData(eset))] <- fData(eset)
-
-    #remove rows with NA annot (occurs if annot is SYMBOL)
-    data <- data[!is.na(data[, annot]), ]
-
-    #for rows with same annot, keep highest IQR
-    data %>%
-        dplyr::group_by_(annot) %>%
-        dplyr::arrange(dplyr::desc(IQR)) %>%
-        dplyr::slice(1) %>%
-        dplyr::ungroup() ->
-        data
-
-
-    #use row number to keep selected features
-    eset <- eset[data$row, ]
-    exprs_sva <- exprs_sva[data$row, ]
-
-    #use annot for feature names
-    featureNames(eset) <- fData(eset)[, annot]
-    row.names(exprs_sva)   <- fData(eset)[, annot]
-
-    return (list(eset=eset, exprs_sva=exprs_sva))
-}
-
-
 #---------------------
 
 
@@ -159,7 +110,8 @@ iqr_duplicates <- function (eset, mod, svobj, annot="SYMBOL") {
 # Transfers user-supplied selections from previous call of diff_expr.
 #
 # @param eset Annotated eset. Created by \code{load_raw}.
-# @param prev_anal Previous result of \code{diff_expr}.
+# @param prev_anal One item (for eset) from previous result of \code{diff_expr}.
+#    If present, previous selections and names will be reused.
 #
 # @seealso \code{\link{diff_expr}}
 # @return Expression set with samples and pData as in prev_anal.
@@ -184,21 +136,24 @@ match_prev_eset <- function(eset, prev_anal) {
 # Select contrasts for each GSE.
 #
 # Function is used by \code{diff_expr} to get sample selections for each
-# contrast from user. After selecting samples, duplicated features
-# (probes or genes) are removed.
+# contrast from user.
 #
-# @param eset Annotated eset. Created by \code{load_raw}.
+# @inheritParams match_prev_eset
 # @param gse_name String specifying GSE name for eset.
-# @param annot String, either "PROBE" or "SYMBOL" for probe or gene level
-#   analysis respectively. For duplicated genes symbols,the feature with
-#   the highest interquartile range across selected samples will be kept.
-# @param prev_anal Previous result of \code{diff_expr}. If present, previous
-#   selections and names will be reused.
 #
 # @seealso \code{\link{diff_expr}}
-# @return list needed for \code{diff_setup}.
+# @return List with
+#    \item{eset}{Expression set with selected samples only.}
+#    \item{contrasts}{Character vector of contrast names.}
+#    \item{levels}{Character vector of group variable names.
+#    \item{mama_data}{List with :
+#       \item{sample_names}{Named list  of character vectors (one per contrast)
+#          with sample names.}
+#       \item{clinicals}{Named list of dataframes (one per contrast) with rows
+#          equal to sample names and 'treatment' column a factor with levels
+#          equal to 'test' and 'ctrl'.
 
-add_contrasts <- function (eset, gse_name, annot="SYMBOL", prev_anal) {
+add_contrasts <- function (eset, gse_name, prev_anal) {
 
     if (!is.null(prev_anal)) {
         #re-use selections/sample labels from previous analysis
@@ -289,8 +244,9 @@ add_contrasts <- function (eset, gse_name, annot="SYMBOL", prev_anal) {
 # Used by \code{diff_expr} to create model matrix with surrogate variables
 # in order to run \code{diff_anal}.
 #
-# @param eset Annotated eset. Created by \code{load_raw}.
-# @param group_levels Unique group names created by \code{add_contrasts}.
+# @param eset Annotated eset with samples selected during \code{add_contrasts}.
+# @param group_levels Character vector of unique group names created by
+#    \code{add_contrasts}.
 #
 # @seealso \code{\link{add_contrasts}}, \code{\link{diff_expr}}.
 # @return List with model matrix(mod), model matrix with surrogate
@@ -332,6 +288,59 @@ diff_setup <- function(eset, group_levels){
 #------------------------
 
 
+
+# Removes features with duplicated annotation.
+#
+# For rows with duplicated annot, highested IQR retained.
+#
+# @inheritParams diff_expr
+# @inheritParams diff_setup
+# @param mod Model matrix without surrogate variables. generated by \code{diff_setup}.
+# @param svobj Result from \code{sva} function called during \code{diff_setup}.
+#
+# @return List with:
+#    \item{eset}{Expression set with unique features at probe or gene level.}
+#    \item{exprs_sva}{Expression data from eset with effect of surrogate
+#       variable removed.}
+
+iqr_duplicates <- function (eset, mod, svobj, annot="SYMBOL") {
+
+    #get eset with surrogate variables modeled out
+    exprs_sva <- clean_y(exprs(eset), mod, svobj$sv)
+
+    #add inter-quartile ranges, row, and feature data to exprs data
+    data <- as.data.frame(exprs_sva)
+    data$IQR <- matrixStats::rowIQRs(exprs_sva)
+    data$row <- 1:nrow(data)
+    data[, colnames(fData(eset))] <- fData(eset)
+
+    #remove rows with NA annot (occurs if annot is SYMBOL)
+    data <- data[!is.na(data[, annot]), ]
+
+    #for rows with same annot, keep highest IQR
+    data %>%
+        dplyr::group_by_(annot) %>%
+        dplyr::arrange(dplyr::desc(IQR)) %>%
+        dplyr::slice(1) %>%
+        dplyr::ungroup() ->
+        data
+
+
+    #use row number to keep selected features
+    eset <- eset[data$row, ]
+    exprs_sva <- exprs_sva[data$row, ]
+
+    #use annot for feature names
+    featureNames(eset) <- fData(eset)[, annot]
+    row.names(exprs_sva)   <- fData(eset)[, annot]
+
+    return (list(eset=eset, exprs_sva=exprs_sva))
+}
+
+
+#------------------------
+
+
 # Run limma analysis.
 #
 # Runs limma differential expression analysis on all contrasts selected by
@@ -340,10 +349,14 @@ diff_setup <- function(eset, group_levels){
 # results.
 #
 # @param eset Annotated eset created by \code{load_raw}. Duplicate features and
-#   non-selected samples removed by \code{add_contrasts}.
+#   non-selected samples removed by \code{iqr_duplicates}.
+# @param exprs_sva Expression data with surrogate variables removed. Created by
+#    \code{iqr_duplicates}
 # @param contrasts Character vector generated by \code{add_contrasts}.
-# @param group_levels Character vector generated by \code{add_contrasts}.
-# @param mama_data List generated by \code{add_contrasts}.
+# @param group_levels Character vector of group names generated by
+#    \code{add_contrasts}.
+# @param mama_data List generated by \code{add_contrasts} then
+#    \code{get_contrast_esets}.
 # @param mod, modsv Model matrix generated by \code{diff_setup}. With
 #   and without surrogate variables.
 # @param svobj Result from \code{sva} function called during \code{diff_setup}.
@@ -411,9 +424,11 @@ diff_anal <- function(eset, exprs_sva, contrasts, group_levels, mama_data,
 #
 # Generates contrast matrix then runs eBayes analysis from limma.
 #
-# @param eset Annotated eset created by \code{load_raw}. Duplicate features and
-#   non-selected samples removed by \code{add_contrasts}.
-# @param contrasts Character vector generated by \code{add_contrasts}.
+# @param eset Annotated eset created by \code{load_raw}. Non-selected samples
+#    and duplicate features removed by \code{add_contrasts} and
+#    \code{iqr_duplicates}.
+# @param contrasts Character vector of contrast names generated by
+#    \code{add_contrasts}.
 # @param mod Model matrix generated by \code{diff_setup}. With
 #   or without surrogate variables.
 #
@@ -435,15 +450,21 @@ fit_ebayes <- function(eset, contrasts, mod) {
 # GSE. These esets are stored in the \code{mama_data} slot created during
 # \code{diff_expr}.
 #
-# @param sample_names List of character vectors specifying the sample names
-#   for each contrast.
-# @param eset Annotated eset created by \code{load_raw}. Duplicate features and
-#   non-selected samples removed by \code{add_contrasts}.
+# @param mama_data result of call to \code{add_contrasts}.
+# @param dups result of call to \code{iqr_duplicates}.
 # @param data Expression data for eset. Used to supply sva adjusted data created
 #   by \code{clean_y}.
 #
 # @seealso  \code{\link{clean_y}}.
-# @return List of expression sets (one per contrast).
+# @return A list with:
+#    \item{sample_names}{Named list  of character vectors (one per contrast)
+#       with sample names.}
+#    \item{clinicals}{Named list of dataframes (one per contrast) with rows
+#       equal to sample names and 'treatment' column a factor with levels
+#       equal to 'test' and 'ctrl'.
+#    \item{esets_sva, esets}{List of esets with samples for each contrast only.
+#       Expression data has effects of surrogate variables removed or not.}
+#
 
 get_contrast_esets <- function(mama_data, dups) {
 
@@ -461,7 +482,7 @@ get_contrast_esets <- function(mama_data, dups) {
 #------------------------
 
 
-# Adjustes expression data for surrogate variables.
+# Adjusts expression data for surrogate variables.
 #
 # Factors out effect of surrogate variables discovered during surrogate variable
 # analysis.
