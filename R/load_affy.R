@@ -143,14 +143,15 @@ load_affy_plat <- function (eset, gse_dir) {
     sampleNames(data) <- stringr::str_extract(sampleNames(data), "GSM[0-9]+")
 
     #transfer exprs from data to eset (maintaining eset sample order)
-    sample_order <- sampleNames(eset)
+    sample_order <- sampleNames(eset)[sampleNames(eset) %in% sampleNames(data)]
     exprs(eset) <- exprs(data)[, sample_order]
+    pData(eset) <- pData(eset)[sample_order, ]
 
     #transfer merged fdata
     fData(eset) <- merge_fdata(eset, data)
 
     #add scan dates to pheno data (maintaining eset sample order)
-    scan_dates <- cel_dates (cel_paths)
+    scan_dates <- cel_dates(cel_paths)
     names(scan_dates) <- sampleNames(data)
     pData(eset)$scan_date <- scan_dates[sample_order]
 

@@ -168,45 +168,34 @@ add_contrasts <- function (eset, gse_name, prev_anal) {
 
     } else {
         #get contrast info from user input
-        sels <- list()
-        cons <- data.frame(Test=character(0),
-                           Control=character(0), stringsAsFactors=FALSE)
         pdata <- data.frame(Accession=sampleNames(eset),
                             Title=pData(eset)$title)
+        sels <- select_contrasts(gse_name, pdata)
 
         #for MAMA data
         mama_samples <- list()
         mama_clinicals <- list()
 
-        #repeat until all contrasts selected
-        while (TRUE) {
-            #select control and test samples
-            ctrl_sel <- select_samples(gse_name,
-                                       "Control Samples", pdata, cons, sels)
-            if (is.null(ctrl_sel)) break
-            sels <- c(sels, ctrl_sel)
-
-            test_sel <- select_samples(gse_name,
-                                       "Test Samples", pdata, cons, sels)
-            sels <- c(sels,  test_sel)
-
-            #add group names to contrast dataframe
-            cons[nrow(cons) + 1, ] <- c(names(test_sel), names(ctrl_sel))
+        #setup data for each contrast
+        for (i in 1:nrow(sels$cons)) {
+            #get group names
+            cgrp <- sels$cons[i, "Control"]
+            tgrp <- sels$cons[i, "Test"]
 
             #get sample names
-            ctrl <- sampleNames(eset)[ctrl_sel[[1]]]
-            test <- sampleNames(eset)[test_sel[[1]]]
+            ctrl <- sampleNames(eset)[ sels$rows[[cgrp]] ]
+            test <- sampleNames(eset)[ sels$rows[[tgrp]] ]
 
             #add treatment/group labels to pheno
             pData(eset)[ctrl, "treatment"] <- "ctrl"
             pData(eset)[test, "treatment"] <- "test"
 
-            pData(eset)[ctrl, "group"] <- names(ctrl_sel)
-            pData(eset)[test, "group"] <- names(test_sel)
+            pData(eset)[ctrl, "group"] <- cgrp
+            pData(eset)[test, "group"] <- tgrp
 
 
-            #add sample names for each contrast to mama_samples
-            con_name <- paste(names(test_sel), names(ctrl_sel), sep="-")
+            #add sample names for contrast to mama_samples
+            con_name <- paste(tgrp, cgrp, sep="-")
             con_name <- paste(gse_name, con_name, sep="_")
             mama_samples[[con_name]] <- c(ctrl, test)
 
@@ -217,13 +206,13 @@ add_contrasts <- function (eset, gse_name, prev_anal) {
             mama_clinicals[[con_name]] <- clinical
         }
         #create contrast names
-        contrasts <- paste(cons$Test, cons$Control, sep="-")
+        contrasts <- paste(sels$cons$Test, sels$cons$Control, sep="-")
 
-        #store levels for group variable
-        group_levels <- unique(names(sels))
+        #store levels for group name variable
+        group_levels <- names(sels$rows)
 
         #retain selected samples only
-        eset <- eset[, unique(unlist(sels))]
+        eset <- eset[, unique(unlist(sels$rows))]
     }
 
     #put data together
