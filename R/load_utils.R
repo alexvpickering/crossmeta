@@ -135,7 +135,7 @@ get_biocpack <- function(biocpack_name) {
 
     if (!require(biocpack_name, character.only=TRUE)) {
         source("https://bioconductor.org/biocLite.R")
-        BiocInstaller::biocLite(biocpack_name)
+        biocLite(biocpack_name)
         require(biocpack_name, character.only=TRUE)
     }
 }

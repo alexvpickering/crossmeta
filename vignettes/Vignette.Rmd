@@ -32,13 +32,13 @@ the next step is to obtain and decompress the raw data:
 ```{r}
 library(crossmeta)
 
-#specify where data will be downloaded
+# specify where data will be downloaded
 data_dir <- file.path(getwd(), "data", "LY")
 
-#gather GSE names
-affy_names  <- c("GSE9601", "GSE15069")
+# gather GSE names; also gather Illumina GSE names in seperate vector 
+# (see 'Checking Raw Illumina Data')
+gse_names  <- c("GSE9601", "GSE15069", "GSE50841", "GSE34817", "GSE29689")
 illum_names <- c("GSE50841", "GSE34817", "GSE29689")
-gse_names   <- c(affy_names, illum_names)
 ```
 
 ```{r, eval=FALSE}
@@ -58,25 +58,33 @@ is a good regular expression cheat-sheat.
 Ensure the following:
 
   * Detection p-values present(usually every second column)
-  * File format is tab seperated .txt file
+  * File format is tab seperated .txt file 
+  * File name includes 'non-normalized'
   * Column header formats:
     * probeid header is __ID_REF__
     * expression data headers are __AVG_Signal-sample_name__
     * pval headers are __Detection-sample_name__
 
 The relevant raw illumina files will be in `data_dir` in a seperate folder for 
-each GSE. They are usually txt files with "non-normalized" in their name.
+each GSE. They are usually txt files and must include 'non-normalized' in their
+name. To open these files one at a time with your default text editor:
+
+```{r, eval=FALSE}
+# this is why we kept track of Illumina names in seperate vector
+crossmeta:::open_raw_illum(illum_names, data_dir)
+```
+
 
 For **GSE50841**:
 
-  * using Sublime Text 2, click "Find --> Replace"
+  * using Sublime Text 2, click "Find --> Replace" (or "Ctrl + h")
   * __Find What__: _(SAMPLE \\d+)\\tDetection Pval_
   * __Replace With__: _AVG_Signal-\\1\\tDetection-\\1_
 
 
 For **GSE34817**:
 
-  * using Sublime Text 2, click "Find --> Replace"
+  * using Sublime Text 2, click "Find --> Replace" (or "Ctrl + h")
   * __Find What__: _(MDA.+?)\\tDetection Pval_
   * __Replace With__: _AVG_Signal-\\1\\tDetection-\\1_
 

@@ -19,7 +19,6 @@ select_contrasts <- function(gse_name, pdata) {
 
 
     # objects we will update
-    ctrl_state <- 1
     previous <- list()
     groups <- c()
     contrasts <- data.frame(Control = character(0),
@@ -42,7 +41,7 @@ select_contrasts <- function(gse_name, pdata) {
         miniTabstripPanel(
             miniTabPanel("Samples", icon = icon("table"),
                          miniContentPanel(
-                             fillCol(flex = c(NA, NA, NA, NA),
+                             fillCol(flex = c(NA, NA, NA, 1),
                                      textInput(
                                          "group",
                                          "Control group name:",
@@ -54,16 +53,21 @@ select_contrasts <- function(gse_name, pdata) {
                                          choices = c("", names(previous)),
                                          width = "200px"
                                      ),
-                                     actionButton("add", "Add"),
+                                     hr(),
                                      DT::dataTableOutput("pdata")
                              )
+                         ),
+                         miniButtonBlock(
+                             actionButton("add", "Add Group")
                          )
             ),
 
             miniTabPanel("Contrasts", icon = icon("list-ol"),
                          miniContentPanel(
-                             actionButton("delete", "Delete"),
                              DT::dataTableOutput("contrasts")
+                         ),
+                         miniButtonBlock(
+                             actionButton("delete", "Delete Contrast(s)")
                          )
             )
         )
@@ -78,16 +82,20 @@ select_contrasts <- function(gse_name, pdata) {
 
 
         # show selected contrasts
-        # update with current contrast when add/delete click
-        output$contrasts <- DT::renderDataTable(
+        output$contrasts <- DT::renderDataTable({
+
+            # invalidate when add/delete click
+            input$add
+            input$delete
+
             DT::datatable(
-                data(),
-                selection = 'multiple',
+                contrasts,
                 options = list(
                     paging = FALSE,
-                    searching = FALSE
+                    searching = FALSE,
+                    bInfo = 0
                 )
-            ),
+            )},
             server = FALSE
         )
 
@@ -97,21 +105,16 @@ select_contrasts <- function(gse_name, pdata) {
                 pdata,
                 options = list(
                     paging = FALSE,
-                    searching = FALSE
+                    bInfo = 0
                 )
             )
         )
 
-        # need pdata proxy to reselect rows of pheno data
-        # and to add
-        proxy = DT::dataTableProxy('pdata')
+        # make reactive state value to keep track of ctrl vs test group
+        state <- reactiveValues(ctrl = 1)
 
-        #contrasts reactive to add/delete click
-        data <- reactive({
-            input$delete
-            input$add
-            contrasts
-        })
+        # need pdata proxy to reselect rows of pheno data
+        proxy = DT::dataTableProxy('pdata')
 
 
 
@@ -138,6 +141,7 @@ select_contrasts <- function(gse_name, pdata) {
             #check for wrong input
             } else if (make.names(group) != group) {
                 message("Group name invalid.")
+
             } else if (group %in% names(previous) &&
                        !setequal(previous[[group]], rows)) {
                 message("Group name in use with different samples.")
@@ -148,7 +152,7 @@ select_contrasts <- function(gse_name, pdata) {
 
 
             #add ctrl group data to previous and groups
-            } else if (ctrl_state == 1) {
+            } else if (state$ctrl == 1) {
                 if (!group %in% names(previous))
                     previous <<- c(previous, group_data)
                 groups <<- c(groups, names(group_data))
@@ -159,7 +163,7 @@ select_contrasts <- function(gse_name, pdata) {
                 updateSelectInput(session, "prev",
                                   choices = c("", names(previous)))
                 DT::selectRows(proxy, NULL)
-                ctrl_state <<- 0
+                state$ctrl <- 0
 
 
             #add test group data to previous and groups
@@ -178,7 +182,7 @@ select_contrasts <- function(gse_name, pdata) {
                 #add groups to contrasts table then blank groups
                 contrasts[nrow(contrasts) + 1, ] <<- groups
                 groups <<- c()
-                ctrl_state <<- 1
+                state$ctrl <- 1
             }
         })
 
@@ -234,7 +238,7 @@ select_contrasts <- function(gse_name, pdata) {
 
 
         observeEvent(input$done, {
-            if (ctrl_state == 0) {
+            if (state$ctrl == 0) {
                 message("Need to add test group.")
             } else if (nrow(contrasts) == 0) {
                 message("No contrasts selected.")

@@ -1,17 +1,21 @@
 ## ------------------------------------------------------------------------
 library(crossmeta)
 
-#specify where data will be downloaded
+# specify where data will be downloaded
 data_dir <- file.path(getwd(), "data", "LY")
 
-#gather GSE names
-affy_names  <- c("GSE9601", "GSE15069")
+# gather GSE names; also gather Illumina GSE names in seperate vector 
+# (see 'Checking Raw Illumina Data')
+gse_names  <- c("GSE9601", "GSE15069", "GSE50841", "GSE34817", "GSE29689")
 illum_names <- c("GSE50841", "GSE34817", "GSE29689")
-gse_names   <- c(affy_names, illum_names)
 
 ## ---- eval=FALSE---------------------------------------------------------
 #  #download raw data
 #  get_raw(gse_names, data_dir)
+
+## ---- eval=FALSE---------------------------------------------------------
+#  # this is why we kept track of Illumina names in seperate vector
+#  crossmeta:::open_raw_illum(illum_names, data_dir)
 
 ## ---- message=FALSE, warning=FALSE---------------------------------------
 library(lydata)

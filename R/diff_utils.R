@@ -79,6 +79,7 @@ diff_expr <- function (esets, data_dir, annot="SYMBOL", prev_anals=list(NULL)) {
 
         #select contrasts
         cons <- add_contrasts(eset, gse_name, prev_anal)
+        if (is.null(cons)) next
 
         #setup for differential expression
         setup <- diff_setup(cons$eset, cons$levels)
@@ -176,8 +177,10 @@ add_contrasts <- function (eset, gse_name, prev_anal) {
         mama_samples <- list()
         mama_clinicals <- list()
 
+        if (length(sels$cons$Control) == 0) return(NULL)
+
         #setup data for each contrast
-        for (i in 1:nrow(sels$cons)) {
+        for (i in seq_along(sels$cons$Control)) {
             #get group names
             cgrp <- sels$cons[i, "Control"]
             tgrp <- sels$cons[i, "Test"]
