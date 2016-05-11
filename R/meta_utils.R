@@ -1,10 +1,11 @@
 #' Effect size combination meta anaylsis.
 #'
-#' Method builds on GeneMeta implementation by allowing for genes that were not
+#' Builds on GeneMeta implementation by allowing for genes that were not
 #' measured in all studies.
 #'
-#' Method uses moderated effect sizes calculated by metaMA and determines fdr
-#' using fdrtool.
+#' In addition to allowing for genes that were not measured in all studies, this
+#' method uses moderated unbiased effect sizes calculated by metaMA and
+#' determines false discovery rates using fdrtool.
 #'
 #' @param diff_exprs Result of previous call to \code{diff_expr}.
 #' @param cutoff Minimum fraction of contrasts that must have measured each gene.
@@ -19,7 +20,7 @@
 #'    \item{fdr}{False discovery rates calculated by \code{fdrtool}.}
 #'
 #' @export
-#' @seealso \code{\link[GeneMeta]}, \code{\link[metaMA]{effectsize}},
+#' @seealso \code{\link[GeneMeta]{zScores}}, \code{\link[metaMA]{effectsize}},
 #'    \code{\link{fdrtool}}.
 #'
 #' @examples
@@ -54,12 +55,11 @@ es_meta <- function(diff_exprs, cutoff = 0.3) {
 
 #---------------------
 
-# Title
+# Get dprimes and vardprimes for each contrast.
 #
-# @param diff_exprs
-# @param cutoff
+# @inheritParams es_meta
 #
-# @return
+# @return data.frame with dprime and vardprime values.
 
 get_scores <- function(diff_exprs, cutoff = 0.3) {
 
@@ -103,12 +103,12 @@ get_scores <- function(diff_exprs, cutoff = 0.3) {
 
 #---------------------
 
-# Title
+# Merge a list of data.frames.
 #
-# @param ls
-# @param key
+# @param ls List of data.frames.
+# @param key Column to merge data.frames on.
 #
-# @return
+# @return A merged data.frame with \code{key} set to row names.
 
 
 merge_dataframes <- function(ls, key = "SYMBOL") {
@@ -133,13 +133,17 @@ merge_dataframes <- function(ls, key = "SYMBOL") {
 
 #---------------------
 
-# Title
+# Modifed f.Q from GeneMeta (allows NAs)
 #
-# @param dadj
-# @param varadj
+# Compute Cochran's Q statistic. Allows genes that were not measured in all
+# studies.
 #
-# @return
-
+# @param dadj Dataframe of unbiased effect sizes (dprimes) for each contrast.
+# @param varadj Dataframe of variances for unbiased effect sizes (vardprimes)
+#    for each contrast.
+#
+# @return A vector of length equal to the number of rows of dadj with the Q
+#    statistics.
 
 f.Q <- function (dadj, varadj) {
     w <- 1/varadj
@@ -150,13 +154,18 @@ f.Q <- function (dadj, varadj) {
 
 #---------------------
 
-# Title
+# Modifed tau2.DL from GeneMeta (allows NAs)
+
+# tau2.DL is an estimation of tau in a random effects model (REM) using
+# Cochran's Q statistic. Allows genes that were not measured in all studies.
 #
-# @param Q
-# @param num.studies
-# @param my.weights
+# @param Q A vector of Cochran's Q statistics.
+# @param num.studies A vector specifying the number of experiments in which each
+#    gene was measured.
+# @param my.weights A matrix with one column for each experiment containing the
+#    variances of the effects that should be combined.
 #
-# @return
+# @return A vector of tau values.
 
 tau2.DL <- function (Q, num.studies, my.weights) {
     tmp1 <- rowSums(my.weights, na.rm = TRUE)
@@ -167,12 +176,17 @@ tau2.DL <- function (Q, num.studies, my.weights) {
 
 #---------------------
 
-# Title
+# Modifed mu.tau2 from GeneMeta (allows NAs)
 #
-# @param my.d
-# @param my.vars.new
+# Estimate overall mean effect sizes. Allows genes that were not measured in all
+# studies.
 #
-# @return
+# @param my.d A matrix, with one column for each experiment, containing the
+#    effects that should be combined.
+# @param my.vars.new A matrix, with one column for each experiment, containing
+#    the variances of the effects that should be combined.
+#
+# @return A vector with the estimates of the overall mean effect sizes.
 
 mu.tau2 <- function (my.d, my.vars.new) {
     w <- 1/my.vars.new
@@ -182,9 +196,12 @@ mu.tau2 <- function (my.d, my.vars.new) {
 
 #---------------------
 
-# Title
+# Modifed var.tau2 from GeneMeta (allows NAs)
 #
-# @param my.vars.new
+# Estimate variances of overall mean effect sizes. Allows genes that were not
+# measured in all studies.
+#
+# @inheritParams mu.tau2
 #
 # @return
 

@@ -22,15 +22,16 @@ A data.frame with columns:
    \item{fdr}{False discovery rates calculated by \code{fdrtool}.}
 }
 \description{
-Method builds on GeneMeta implementation by allowing for genes that were not
+Builds on GeneMeta implementation by allowing for genes that were not
 measured in all studies.
 }
 \details{
-Method uses moderated effect sizes calculated by metaMA and determines fdr
-using fdrtool.
+In addition to allowing for genes that were not measured in all studies, this
+method uses moderated unbiased effect sizes calculated by metaMA and
+determines false discovery rates using fdrtool.
 }
 \seealso{
-\code{\link[GeneMeta]}, \code{\link[metaMA]{effectsize}},
+\code{\link[GeneMeta]{zScores}}, \code{\link[metaMA]{effectsize}},
    \code{\link{fdrtool}}.
 }
 
