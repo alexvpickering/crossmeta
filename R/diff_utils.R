@@ -82,7 +82,7 @@ diff_expr <- function (esets, data_dir, annot="SYMBOL", prev_anals=list(NULL)) {
         if (is.null(cons)) next
 
         #setup for differential expression
-        setup <- diff_setup(cons$eset, cons$levels)
+        setup <- diff_setup(cons$eset, cons$levels, gse_name)
 
         #remove rows with duplicated/NA annot (SYMBOL or PROBE)
         dups <- iqr_duplicates(cons$eset, setup$mod, setup$svobj, annot)
@@ -123,9 +123,14 @@ match_prev_eset <- function(eset, prev_anal) {
     selected_samples <- sampleNames(prev_anal$eset)
     eset <- eset[, selected_samples]
 
-    #transfer previous treatment, tissue & group to eset
+    #transfer previous treatment, group, and pairs to eset
     pData(eset)$treatment <- pData(prev_anal$eset)$treatment
     pData(eset)$group     <- pData(prev_anal$eset)$group
+    pData(eset)$pairs     <- NA
+
+    if ("pairs" %in% colnames(pData(prev_anal$eset))) {
+        pData(eset)$pairs <- pData(prev_anal$eset)$pairs
+    }
 
     return (eset)
 }
@@ -169,9 +174,10 @@ add_contrasts <- function (eset, gse_name, prev_anal) {
 
     } else {
         #get contrast info from user input
-        pdata <- data.frame(Accession=sampleNames(eset),
-                            Title=pData(eset)$title)
-        sels <- select_contrasts(gse_name, pdata)
+        sels <- select_contrasts(gse_name, eset)
+
+        #add pairs info to pheno data
+        pData(eset)$pairs <- sels$pairs
 
         #for MAMA data
         mama_samples <- list()
@@ -244,15 +250,22 @@ add_contrasts <- function (eset, gse_name, prev_anal) {
 # @return List with model matrix(mod), model matrix with surrogate
 #         variables(modsv), and result of \code{sva} function.
 
-diff_setup <- function(eset, group_levels){
+diff_setup <- function(eset, group_levels, gse_name){
 
-    #make full model matrix
+    #make full and null model matrix
     group <- factor(pData(eset)$group, levels=group_levels)
-    mod <- model.matrix(~0+group)
-    colnames(mod) <- group_levels
+    pairs <- factor(pData(eset)$pairs)
 
-    #make null model matrix (sva)
-    mod0 <- model.matrix(~1, data=pData(eset))
+    if (length(levels(pairs)) > 1) {
+        mod <- model.matrix(~0 + group + pairs)
+        mod0 <- model.matrix(~1 + pairs)
+    } else {
+        mod <- model.matrix(~0 + group)
+        mod0 <- model.matrix(~1, data=group)
+    }
+    colnames(mod)[1:length(group_levels)] <- group_levels
+
+
 
     #surrogate variable analysis
     svobj <- tryCatch (
@@ -260,10 +273,7 @@ diff_setup <- function(eset, group_levels){
             svobj},
 
         error = function(cond) {
-            message("sva failed - continuing without. Could also try to: \n",
-                    " - re-select samples (if made mistake) \n",
-                    " - select more/fewer contrasts \n",
-                    " - remove offending eset \n")
+            message(gse_name, ": sva failed - continuing without. \n")
             return(list("sv"=NULL))
         })
 

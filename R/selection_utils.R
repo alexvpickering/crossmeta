@@ -21,8 +21,10 @@ select_contrasts <- function(gse_name, pdata) {
     # objects we will update
     previous <- list()
     groups <- c()
+    pdata$Pair <- NA
     contrasts <- data.frame(Control = character(0),
                             Test = character(0), stringsAsFactors = FALSE)
+
 
     # link for GSE
     gse_link <- paste("https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=",
@@ -41,24 +43,28 @@ select_contrasts <- function(gse_name, pdata) {
         miniTabstripPanel(
             miniTabPanel("Samples", icon = icon("table"),
                          miniContentPanel(
-                             fillCol(flex = c(NA, NA, NA, 1),
-                                     textInput(
-                                         "group",
-                                         "Control group name:",
-                                         width = "200px"
-                                     ),
-                                     selectInput(
-                                         "prev",
-                                         NULL,
-                                         choices = c("", names(previous)),
-                                         width = "200px"
+                             fillCol(flex = c(NA, NA, 1),
+                                     fillRow(flex = c(NA, 0.025, NA),
+                                              textInput(
+                                                  "group",
+                                                  NULL,
+                                                  width = "200px"
+                                              ),
+                                             br(),
+                                              selectInput(
+                                                  "prev",
+                                                  NULL,
+                                                  choices = c("", names(previous)),
+                                                  width = "200px"
+                                              )
                                      ),
                                      hr(),
                                      DT::dataTableOutput("pdata")
                              )
                          ),
                          miniButtonBlock(
-                             actionButton("add", "Add Group")
+                             actionButton("add", "Add Group"),
+                             actionButton("pair", "Pair Samples")
                          )
             ),
 
@@ -100,18 +106,26 @@ select_contrasts <- function(gse_name, pdata) {
         )
 
         # show phenotype data
-        output$pdata <- DT::renderDataTable(
+        output$pdata <- DT::renderDataTable({
+
+            #invalidate when pair state change
+            state$pair
+
             DT::datatable(
                 pdata,
+                rownames = FALSE,
                 options = list(
                     paging = FALSE,
                     bInfo = 0
                 )
-            )
+            )}
         )
 
+
+
+
         # make reactive state value to keep track of ctrl vs test group
-        state <- reactiveValues(ctrl = 1)
+        state <- reactiveValues(ctrl = 1, pair = 1)
 
         # need pdata proxy to reselect rows of pheno data
         proxy = DT::dataTableProxy('pdata')
@@ -186,6 +200,21 @@ select_contrasts <- function(gse_name, pdata) {
             }
         })
 
+        #------------------- click 'Pair Samples'
+
+        observeEvent(input$pair, {
+            rows  <- input$pdata_rows_selected
+
+            # check if no selection
+            if (length(rows) == 0) {
+                message("Select paired samples.")
+
+            } else {
+                pdata[rows, "Pair"] <<- state$pair
+                state$pair <- state$pair + 1
+            }
+        })
+
 
 
         #------------------- click 'Delete'
@@ -244,7 +273,7 @@ select_contrasts <- function(gse_name, pdata) {
                 message("No contrasts selected.")
                 stopApp(NULL)
             } else {
-                stopApp(list(rows=previous, cons=contrasts))
+                stopApp(list(rows=previous, cons=contrasts, pairs=pdata$Pair))
             }
         })
 
