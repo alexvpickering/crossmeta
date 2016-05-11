@@ -1,4 +1,28 @@
-
+#' Effect size combination meta anaylsis.
+#'
+#' Method builds on GeneMeta implementation by allowing for genes that were not
+#' measured in all studies.
+#'
+#' Method uses moderated effect sizes calculated by metaMA and determines fdr
+#' using fdrtool.
+#'
+#' @param diff_exprs Result of previous call to \code{diff_expr}.
+#' @param cutoff Minimum fraction of contrasts that must have measured each gene.
+#'    Between 0 and 1.
+#'
+#' @return A data.frame with columns:
+#'    \item{dprime}{Unbiased effect sizes(one column per contrast).}
+#'    \item{vardprime}{Variances of unbiased effect sizes (one column per contrast).}
+#'    \item{mu}{Overall mean effect sizes.}
+#'    \item{var}{Variances of overall mean effect sizes.}
+#'    \item{z}{Overall z score = \code{mu / sqrt(var)}.}
+#'    \item{fdr}{False discovery rates calculated by \code{fdrtool}.}
+#'
+#' @export
+#' @seealso \code{\link[GeneMeta]}, \code{\link[metaMA]{effectsize}},
+#'    \code{\link{fdrtool}}.
+#'
+#' @examples
 
 es_meta <- function(diff_exprs, cutoff = 0.3) {
 
@@ -21,13 +45,21 @@ es_meta <- function(diff_exprs, cutoff = 0.3) {
     scores$mu  <- mu.tau2(dp, var)
     scores$var <- var.tau2(var)
 
-    # add z-score and fdr
+    # get z-score and fdr
     scores$z   <- scores$mu/sqrt(scores$var)
     scores$fdr <- fdrtool::fdrtool(scores$z, plot = FALSE, verbose = FALSE)$qval
 
     return(scores)
 }
 
+#---------------------
+
+# Title
+#
+# @param diff_exprs
+# @param cutoff
+#
+# @return
 
 get_scores <- function(diff_exprs, cutoff = 0.3) {
 
@@ -38,11 +70,11 @@ get_scores <- function(diff_exprs, cutoff = 0.3) {
         diff <- diff_exprs[[study]]
         df <- diff$ebayes_sv$df.residual + diff$ebayes_sv$df.prior
 
-        scores_cons    <- list()
+        scores_cons <- list()
 
         for (con in names(diff$top_tables)) {
             #get sample sizes and top table for contrast
-            classes <- diff$mama_data$clinicals[[con]]$treatment
+            classes <- pData(diff$eset)$treatment
             ni <- length(classes[classes == "ctrl"])
             nj <- length(classes[classes == "test"])
 
@@ -51,12 +83,12 @@ get_scores <- function(diff_exprs, cutoff = 0.3) {
             #get dprime and vardprime
             res <-  metaMA::effectsize(tt$t, ((ni * nj)/(ni + nj)), df)
             res <- as.data.frame(res)
-            res$SYMBOL <- row.names(tt)
+            res$SYMBOL <- toupper(row.names(tt))
 
             #store result
             scores_cons[[con]] <- res[, c("SYMBOL", "dprime", "vardprime")]
         }
-        scores[[study]]    <- scores_cons
+        scores[[study]] <- scores_cons
 
 
     }
@@ -64,10 +96,19 @@ get_scores <- function(diff_exprs, cutoff = 0.3) {
     scores <- merge_dataframes(scores)
 
     #only keep genes where more than cutoff fraction of studies have data
-    filt <- apply(scores, 1, function(x) sum(!is.na(x))) > (ncol(scores) * 0.3)
+    filt <- apply(scores, 1, function(x) sum(!is.na(x))) >= (ncol(scores) * cutoff)
 
     return(scores[filt, ])
 }
+
+#---------------------
+
+# Title
+#
+# @param ls
+# @param key
+#
+# @return
 
 
 merge_dataframes <- function(ls, key = "SYMBOL") {
@@ -90,6 +131,14 @@ merge_dataframes <- function(ls, key = "SYMBOL") {
     return(res)
 }
 
+#---------------------
+
+# Title
+#
+# @param dadj
+# @param varadj
+#
+# @return
 
 
 f.Q <- function (dadj, varadj) {
@@ -99,6 +148,15 @@ f.Q <- function (dadj, varadj) {
     Q <- rowSums(w * (dadj - mu)^2, na.rm = TRUE)
 }
 
+#---------------------
+
+# Title
+#
+# @param Q
+# @param num.studies
+# @param my.weights
+#
+# @return
 
 tau2.DL <- function (Q, num.studies, my.weights) {
     tmp1 <- rowSums(my.weights, na.rm = TRUE)
@@ -107,6 +165,14 @@ tau2.DL <- function (Q, num.studies, my.weights) {
     apply(value, 1, max)
 }
 
+#---------------------
+
+# Title
+#
+# @param my.d
+# @param my.vars.new
+#
+# @return
 
 mu.tau2 <- function (my.d, my.vars.new) {
     w <- 1/my.vars.new
@@ -114,19 +180,15 @@ mu.tau2 <- function (my.d, my.vars.new) {
     mu <- rowSums(tmp1, na.rm = TRUE)/rowSums(w, na.rm = TRUE)
 }
 
+#---------------------
+
+# Title
+#
+# @param my.vars.new
+#
+# @return
 
 var.tau2 <- function (my.vars.new) {
     w <- 1/my.vars.new
     my.var <- 1/rowSums(w, na.rm = TRUE)
 }
-
-
-
-
-
-
-
-
-
-
-

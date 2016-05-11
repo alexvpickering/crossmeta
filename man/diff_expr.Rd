@@ -28,8 +28,6 @@ List of lists (one per GSE), each containing:
      discovered by surrogate variable analysis.}
   \item{ebayes_sv, ebayes}{Results of call to \code{\link{eBayes}}, with
      surrogate variables included and not included in the model matrix.}
-  \item{mama_data}{List used by \code{\link{make_ma}} to generate MetaArray
-     object.}
 }
 \description{
 User selects contrasts, then surrogate variable analysis (sva) and

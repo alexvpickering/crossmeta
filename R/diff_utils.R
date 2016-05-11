@@ -242,7 +242,7 @@ diff_setup <- function(eset, group_levels, gse_name){
             svobj},
 
         error = function(cond) {
-            message(gse_name, ": sva failed - continuing without. \n")
+            message(gse_name, ": sva failed - continuing without.")
             return(list("sv"=NULL))
         })
 
