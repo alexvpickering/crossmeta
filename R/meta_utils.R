@@ -4,8 +4,8 @@ es_meta <- function(diff_exprs, cutoff = 0.3) {
 
     # get dp and vardp
     scores <- get_scores(diff_exprs, cutoff)
-    dp  <- scores[, seq(1, ncol(dprimes), 2)]
-    var <- scores[, seq(2, ncol(dprimes), 2)]
+    dp  <- scores[, seq(1, ncol(scores), 2)]
+    var <- scores[, seq(2, ncol(scores), 2)]
 
     # get Cochran Q statistic
     Q <- f.Q(dp, var)
@@ -23,7 +23,7 @@ es_meta <- function(diff_exprs, cutoff = 0.3) {
 
     # add z-score and fdr
     scores$z   <- scores$mu/sqrt(scores$var)
-    #scores$fdr <- fdrtool::fdrtool(scores$z, plot = FALSE, verbose = FALSE)
+    scores$fdr <- fdrtool::fdrtool(scores$z, plot = FALSE, verbose = FALSE)$qval
 
     return(scores)
 }

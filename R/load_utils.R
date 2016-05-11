@@ -208,67 +208,6 @@ symbol_annot <- function (eset, gpl_name) {
 }
 
 
-#' Keep annotation features shared by a list of esets.
-#'
-#' Used prior to differential expression analysis (diff_expr) to remove
-#' non-common features (either gene or probe name).
-
-#' The subsequent meta-analysis uses common features only, so eliminating
-#' non-common features reduces the number of comparisons made during
-#' differential expression analysis (increases power).
-#'
-#' @param esets List of annotated esets. Created by \code{load_raw}.
-#' @param annot String, either "PROBE" or "SYMBOL" to keep common probes or
-#'   genes respectively. "PROBE" only useful if all esets from similar platforms
-#'   by the same manufacturer.
-#'
-#' @export
-#' @seealso \code{\link{load_raw}} to create list of annotated esets.
-#'
-#'   \code{\link{diff_expr}} to run differential expression analysis after
-#'   \code{commonize}.
-#' @return List of esets with where annotation features (probe or gene) are
-#'   common.
-#' @examples
-#' library(lydata)
-#' data_dir <- system.file("extdata", package = "lydata")
-#'
-#' #load esets
-#' gse_names<- c("GSE9601", "GSE34817")
-#' esets <- load_raw(gse_names, data_dir)
-#'
-#' #commonize
-#' esets_com <- commonize(esets)
-
-commonize <- function(esets, annot="SYMBOL") {
-
-    esets <- lapply(esets, function(eset) {
-
-        #make gene symbols uppercase
-        fData(eset)[, "SYMBOL"] <- toupper(fData(eset)[, "SYMBOL"])
-        eset
-    })
-
-    #get common genes
-    all_genes <- lapply(esets, function(x) unique(fData(x)[, annot]))
-    common_genes <- Reduce(intersect, all_genes)
-
-    for (i in seq_along(esets)) {
-        #keep rows with annot (ID) in common_genes
-        ID <- fData(esets[[i]])[, annot]
-        filter <- ID %in% common_genes
-        esets[[i]] <- esets[[i]][filter, ]
-
-    }
-    return (esets)
-}
-
-
-
-
-
-
-
 #-------------------
 
 
