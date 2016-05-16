@@ -13,17 +13,21 @@
 # @return Named list with a numeric vector. Name is typed group name,
 #    numeric vector is selected rows.
 
-select_contrasts <- function(gse_name, pdata) {
+select_contrasts <- function(gse_name, eset) {
 
     #------------------- setup
-
 
     # objects we will update
     previous <- list()
     groups <- c()
-    pdata$Pair <- NA
+
+    pdata <- data.frame(Accession = sampleNames(eset),
+                        Title = pData(eset)$title,
+                        Pair = NA)
+
     contrasts <- data.frame(Control = character(0),
                             Test = character(0), stringsAsFactors = FALSE)
+
 
 
     # link for GSE
@@ -47,13 +51,13 @@ select_contrasts <- function(gse_name, pdata) {
                                      fillRow(flex = c(NA, 0.025, NA),
                                               textInput(
                                                   "group",
-                                                  NULL,
+                                                  "Control group name:",
                                                   width = "200px"
                                               ),
                                              br(),
                                               selectInput(
                                                   "prev",
-                                                  NULL,
+                                                  br(),
                                                   choices = c("", names(previous)),
                                                   width = "200px"
                                               )

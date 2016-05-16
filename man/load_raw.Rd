@@ -4,7 +4,7 @@
 \alias{load_raw}
 \title{Load and annotate raw data downloaded from GEO.}
 \usage{
-load_raw(gse_names, data_dir = getwd())
+load_raw(gse_names, homologene_path, data_dir = getwd(), overwrite = FALSE)
 }
 \arguments{
 \item{gse_names}{Character vector of GSE names.}

@@ -14,7 +14,7 @@ Between 0 and 1.}
 }
 \value{
 A data.frame with columns:
-   \item{dprime}{Unbiased effect sizes(one column per contrast).}
+   \item{dprime}{Unbiased effect sizes (one column per contrast).}
    \item{vardprime}{Variances of unbiased effect sizes (one column per contrast).}
    \item{mu}{Overall mean effect sizes.}
    \item{var}{Variances of overall mean effect sizes.}
@@ -27,8 +27,8 @@ measured in all studies.
 }
 \details{
 In addition to allowing for genes that were not measured in all studies, this
-method uses moderated unbiased effect sizes calculated by metaMA and
-determines false discovery rates using fdrtool.
+method uses moderated unbiased effect sizes calculated by \code{metaMA} and
+determines false discovery rates using \code{fdrtool}.
 }
 \seealso{
 \code{\link[GeneMeta]{zScores}}, \code{\link[metaMA]{effectsize}},

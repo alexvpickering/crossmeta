@@ -4,15 +4,15 @@
 #' measured in all studies.
 #'
 #' In addition to allowing for genes that were not measured in all studies, this
-#' method uses moderated unbiased effect sizes calculated by metaMA and
-#' determines false discovery rates using fdrtool.
+#' method uses moderated unbiased effect sizes calculated by \code{metaMA} and
+#' determines false discovery rates using \code{fdrtool}.
 #'
 #' @param diff_exprs Result of previous call to \code{diff_expr}.
 #' @param cutoff Minimum fraction of contrasts that must have measured each gene.
 #'    Between 0 and 1.
 #'
 #' @return A data.frame with columns:
-#'    \item{dprime}{Unbiased effect sizes(one column per contrast).}
+#'    \item{dprime}{Unbiased effect sizes (one column per contrast).}
 #'    \item{vardprime}{Variances of unbiased effect sizes (one column per contrast).}
 #'    \item{mu}{Overall mean effect sizes.}
 #'    \item{var}{Variances of overall mean effect sizes.}
@@ -29,8 +29,10 @@ es_meta <- function(diff_exprs, cutoff = 0.3) {
 
     # get dp and vardp
     scores <- get_scores(diff_exprs, cutoff)
-    dp  <- scores[, seq(1, ncol(scores), 2)]
-    var <- scores[, seq(2, ncol(scores), 2)]
+    df     <- scores$filt
+
+    dp     <- df[, seq(1, ncol(df), 2)]
+    var    <- df[, seq(2, ncol(df), 2)]
 
     # get Cochran Q statistic
     Q <- f.Q(dp, var)
@@ -42,13 +44,14 @@ es_meta <- function(diff_exprs, cutoff = 0.3) {
 
     # add tau to vardp then calculate mean effect sizes and variance
     var <- var + tau
-    scores <- as.data.frame(scores)
-    scores$mu  <- mu.tau2(dp, var)
-    scores$var <- var.tau2(var)
+    df$mu  <- mu.tau2(dp, var)
+    df$var <- var.tau2(var)
 
     # get z-score and fdr
-    scores$z   <- scores$mu/sqrt(scores$var)
-    scores$fdr <- fdrtool::fdrtool(scores$z, plot = FALSE, verbose = FALSE)$qval
+    df$z   <- df$mu/sqrt(df$var)
+    df$fdr <- fdrtool::fdrtool(df$z, plot = FALSE, verbose = FALSE)$qval
+
+    scores$filt <- df
 
     return(scores)
 }
@@ -98,7 +101,7 @@ get_scores <- function(diff_exprs, cutoff = 0.3) {
     #only keep genes where more than cutoff fraction of studies have data
     filt <- apply(scores, 1, function(x) sum(!is.na(x))) >= (ncol(scores) * cutoff)
 
-    return(scores[filt, ])
+    return(list(filt=scores[filt, ], raw=scores))
 }
 
 #---------------------
@@ -129,6 +132,7 @@ merge_dataframes <- function(ls, key = "SYMBOL") {
     row.names(res) <- res[, key]
     res[, key] <- NULL
     return(res)
+    print(class(res))
 }
 
 #---------------------

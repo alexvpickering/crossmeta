@@ -11,7 +11,7 @@
 # @seealso \code{\link{get_raw}} to obtain raw data.
 # @return List of annotated esets.
 
-load_agil <- function (gse_names, data_dir) {
+load_agil <- function (gse_names, homologene, data_dir, overwrite) {
 
     esets <- list()
     for (gse_name in gse_names) {
@@ -21,7 +21,7 @@ load_agil <- function (gse_names, data_dir) {
         eset_path <- list.files(gse_dir, save_name, full.names=TRUE)
 
         #check if saved copy
-        if (length(eset_path) != 0) {
+        if (length(eset_path) != 0 & overwrite == FALSE) {
             eset <- readRDS(eset_path)
 
         } else {
@@ -39,17 +39,18 @@ load_agil <- function (gse_names, data_dir) {
             #fix up sample/feature names
             colnames(data) <- stringr::str_match(colnames(data),
                                                  ".*(GSM\\d+).*")[, 2]
+
+            data <- data[!duplicated(data$genes$ProbeName),]
             row.names(data$E) <- data$genes$ProbeName
-            data$genes <- data$genes[!duplicated(data$genes$ProbeName),]
             row.names(data$genes) <- data$genes$ProbeName
 
             #transfer to eset
             exprs(eset) <- data$E
-            fData(eset) <- data$genes[featureNames(eset), ]
+            fData(eset) <- merge_fdata(fData(eset), data$genes)
 
             #add SYMBOL annotation
             gpl_name <- annotation(eset)
-            eset <- symbol_annot(eset, gpl_name)
+            eset <- symbol_annot(eset, homologene, gpl_name)
 
             #save to disc
             saveRDS(eset, file.path(gse_dir, save_name))

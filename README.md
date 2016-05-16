@@ -2,8 +2,8 @@
 
 `crossmeta` streamlines the cross-platform meta-analysis of 
 microarray data. For the analysis, you will need a list of Affymetrix, Illumina,
-and/or Agilent GSE numbers from [GEO](http://www.ncbi.nlm.nih.gov/geo/). Mouse 
-and human inter-species analyses are supported.
+and/or Agilent GSE numbers from [GEO](http://www.ncbi.nlm.nih.gov/geo/). All 21
+species in the current [homologene](ftp://ftp.ncbi.nih.gov/pub/HomoloGene/build68/build_inputs/taxid_taxname) build are supported.
 
 
 -----------------
@@ -22,7 +22,7 @@ conducting a meta-analysis of microarray data (1):
   
 **Annotate probes** 
 
-  * Uses gene symbols from most recent bioconductor annotation data packages.
+  * Probes are mapped to human gene symbol (or homolog).
   * One-to-many (probe-to-symbol): keeps all.
   * Many-to-one (probe-to-symbol): keeps highest interquartile range among
     selected samples.
@@ -31,13 +31,16 @@ conducting a meta-analysis of microarray data (1):
 **Differential expression analysis**  
 
   * Controls for unknown batch effects (`sva`).
-  * User selects desired contrasts (interactive).
-  * Multidimensional scaling plots.
+  * User selects contrasts and any paired samples (`shiny` GUI).
+  * Plots group clustering (multidimensional scaling plots).
 
 
 **Meta-analysis of results**  
 
-  * Results formated to work with `MAMA` package.
+  * Extends method in `GeneMeta` to allow for genes that were not measured in 
+    all studies.
+  * Analysis uses moderated unbiased effect sizes calculated by `metaMA` and
+    determines false discovery rates using `fdrtool`.
   
   
 -----------------

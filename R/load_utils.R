@@ -55,7 +55,14 @@ get_raw <- function (gse_names, data_dir=getwd()) {
 #' eset <- load_raw("GSE9601", data_dir)
 
 
-load_raw <- function(gse_names, data_dir=getwd()) {
+load_raw <- function(gse_names, homologene_path, data_dir=getwd(),
+                     overwrite=FALSE) {
+
+    #no duplicates allowed (somehow causes mismatched names/esets)
+    gse_names <- unique(gse_names)
+
+    #get homologene
+    homologene <- get_homologene(homologene_path)
 
     affy_names  <- c()
     agil_names  <- c()
@@ -83,14 +90,67 @@ load_raw <- function(gse_names, data_dir=getwd()) {
     }
 
     #load esets
-    affy_esets  <- load_affy(affy_names, data_dir)
-    agil_esets  <- load_agil(agil_names, data_dir)
-    illum_esets <- load_illum(illum_names, data_dir)
+    affy_esets  <- load_affy(affy_names, homologene, data_dir, overwrite)
+    agil_esets  <- load_agil(agil_names, homologene, data_dir, overwrite)
+    illum_esets <- load_illum(illum_names, homologene, data_dir, overwrite)
 
     return (c(affy_esets, agil_esets, illum_esets))
 }
 
+
+
+#' Get homologene data frame.
+#'
+#' Function loads and, if necessary, sets up homologene data frame.
+#'
+#' Setup results in a dataframe with all entrez ids in one column ('entrez') and
+#' the homologous human entrez ids in another column ('entrez_HS').
+#'
+#' @param homologene_path
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_homologene <- function(homologene_path) {
+
+    homologene <- read.delim(homologene_path, header = FALSE)
+
+    if (ncol(homologene) == 6) {
+
+        message("Setting up homologene data. Will take a while (one time only).")
+
+        #get homologous human (9606) entrez ids for all entrez ids (V3)
+        entrez_HS <- annotationTools::getHOMOLOG(homologene$V3,
+                                                 9606,
+                                                 homologene)
+
+        #remove entrez ids with homologous human entrez id
+        homologene <- homologene[!is.na(entrez_HS), ]
+        entrez_HS  <- entrez_HS[!is.na(entrez_HS)]
+
+        #expand homologene where multiple homologous human entrez ids
+        homologene$entrez_HS <- sapply(entrez_HS,
+                                       function(x) paste(x, collapse=","))
+
+        homologene <- data.table::data.table(homologene)
+        homologene <- homologene[,
+                                 list(entrez_HS = unlist(strsplit(entrez_HS, ","))),
+                                 by = V3]
+
+        homologene <- as.data.frame(homologene)
+
+        #save to disc
+        write.table(homologene, file = homologene_path,
+                    sep = "\t", row.names = FALSE, col.names = FALSE)
+    }
+    colnames(homologene) <- c("entrez", "entrez_HS")
+    return(homologene)
+}
+
 # Title
+#
+# Returns data.frame, same order/nrow as data_fdat with feature info from eset
 #
 # @import data.table
 # @param eset
@@ -100,25 +160,22 @@ load_raw <- function(gse_names, data_dir=getwd()) {
 #
 # @examples
 
-# !
-# USE FOR load_illum and load_agil if possible
-# !
 
-merge_fdata <- function(eset, data) {
+merge_fdata <- function(eset_fdat, data_fdat) {
 
     #merge feature data from raw data and eset
-    fData(eset)$rn <- row.names(fData(eset))
-    fData(data)$rn <- row.names(fData(data))
+    eset_fdat$rn <- row.names(eset_fdat)
+    data_fdat$rn <- row.names(data_fdat)
 
-    dt1 <- data.table(fData(eset), key="rn")
-    dt2 <- data.table(fData(data), key="rn")
+    dt1 <- data.table(eset_fdat, key="rn")
+    dt2 <- data.table(data_fdat, key="rn")
 
     feature_data <- dt1[dt2]
     feature_data <- as.data.frame(feature_data)
     row.names(feature_data) <- feature_data$rn
     feature_data$rn <- NULL
 
-    return(feature_data[featureNames(data), ])
+    return(feature_data[row.names(data_fdat), ])
 }
 
 
@@ -183,29 +240,60 @@ get_biocpack_name <- function (gpl_name) {
 #   \code{\link{get_biocpack}}.
 # @return Annotated eset.
 
-symbol_annot <- function (eset, gpl_name) {
+symbol_annot <- function (eset, homologene, gpl_name) {
+
     biocpack_name <- get_biocpack_name(gpl_name)
-    SYMBOL <- NA  #value if no biocpack/selection
+    get_biocpack("org.Hs.eg.db")
 
     if (!biocpack_name %in% c("", ".db")) {
-        #get map for SYMBOL from biocpack
+        #get entrez id
         get_biocpack(biocpack_name)
         ID <- featureNames(eset)
-        map <- AnnotationDbi::select(get(biocpack_name), ID, "SYMBOL")
-        eset <- eset[map$PROBEID, ]  #expands one-to-many mappings
-        SYMBOL <- map$SYMBOL
+        map <- AnnotationDbi::select(get(biocpack_name), ID, "ENTREZID")
+        eset <- eset[map$PROBEID, ] #expands one-to-many mappings
+        entrez <- map$ENTREZID
+
     } else {
         #try fData column
-        choices <- setdiff(fvarLabels(eset), "SYMBOL")
-        column <- tcltk::tk_select.list(choices, title="select SYMBOL column")
+        choices <- fvarLabels(eset)
+        column <- tcltk::tk_select.list(choices, title="select ENTREZID column")
         if (column != "") {
-            SYMBOL <- fData(eset)[, column]
+            entrez <- fData(eset)[, column]
+
+            if (!is.character(entrez))
+                entrez <- as.character(entrez)
+
+            #expand one-to-many
+            entrez <- strsplit(entrez, "\\D+")
+            rn <- sapply(seq_along(entrez),
+                         function(x) rep(x, length(entrez[[x]])))
+
+            entrez <- as.integer(unlist(entrez))
+            eset <- eset[unlist(rn), ]
         }
     }
-    fData(eset)$PROBE <- featureNames(eset)
-    fData(eset)$SYMBOL <- SYMBOL
+    # map from entrez id to homologous human entrez ids
+    # where entrez id in homologene:
+    endf <- data.frame(entrez, rn = 1:length(entrez))
+    filt <- entrez %in% homologene$entrez
+    map <- merge(endf[filt, ], homologene, by="entrez")
+
+    # where no homology, use original id:
+    # (useful if human platform)
+    endf$entrez_HS <- entrez
+    map <- rbind(endf[!filt, ], map)
+    eset <- eset[map$rn, ] #expands one-to-many mappings
+
+    #map from entrez to SYMBOL
+    map <- AnnotationDbi::select(org.Hs.eg.db, as.character(map$entrez_HS),
+                                 "SYMBOL", "ENTREZID")
+
+    fData(eset)$PROBE  <- featureNames(eset)
+    fData(eset)$SYMBOL <- map$SYMBOL
     return (eset)
 }
+
+
 
 
 #-------------------

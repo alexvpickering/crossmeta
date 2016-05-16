@@ -4,7 +4,7 @@
 \alias{load_diff}
 \title{Load previous differential expression analysis.}
 \usage{
-load_diff(gse_names, data_dir, probe = FALSE)
+load_diff(gse_names, data_dir = getwd(), probe = FALSE)
 }
 \arguments{
 \item{gse_names}{Character vector specifying GSE names to be loaded.}

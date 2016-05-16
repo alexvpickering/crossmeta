@@ -62,7 +62,8 @@ globalVariables(c("x", "y", "adj.P.Val"))
 #' anals <- diff_expr(com_esets, data_dir, prev_anals=prev)
 
 
-diff_expr <- function (esets, data_dir, annot="SYMBOL", prev_anals=list(NULL)) {
+diff_expr <- function (esets, data_dir=getwd(),
+                       annot="SYMBOL", prev_anals=list(NULL)) {
 
     prev_anals <- prev_anals[names(esets)]
     anals <- list()
@@ -157,7 +158,8 @@ add_contrasts <- function (eset, gse_name, prev_anal) {
 
         #get contrast info from previous analysis
         contrasts    <- colnames(prev_anal$ebayes$contrasts)
-        group_levels <- colnames(prev_anal$ebayes$design)
+        group_levels <- unique(pData(prev_anal$eset)$group)
+
 
     } else {
         #get contrast info from user input
@@ -460,7 +462,7 @@ clean_y <- function(y, mod, svs) {
 #' gse_names<- c("GSE9601", "GSE34817")
 #' prev <- load_diff(gse_names, data_dir)
 
-load_diff <- function(gse_names, data_dir, probe=FALSE) {
+load_diff <- function(gse_names, data_dir=getwd(), probe=FALSE) {
 
     anals <- list()
     for (gse_name in gse_names) {

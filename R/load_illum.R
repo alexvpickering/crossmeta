@@ -14,7 +14,7 @@
 
 # @return List of annotated esets.
 
-load_illum <- function (gse_names, data_dir) {
+load_illum <- function (gse_names, homologene, data_dir, overwrite) {
 
     esets <- list()
     for (gse_name in gse_names) {
@@ -24,7 +24,7 @@ load_illum <- function (gse_names, data_dir) {
         eset_path <- list.files(gse_dir, save_name, full.names=TRUE)
 
         #check if saved copy
-        if (length(eset_path) != 0) {
+        if (length(eset_path) != 0 & overwrite == FALSE) {
             eset <- readRDS(eset_path)
 
         } else {
@@ -45,24 +45,26 @@ load_illum <- function (gse_names, data_dir) {
                     return(limma::normalizeBetweenArrays(data, method="quantile"))
                 })
 
-            #transfer exprs from data to eset (maintaining eset feature order)
-            feature_order <- featureNames(eset)
-
             #to check if sample order mismatch
             pData(eset)$title_GSEMatrix <- pData(eset)$title
 
             #use raw data titles to ensure correct contrasts
             pData(eset)$title <- colnames(data)
             colnames(data) <- sampleNames(eset)
-            exprs(eset) <- data$E[feature_order,]
+
+            #transfer merged fdata
+            exprs(eset) <- data$E[row.names(data$E) != "", ]
+            fData(eset) <- merge_fdata(fData(eset),
+                                       data.frame(row.names = unique(row.names(data))))
+            fData(eset) <- fData(eset)[featureNames(eset), ]
 
             #transfer pvals from data to eset
-            pvals <- data$other$Detection[feature_order, ]
+            pvals <- data$other$Detection
             eset <- add_pvals(eset, pvals)
 
             #add SYMBOL annotation
             gpl_name <- annotation(eset)
-            eset <- symbol_annot(eset, gpl_name)
+            eset <- symbol_annot(eset, homologene, gpl_name)
 
             #save to disc
             saveRDS(eset, file.path(gse_dir, save_name))
@@ -93,7 +95,7 @@ add_pvals <- function (eset, pvals) {
 
 
 
-open_raw_illum <- function (gse_names, data_dir) {
+open_raw_illum <- function (gse_names, data_dir=getwd()) {
 
     #OUT: names of successfully formated (probeid = "ID_REF",
     #                                     exprs = "AVG_Signal-sample_name",

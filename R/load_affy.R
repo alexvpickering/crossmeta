@@ -37,7 +37,7 @@ cel_dates <- function(cel_paths) {
 # @seealso \code{\link{get_raw}} to obtain raw data.
 # @return List of annotated esets (one for each unique GSE/GPL platform).
 
-load_affy <- function (gse_names, data_dir) {
+load_affy <- function (gse_names, homologene, data_dir, overwrite) {
 
     esets <- list()
     for (gse_name in gse_names) {
@@ -47,7 +47,7 @@ load_affy <- function (gse_names, data_dir) {
         eset_path <- list.files(gse_dir, save_name, full.names=TRUE)
 
         #check if saved copy
-        if (length(eset_path) != 0) {
+        if (length(eset_path) != 0 & overwrite == FALSE) {
             eset <- readRDS(eset_path)
 
         } else {
@@ -55,7 +55,7 @@ load_affy <- function (gse_names, data_dir) {
             eset <- GEOquery::getGEO(gse_name, destdir=gse_dir, GSEMatrix=TRUE)
 
             #load eset for each platform in GSE
-            eset <- lapply(eset,load_affy_plat, gse_dir)
+            eset <- lapply(eset, load_affy_plat, homologene, gse_dir)
 
             #save to disc
             saveRDS(eset, file.path(gse_dir, save_name))
@@ -112,15 +112,29 @@ get_eset_names <- function(esets, gse_names) {
 # @seealso \code{\link{load_affy}}.
 # @return Annotated eset with scan_date in pData slot.
 
-load_affy_plat <- function (eset, gse_dir) {
+load_affy_plat <- function (eset, homologene, gse_dir) {
 
     sample_names <- sampleNames(eset)
-    pattern <- paste(".*", sample_names, ".*CEL", collapse="|", sep="")
+    pattern <- paste(sample_names, ".*CEL$", collapse="|", sep="")
 
-    cel_paths <- list.files(gse_dir, pattern, full.names=TRUE, ignore.case=TRUE)
+    cel_paths <- tryCatch (
+        list.files(gse_dir, pattern, full.names=TRUE, ignore.case=TRUE),
+
+        error = function(c) {
+            n <- length(sample_names)
+            p1 <- paste(sample_names[1:(n/2)], ".*CEL$", collapse="|", sep="")
+            p2 <- paste(sample_names[(n/2+1):n], ".*CEL$", collapse="|", sep="")
+
+            pth1 <- list.files(gse_dir, p1, full.names=TRUE, ignore.case=TRUE)
+            pth2 <- list.files(gse_dir, p2, full.names=TRUE, ignore.case=TRUE)
+
+            return(c(pth1, pth2))
+        }
+    )
+
     data <- tryCatch (
         {
-            raw_data <- affy::ReadAffy (celfile.path=gse_dir)
+            raw_data <- affy::ReadAffy(filenames = cel_paths)
             affy::rma(raw_data)
         },
         warning = function(c) {
@@ -130,7 +144,7 @@ load_affy_plat <- function (eset, gse_dir) {
                 return (oligo::rma(raw_data))
             #if not, use affy
             } else {
-                raw_data <- affy::ReadAffy (celfile.path=gse_dir)
+                raw_data <- affy::ReadAffy(filenames = cel_paths)
                 return(affy::rma(raw_data))
             }
         },
@@ -148,7 +162,8 @@ load_affy_plat <- function (eset, gse_dir) {
     pData(eset) <- pData(eset)[sample_order, ]
 
     #transfer merged fdata
-    fData(eset) <- merge_fdata(eset, data)
+    fData(eset) <- merge_fdata(fData(eset), fData(data))
+    fData(eset) <- fData(eset)[featureNames(eset), ]
 
     #add scan dates to pheno data (maintaining eset sample order)
     scan_dates <- cel_dates(cel_paths)
@@ -157,7 +172,7 @@ load_affy_plat <- function (eset, gse_dir) {
 
     #add SYMBOL annotation
     gpl_name <- annotation(eset)
-    eset <- symbol_annot(eset, gpl_name)
+    eset <- symbol_annot(eset, homologene, gpl_name)
 
     return(eset)
 }
