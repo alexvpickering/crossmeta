@@ -40,9 +40,8 @@ load_agil <- function (gse_names, homologene, data_dir, overwrite) {
             colnames(data) <- stringr::str_match(colnames(data),
                                                  ".*(GSM\\d+).*")[, 2]
 
-            data <- data[!duplicated(data$genes$ProbeName),]
-            row.names(data$E) <- data$genes$ProbeName
-            row.names(data$genes) <- data$genes$ProbeName
+            row.names(data$E) <- make.unique(data$genes$ProbeName)
+            row.names(data$genes) <- make.unique(data$genes$ProbeName)
 
             #transfer to eset
             exprs(eset) <- data$E

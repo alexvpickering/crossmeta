@@ -55,7 +55,7 @@ load_illum <- function (gse_names, homologene, data_dir, overwrite) {
             #transfer merged fdata
             exprs(eset) <- data$E[row.names(data$E) != "", ]
             fData(eset) <- merge_fdata(fData(eset),
-                                       data.frame(row.names = unique(row.names(data))))
+                                       data.frame(row.names = featureNames(eset)))
             fData(eset) <- fData(eset)[featureNames(eset), ]
 
             #transfer pvals from data to eset

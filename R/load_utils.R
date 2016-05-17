@@ -164,15 +164,15 @@ get_homologene <- function(homologene_path) {
 merge_fdata <- function(eset_fdat, data_fdat) {
 
     #merge feature data from raw data and eset
-    eset_fdat$rn <- row.names(eset_fdat)
-    data_fdat$rn <- row.names(data_fdat)
+    eset_fdat$rn <- sapply(strsplit(row.names(eset_fdat), "\\."), `[[`, 1)
+    data_fdat$rn <- sapply(strsplit(row.names(data_fdat), "\\."), `[[`, 1)
 
     dt1 <- data.table(eset_fdat, key="rn")
     dt2 <- data.table(data_fdat, key="rn")
 
     feature_data <- dt1[dt2]
     feature_data <- as.data.frame(feature_data)
-    row.names(feature_data) <- feature_data$rn
+    row.names(feature_data) <- make.unique(feature_data$rn)
     feature_data$rn <- NULL
 
     return(feature_data[row.names(data_fdat), ])
@@ -248,7 +248,7 @@ symbol_annot <- function (eset, homologene, gpl_name) {
     if (!biocpack_name %in% c("", ".db")) {
         #get entrez id
         get_biocpack(biocpack_name)
-        ID <- featureNames(eset)
+        ID <- sapply(strsplit(featureNames(eset), "\\."), `[[`, 1)
         map <- AnnotationDbi::select(get(biocpack_name), ID, "ENTREZID")
         eset <- eset[map$PROBEID, ] #expands one-to-many mappings
         entrez <- map$ENTREZID
@@ -288,8 +288,10 @@ symbol_annot <- function (eset, homologene, gpl_name) {
     map <- AnnotationDbi::select(org.Hs.eg.db, as.character(map$entrez_HS),
                                  "SYMBOL", "ENTREZID")
 
-    fData(eset)$PROBE  <- featureNames(eset)
+    fData(eset)$PROBE  <- sapply(strsplit(featureNames(eset), "\\."), `[[`, 1)
     fData(eset)$SYMBOL <- map$SYMBOL
+
+    featureNames(eset) <- make.unique(featureNames(eset))
     return (eset)
 }
 

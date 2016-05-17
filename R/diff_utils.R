@@ -287,6 +287,8 @@ iqr_duplicates <- function (eset, mod, svobj, annot="SYMBOL") {
     data$row <- 1:nrow(data)
     data[, colnames(fData(eset))] <- fData(eset)
 
+    print(table(row.names(data) == row.names(fData(eset))))
+
     #remove rows with NA annot (occurs if annot is SYMBOL)
     data <- data[!is.na(data[, annot]), ]
 
