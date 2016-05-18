@@ -55,7 +55,7 @@ load_affy <- function (gse_names, homologene, data_dir, overwrite) {
             eset <- GEOquery::getGEO(gse_name, destdir=gse_dir, GSEMatrix=TRUE)
 
             #load eset for each platform in GSE
-            eset <- lapply(eset, load_affy_plat, homologene, gse_dir)
+            eset <- lapply(eset, load_affy_plat, homologene, gse_dir, gse_name)
 
             #save to disc
             saveRDS(eset, file.path(gse_dir, save_name))
@@ -112,7 +112,7 @@ get_eset_names <- function(esets, gse_names) {
 # @seealso \code{\link{load_affy}}.
 # @return Annotated eset with scan_date in pData slot.
 
-load_affy_plat <- function (eset, homologene, gse_dir) {
+load_affy_plat <- function (eset, homologene, gse_dir, gse_name) {
 
     sample_names <- sampleNames(eset)
     pattern <- paste(sample_names, ".*CEL$", collapse="|", sep="")
@@ -140,9 +140,7 @@ load_affy_plat <- function (eset, homologene, gse_dir) {
         warning = function(c) {
             #is the warning to use oligo/xps?
             if (grepl("oligo", c$message)) {
-                suppressPackageStartupMessages(
-                    raw_data <- oligo::read.celfiles(cel_paths)
-                )
+                raw_data <- oligo::read.celfiles(cel_paths)
                 return (oligo::rma(raw_data))
             #if not, use affy
             } else {
@@ -173,7 +171,7 @@ load_affy_plat <- function (eset, homologene, gse_dir) {
     pData(eset)$scan_date <- scan_dates[sample_order]
 
     #add SYMBOL annotation
-    eset <- symbol_annot(eset, homologene)
+    eset <- symbol_annot(eset, homologene, gse_name)
 
     return(eset)
 }

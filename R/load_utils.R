@@ -241,12 +241,16 @@ get_biocpack_name <- function (gpl_name) {
 #   \code{\link{get_biocpack}}.
 # @return Annotated eset.
 
-symbol_annot <- function (eset, homologene, gpl_name = annotation(eset)) {
+symbol_annot <- function (eset, homologene, gse_name) {
 
     cat("Annotating")
 
+
+    #--------------------- Get Entrez ID
+
+
     # check internal data or UI for biocpack_name
-    biocpack_name <- get_biocpack_name(gpl_name)
+    biocpack_name <- get_biocpack_name(annotation(eset))
     hs <- get_biocpack("org.Hs.eg.db")
 
     # if biocpack_name not empty, use to get entrez id
@@ -282,30 +286,36 @@ symbol_annot <- function (eset, homologene, gpl_name = annotation(eset)) {
         }
     }
 
-    # map from entrez id to homologous human entrez ids
-    # (where entrez id in homologene):
+
+    #--------------------- Map Entrez ID to Homologous Human Entrez ID
+
+
+    # where entrez id in homologene:
     endf <- data.frame(entrez, rn = 1:length(entrez))
     filt <- entrez %in% homologene$entrez
     map <- merge(endf[filt, ], homologene, by="entrez")
 
-    # (where no homology, use original entrez id):
+    # where no homology, use original entrez id:
     # (useful if human platform)
     endf$entrez_HS <- entrez
     map <- rbind(endf[!filt, ], map)
     eset <- eset[map$rn, ] #expands one-to-many mappings
 
-    #map from entrez to SYMBOL
+
+
+    #--------------------- Map Human Entrez ID to Gene Symbol
+
+
     SYMBOL <- tryCatch (
         {
             suppressMessages(
                 SYMBOL <- AnnotationDbi::select(hs, as.character(map$entrez_HS),
                                       "SYMBOL", "ENTREZID")$SYMBOL)
         },
-
         error = function(c) {
             if (grepl("valid keys", c$message)) {
-                message("Annotation failed. ",
-                        "Selected column had no valid entrez ids.")
+                warning(gse_name, ": Annotation failed. ",
+                        "Add human gene symbols to 'SYMBOL' column in fData.")
                 return(NULL)
             }
         }

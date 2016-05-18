@@ -50,7 +50,7 @@ load_agil <- function (gse_names, homologene, data_dir, overwrite) {
             fData(eset) <- merge_fdata(fData(eset), data$genes)
 
             #add SYMBOL annotation
-            eset <- symbol_annot(eset, homologene)
+            eset <- symbol_annot(eset, homologene, gse_name)
 
             #save to disc
             saveRDS(eset, file.path(gse_dir, save_name))

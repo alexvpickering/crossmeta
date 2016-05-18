@@ -65,7 +65,7 @@ load_illum <- function (gse_names, homologene, data_dir, overwrite) {
             eset <- add_pvals(eset, pvals)
 
             #add SYMBOL annotation
-            eset <- symbol_annot(eset, homologene)
+            eset <- symbol_annot(eset, homologene, gse_name)
 
             #save to disc
             saveRDS(eset, file.path(gse_dir, save_name))

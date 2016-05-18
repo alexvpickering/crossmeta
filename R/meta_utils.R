@@ -86,7 +86,7 @@ get_scores <- function(diff_exprs, cutoff = 0.3) {
             #get dprime and vardprime
             res <-  metaMA::effectsize(tt$t, ((ni * nj)/(ni + nj)), df)
             res <- as.data.frame(res)
-            res$SYMBOL <- toupper(row.names(tt))
+            res$SYMBOL <- row.names(tt)
 
             #store result
             scores_cons[[con]] <- res[, c("SYMBOL", "dprime", "vardprime")]
