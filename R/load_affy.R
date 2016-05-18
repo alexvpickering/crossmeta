@@ -140,7 +140,9 @@ load_affy_plat <- function (eset, homologene, gse_dir) {
         warning = function(c) {
             #is the warning to use oligo/xps?
             if (grepl("oligo", c$message)) {
-                raw_data <- oligo::read.celfiles(cel_paths)
+                suppressPackageStartupMessages(
+                    raw_data <- oligo::read.celfiles(cel_paths)
+                )
                 return (oligo::rma(raw_data))
             #if not, use affy
             } else {
@@ -171,8 +173,7 @@ load_affy_plat <- function (eset, homologene, gse_dir) {
     pData(eset)$scan_date <- scan_dates[sample_order]
 
     #add SYMBOL annotation
-    gpl_name <- annotation(eset)
-    eset <- symbol_annot(eset, homologene, gpl_name)
+    eset <- symbol_annot(eset, homologene)
 
     return(eset)
 }

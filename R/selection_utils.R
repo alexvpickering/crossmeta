@@ -19,7 +19,6 @@ select_contrasts <- function(gse_name, eset) {
 
     # objects we will update
     previous <- list()
-    groups <- c()
 
     pdata <- data.frame(Accession = sampleNames(eset),
                         Title = pData(eset)$title,
@@ -49,18 +48,18 @@ select_contrasts <- function(gse_name, eset) {
                          miniContentPanel(
                              fillCol(flex = c(NA, NA, 1),
                                      fillRow(flex = c(NA, 0.025, NA),
-                                              textInput(
-                                                  "group",
-                                                  "Control group name:",
-                                                  width = "200px"
-                                              ),
+                                             textInput(
+                                                 "group",
+                                                 "Control group name:",
+                                                 width = "200px"
+                                             ),
                                              br(),
-                                              selectInput(
-                                                  "prev",
-                                                  br(),
-                                                  choices = c("", names(previous)),
-                                                  width = "200px"
-                                              )
+                                             selectInput(
+                                                 "prev",
+                                                 br(),
+                                                 choices = c("", names(previous)),
+                                                 width = "200px"
+                                             )
                                      ),
                                      hr(),
                                      DT::dataTableOutput("pdata")
@@ -95,8 +94,7 @@ select_contrasts <- function(gse_name, eset) {
         output$contrasts <- DT::renderDataTable({
 
             # invalidate when add/delete click
-            input$add
-            input$delete
+            state$contrast
 
             DT::datatable(
                 contrasts,
@@ -129,7 +127,7 @@ select_contrasts <- function(gse_name, eset) {
 
 
         # make reactive state value to keep track of ctrl vs test group
-        state <- reactiveValues(ctrl = 1, pair = 1)
+        state <- reactiveValues(ctrl = 1, pair = 1, contrast = 0)
 
         # need pdata proxy to reselect rows of pheno data
         proxy = DT::dataTableProxy('pdata')
@@ -165,15 +163,15 @@ select_contrasts <- function(gse_name, eset) {
                 message("Group name in use with different samples.")
 
             } else if (Position(function(x) setequal(x, rows), previous, nomatch = 0) > 0 &&
-                        !group %in% names(previous)) {
+                       !group %in% names(previous)) {
                 message("Selection in use with different group name.")
 
 
-            #add ctrl group data to previous and groups
+            #add ctrl group data to previous and contrasts
             } else if (state$ctrl == 1) {
                 if (!group %in% names(previous))
                     previous <<- c(previous, group_data)
-                groups <<- c(groups, names(group_data))
+                contrasts[nrow(contrasts) + 1, ] <<- c(group, NA)
 
                 #update inputs
                 updateTextInput(session, "group",
@@ -181,14 +179,17 @@ select_contrasts <- function(gse_name, eset) {
                 updateSelectInput(session, "prev",
                                   choices = c("", names(previous)))
                 DT::selectRows(proxy, NULL)
+
+                #update states
                 state$ctrl <- 0
+                state$contrast <- state$contrast + 1
 
 
-            #add test group data to previous and groups
+            #add test group data to previous and contrasts
             } else {
                 if (!group %in% names(previous))
                     previous <<- c(previous, group_data)
-                groups <<- c(groups, names(group_data))
+                contrasts[nrow(contrasts), "Test"] <<- group
 
                 #update inputs
                 updateTextInput(session, "group",
@@ -197,10 +198,9 @@ select_contrasts <- function(gse_name, eset) {
                                   choices = c("", names(previous)))
                 DT::selectRows(proxy, NULL)
 
-                #add groups to contrasts table then blank groups
-                contrasts[nrow(contrasts) + 1, ] <<- groups
-                groups <<- c()
+                #update states
                 state$ctrl <- 1
+                state$contrast <- state$contrast + 1
             }
         })
 
@@ -245,6 +245,9 @@ select_contrasts <- function(gse_name, eset) {
                 #remove rows from contrasts
                 contrasts <<- contrasts[-rows, ]
                 row.names(contrasts) <<- NULL
+
+                #update contrast state
+                state$contrast <- state$contrast + 1
             }
         })
 

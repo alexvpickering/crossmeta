@@ -43,13 +43,14 @@ load_agil <- function (gse_names, homologene, data_dir, overwrite) {
             row.names(data$E) <- make.unique(data$genes$ProbeName)
             row.names(data$genes) <- make.unique(data$genes$ProbeName)
 
+            eset <- fix_agil_features(eset, data)
+
             #transfer to eset
             exprs(eset) <- data$E
             fData(eset) <- merge_fdata(fData(eset), data$genes)
 
             #add SYMBOL annotation
-            gpl_name <- annotation(eset)
-            eset <- symbol_annot(eset, homologene, gpl_name)
+            eset <- symbol_annot(eset, homologene)
 
             #save to disc
             saveRDS(eset, file.path(gse_dir, save_name))
@@ -57,4 +58,39 @@ load_agil <- function (gse_names, homologene, data_dir, overwrite) {
         esets[[gse_name]] <- eset
     }
     return(esets)
+}
+
+
+#' Title
+#'
+#' @param eset
+#' @param data
+#'
+#' @return
+#' @export
+#'
+#' @examples
+fix_agil_features <- function(eset, data) {
+
+    #use eset fData column that best matches data probe names
+    data_ids <- data$genes$ProbeName
+    fData(eset)$rownames <- featureNames(eset)
+
+    cols <- colnames(fData(eset))
+
+    matches <- rep(0, length(cols))
+    names(matches) <- cols
+
+    for (col in cols) {
+        vals <- fData(eset)[, col]
+        matches[col] <- sum(vals %in% data_ids)
+    }
+
+    best <- as.character(fData(eset)[, names(which.max(matches))])
+
+    row.names(exprs(eset)) <- make.unique(best)
+    row.names(fData(eset)) <- make.unique(best)
+
+    fData(eset)$rownames <- NULL
+    return(eset)
 }

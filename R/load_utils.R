@@ -94,7 +94,7 @@ load_raw <- function(gse_names, homologene_path, data_dir=getwd(),
     agil_esets  <- load_agil(agil_names, homologene, data_dir, overwrite)
     illum_esets <- load_illum(illum_names, homologene, data_dir, overwrite)
 
-    return (c(affy_esets, agil_esets, illum_esets))
+    return (c(affy_esets, agil_esets, illum_esets)[gse_names])
 }
 
 
@@ -190,11 +190,12 @@ merge_fdata <- function(eset_fdat, data_fdat) {
 
 get_biocpack <- function(biocpack_name) {
 
-    if (!require(biocpack_name, character.only=TRUE)) {
+    if (!requireNamespace(biocpack_name, quietly = TRUE)) {
         source("https://bioconductor.org/biocLite.R")
         biocLite(biocpack_name)
-        require(biocpack_name, character.only=TRUE)
     }
+    db <- get(biocpack_name, getNamespace(biocpack_name))
+    return (db)
 }
 
 
@@ -240,28 +241,36 @@ get_biocpack_name <- function (gpl_name) {
 #   \code{\link{get_biocpack}}.
 # @return Annotated eset.
 
-symbol_annot <- function (eset, homologene, gpl_name) {
+symbol_annot <- function (eset, homologene, gpl_name = annotation(eset)) {
 
+    cat("Annotating")
+
+    # check internal data or UI for biocpack_name
     biocpack_name <- get_biocpack_name(gpl_name)
-    get_biocpack("org.Hs.eg.db")
+    hs <- get_biocpack("org.Hs.eg.db")
 
+    # if biocpack_name not empty, use to get entrez id
     if (!biocpack_name %in% c("", ".db")) {
-        #get entrez id
-        get_biocpack(biocpack_name)
+
+        biocpack <- get_biocpack(biocpack_name)
         ID <- sapply(strsplit(featureNames(eset), "\\."), `[[`, 1)
-        map <- AnnotationDbi::select(get(biocpack_name), ID, "ENTREZID")
+
+        suppressMessages(map <- AnnotationDbi::select(biocpack, ID, "ENTREZID"))
         eset <- eset[map$PROBEID, ] #expands one-to-many mappings
         entrez <- map$ENTREZID
 
+    # if not, ask user for fData column with entrez id
     } else {
-        #try fData column
+
+        # default if no selection
+        entrez <- rep(NA, nrow(eset))
+
+        # ask for fData column
         choices <- fvarLabels(eset)
         column <- tcltk::tk_select.list(choices, title="select ENTREZID column")
-        if (column != "") {
-            entrez <- fData(eset)[, column]
 
-            if (!is.character(entrez))
-                entrez <- as.character(entrez)
+        if (column != "") {
+            entrez <- as.character(fData(eset)[, column])
 
             #expand one-to-many
             entrez <- strsplit(entrez, "\\D+")
@@ -272,24 +281,41 @@ symbol_annot <- function (eset, homologene, gpl_name) {
             eset <- eset[unlist(rn), ]
         }
     }
+
     # map from entrez id to homologous human entrez ids
-    # where entrez id in homologene:
+    # (where entrez id in homologene):
     endf <- data.frame(entrez, rn = 1:length(entrez))
     filt <- entrez %in% homologene$entrez
     map <- merge(endf[filt, ], homologene, by="entrez")
 
-    # where no homology, use original id:
+    # (where no homology, use original entrez id):
     # (useful if human platform)
     endf$entrez_HS <- entrez
     map <- rbind(endf[!filt, ], map)
     eset <- eset[map$rn, ] #expands one-to-many mappings
 
     #map from entrez to SYMBOL
-    map <- AnnotationDbi::select(org.Hs.eg.db, as.character(map$entrez_HS),
-                                 "SYMBOL", "ENTREZID")
+    SYMBOL <- tryCatch (
+        {
+            suppressMessages(
+                SYMBOL <- AnnotationDbi::select(hs, as.character(map$entrez_HS),
+                                      "SYMBOL", "ENTREZID")$SYMBOL)
+        },
+
+        error = function(c) {
+            if (grepl("valid keys", c$message)) {
+                message("Annotation failed. ",
+                        "Selected column had no valid entrez ids.")
+                return(NULL)
+            }
+        }
+    )
 
     fData(eset)$PROBE  <- sapply(strsplit(featureNames(eset), "\\."), `[[`, 1)
-    fData(eset)$SYMBOL <- map$SYMBOL
+
+    if (!is.null(SYMBOL)) {
+        fData(eset)$SYMBOL <- SYMBOL
+    }
 
     featureNames(eset) <- make.unique(featureNames(eset))
     return (eset)

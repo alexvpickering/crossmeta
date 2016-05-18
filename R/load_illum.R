@@ -52,10 +52,12 @@ load_illum <- function (gse_names, homologene, data_dir, overwrite) {
             pData(eset)$title <- colnames(data)
             colnames(data) <- sampleNames(eset)
 
-            #transfer merged fdata
+            #fix up feature names and transfer data
+            data <- fix_illum_features(eset, data)
+
             exprs(eset) <- data$E[row.names(data$E) != "", ]
             fData(eset) <- merge_fdata(fData(eset),
-                                       data.frame(row.names = featureNames(eset)))
+                                       data.frame(row.names = make.unique(row.names(data))))
             fData(eset) <- fData(eset)[featureNames(eset), ]
 
             #transfer pvals from data to eset
@@ -63,8 +65,7 @@ load_illum <- function (gse_names, homologene, data_dir, overwrite) {
             eset <- add_pvals(eset, pvals)
 
             #add SYMBOL annotation
-            gpl_name <- annotation(eset)
-            eset <- symbol_annot(eset, homologene, gpl_name)
+            eset <- symbol_annot(eset, homologene)
 
             #save to disc
             saveRDS(eset, file.path(gse_dir, save_name))
@@ -72,6 +73,38 @@ load_illum <- function (gse_names, homologene, data_dir, overwrite) {
         esets[[gse_name]] <- eset
     }
     return (esets)
+}
+
+
+# used to fix raw data feature names
+fix_illum_features <- function(eset, data) {
+
+    fData(eset)$rownames <- featureNames(eset)
+
+    dataf <- data.frame(dfn = row.names(data), stringsAsFactors = FALSE)
+    esetf <- data.frame(efn = featureNames(eset), stringsAsFactors = FALSE)
+
+    # find eset fData column that best matches data features
+    cols <- colnames(fData(eset))
+
+    matches <- rep(0, length(cols))
+    names(matches) <- cols
+
+    for (col in cols) {
+        vals <- fData(eset)[, col]
+        matches[col] <- sum(dataf$dfn %in% vals)
+    }
+    best <- names(which.max(matches))
+    esetf$best <- fData(eset)[, best]
+
+    # get map from data features -> best eset match -> eset features
+    map <- merge(dataf, esetf, by.x="dfn", by.y="best", sort = FALSE)
+
+    # expand 1:many map and set data row names to eset features
+    data <- data[map$dfn, ]
+
+    row.names(data) <- make.unique(map$efn)
+    return(data)
 }
 
 

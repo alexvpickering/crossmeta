@@ -3,7 +3,7 @@
 `crossmeta` streamlines the cross-platform meta-analysis of 
 microarray data. For the analysis, you will need a list of Affymetrix, Illumina,
 and/or Agilent GSE numbers from [GEO](http://www.ncbi.nlm.nih.gov/geo/). All 21
-species in the current [homologene](ftp://ftp.ncbi.nih.gov/pub/HomoloGene/build68/build_inputs/taxid_taxname) build are supported.
+species in the current [homologene](http://1.usa.gov/1TGoIy7) build are supported.
 
 
 -----------------
