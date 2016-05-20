@@ -45,6 +45,7 @@ load_illum <- function (gse_names, homologene, data_dir, overwrite) {
                     return(limma::normalizeBetweenArrays(data, method="quantile"))
                 })
 
+
             #to check if sample order mismatch
             pData(eset)$title_GSEMatrix <- pData(eset)$title
 
@@ -54,10 +55,11 @@ load_illum <- function (gse_names, homologene, data_dir, overwrite) {
 
             #fix up feature names and transfer data
             data <- fix_illum_features(eset, data)
+            row.names(eset) <- gsub(".", "*", row.names(eset), fixed = TRUE)
 
             exprs(eset) <- data$E[row.names(data$E) != "", ]
             fData(eset) <- merge_fdata(fData(eset),
-                                       data.frame(row.names = make.unique(row.names(data))))
+                                       data.frame(row.names = row.names(data)))
             fData(eset) <- fData(eset)[featureNames(eset), ]
 
             #transfer pvals from data to eset
@@ -76,7 +78,14 @@ load_illum <- function (gse_names, homologene, data_dir, overwrite) {
 }
 
 
-# used to fix raw data feature names
+
+# Convert data features to eset features.
+#
+# @param eset
+# @param data
+#
+# @return
+
 fix_illum_features <- function(eset, data) {
 
     fData(eset)$rownames <- featureNames(eset)
@@ -100,10 +109,13 @@ fix_illum_features <- function(eset, data) {
     # get map from data features -> best eset match -> eset features
     map <- merge(dataf, esetf, by.x="dfn", by.y="best", sort = FALSE)
 
-    # expand 1:many map and set data row names to eset features
+    # expand 1:many map
     data <- data[map$dfn, ]
 
+    # reserve periods in data row names to indicate duplicates
+    map$efn <- gsub(".", "*", map$efn, fixed = TRUE)
     row.names(data) <- make.unique(map$efn)
+
     return(data)
 }
 

@@ -94,7 +94,7 @@ load_raw <- function(gse_names, homologene_path, data_dir=getwd(),
     agil_esets  <- load_agil(agil_names, homologene, data_dir, overwrite)
     illum_esets <- load_illum(illum_names, homologene, data_dir, overwrite)
 
-    return (c(affy_esets, agil_esets, illum_esets)[gse_names])
+    return (c(affy_esets, agil_esets, illum_esets))
 }
 
 
@@ -241,7 +241,7 @@ get_biocpack_name <- function (gpl_name) {
 #   \code{\link{get_biocpack}}.
 # @return Annotated eset.
 
-symbol_annot <- function (eset, homologene, gse_name) {
+symbol_annot <- function (eset, homologene, gse_name = "") {
 
     cat("Annotating")
 
@@ -270,12 +270,21 @@ symbol_annot <- function (eset, homologene, gse_name) {
         entrez <- rep(NA, nrow(eset))
 
         # ask for fData column
-        choices <- fvarLabels(eset)
-        column <- tcltk::tk_select.list(choices, title="select ENTREZID column")
+        while (TRUE) {
+            choices <- fvarLabels(eset)
+            column <- tcltk::tk_select.list(choices, title="select ENTREZID column")
+            if (column == "") break
 
-        if (column != "") {
             entrez <- as.character(fData(eset)[, column])
 
+            #test if column is mostly digits
+            chk <- grepl("^[[:digit:]]*$", unique(entrez))
+            if (sum(chk) >= 0.5 * length(unique(entrez))) break
+
+            message(column, " not mostly digits - unlikely to be entrez ids.")
+        }
+
+        if (column != "") {
             #expand one-to-many
             entrez <- strsplit(entrez, "\\D+")
             rn <- sapply(seq_along(entrez),
@@ -295,8 +304,7 @@ symbol_annot <- function (eset, homologene, gse_name) {
     filt <- entrez %in% homologene$entrez
     map <- merge(endf[filt, ], homologene, by="entrez")
 
-    # where no homology, use original entrez id:
-    # (useful if human platform)
+    # where no homology, use original entrez id (useful if human platform):
     endf$entrez_HS <- entrez
     map <- rbind(endf[!filt, ], map)
     eset <- eset[map$rn, ] #expands one-to-many mappings
@@ -320,14 +328,18 @@ symbol_annot <- function (eset, homologene, gse_name) {
             }
         }
     )
+    # PROBE is feature names (remove '.' then restore '*' to '.')
+    PROBE <- sapply(strsplit(featureNames(eset), "\\."), `[[`, 1)
+    PROBE <- gsub("*", ".", PROBE, fixed = TRUE)
 
-    fData(eset)$PROBE  <- sapply(strsplit(featureNames(eset), "\\."), `[[`, 1)
+    # add PROBE to fData and use for unique row names
+    fData(eset)$PROBE <- PROBE
+    row.names(eset) <- make.unique(PROBE)
 
+    # add uppercase gene symbols to fData
     if (!is.null(SYMBOL)) {
-        fData(eset)$SYMBOL <- SYMBOL
+        fData(eset)$SYMBOL <- toupper(SYMBOL)
     }
-
-    featureNames(eset) <- make.unique(featureNames(eset))
     return (eset)
 }
 

@@ -40,8 +40,8 @@ load_agil <- function (gse_names, homologene, data_dir, overwrite) {
             colnames(data) <- stringr::str_match(colnames(data),
                                                  ".*(GSM\\d+).*")[, 2]
 
-            row.names(data$E) <- make.unique(data$genes$ProbeName)
             row.names(data$genes) <- make.unique(data$genes$ProbeName)
+            row.names(data$E)     <- make.unique(data$genes$ProbeName)
 
             eset <- fix_agil_features(eset, data)
 
@@ -61,15 +61,13 @@ load_agil <- function (gse_names, homologene, data_dir, overwrite) {
 }
 
 
-#' Title
-#'
-#' @param eset
-#' @param data
-#'
-#' @return
-#' @export
-#'
-#' @examples
+# Set eset row names to Agilent probe ids.
+#
+# @param eset Expression set from getGEO with GSEMatrix = TRUE.
+# @param data Expression set from raw data (read and processed by limma).
+#
+# @return eset with row names set to Agilent probe ids.
+
 fix_agil_features <- function(eset, data) {
 
     #use eset fData column that best matches data probe names
@@ -88,8 +86,7 @@ fix_agil_features <- function(eset, data) {
 
     best <- as.character(fData(eset)[, names(which.max(matches))])
 
-    row.names(exprs(eset)) <- make.unique(best)
-    row.names(fData(eset)) <- make.unique(best)
+    row.names(eset) <- make.unique(best)
 
     fData(eset)$rownames <- NULL
     return(eset)

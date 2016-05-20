@@ -120,6 +120,7 @@ load_affy_plat <- function (eset, homologene, gse_dir, gse_name) {
     cel_paths <- tryCatch (
         list.files(gse_dir, pattern, full.names=TRUE, ignore.case=TRUE),
 
+        #list.files fails if too many files
         error = function(c) {
             n <- length(sample_names)
             p1 <- paste(sample_names[1:(n/2)], ".*CEL$", collapse="|", sep="")

@@ -65,6 +65,14 @@ globalVariables(c("x", "y", "adj.P.Val"))
 diff_expr <- function (esets, data_dir=getwd(),
                        annot="SYMBOL", prev_anals=list(NULL)) {
 
+    #check for annot column
+    chk <- sapply(esets, function(x) annot %in% colnames(fData(x)))
+
+    if (FALSE %in% chk) {
+        stop(annot, " column in fData missing for esets: ",
+             paste(names(which(!chk)), sep=", "))
+    }
+
     prev_anals <- prev_anals[names(esets)]
     anals <- list()
     for (i in seq_along(esets)) {
@@ -248,7 +256,8 @@ diff_setup <- function(eset, group_levels, gse_name){
             return(list("sv"=NULL))
         })
 
-    if (is.null(svobj$sv)) {
+    if (is.null(svobj$sv) || svobj$n.sv == 0) {
+        svobj$sv <- NULL
         modsv <- mod
     } else {
         modsv <- cbind(mod, svobj$sv)

@@ -30,6 +30,7 @@ select_contrasts <- function(gse_name, eset) {
 
 
     # link for GSE
+    gse_name <- strsplit(gse_name, ".", fixed = TRUE)[[1]][1]
     gse_link <- paste("https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=",
                       gse_name, sep="")
 
