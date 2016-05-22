@@ -15,7 +15,7 @@
 
 select_contrasts <- function(gse_name, eset) {
 
-    #------------------- Setup
+    # ------------------- Setup
 
     # objects we will update
     previous <- list()
@@ -36,7 +36,7 @@ select_contrasts <- function(gse_name, eset) {
 
 
 
-    #------------------- user interface
+    # ------------------- user interface
 
 
     ui <- miniPage(
@@ -85,7 +85,7 @@ select_contrasts <- function(gse_name, eset) {
 
 
 
-    #------------------------- server
+    # ------------------------- server
 
 
     server <- function(input, output, session) {
@@ -111,7 +111,7 @@ select_contrasts <- function(gse_name, eset) {
         # show phenotype data
         output$pdata <- DT::renderDataTable({
 
-            #invalidate when pair state change
+            # invalidate when pair state change
             state$pair
 
             DT::datatable(
@@ -135,27 +135,25 @@ select_contrasts <- function(gse_name, eset) {
 
 
 
-        #------------------- click 'Add'
+        # ------------------- click 'Add'
 
 
         observeEvent(input$add, {
 
-            #construct group data
+            # construct group data
             rows  <- input$pdata_rows_selected
             group <- input$group
             group_data <- list()
             group_data[[group]] <- rows
 
 
-            #check for incomplete input
+            # check for incomplete/wrong input
             if (group == "") {
                 message("Enter group name.")
 
             } else if (length(rows) == 0) {
                 message("Select rows.")
 
-
-                #check for wrong input
             } else if (make.names(group) != group) {
                 message("Group name invalid.")
 
@@ -168,31 +166,31 @@ select_contrasts <- function(gse_name, eset) {
                 message("Selection in use with different group name.")
 
 
-                #add ctrl group data to previous and contrasts
             } else if (state$ctrl == 1) {
+                # add ctrl group data to previous and contrasts
                 if (!group %in% names(previous))
                     previous <<- c(previous, group_data)
                 contrasts[nrow(contrasts) + 1, ] <<- c(group, NA)
 
-                #update inputs
+                # update inputs
                 updateTextInput(session, "group",
                                 label = "Test group name:", value = "")
                 updateSelectInput(session, "prev",
                                   choices = c("", names(previous)))
                 DT::selectRows(proxy, NULL)
 
-                #update states
+                # update states
                 state$ctrl <- 0
                 state$contrast <- state$contrast + 1
 
 
-                #add test group data to previous and contrasts
             } else {
+                # add test group data to previous and contrasts
                 if (!group %in% names(previous))
                     previous <<- c(previous, group_data)
                 contrasts[nrow(contrasts), "Test"] <<- group
 
-                #update inputs
+                # update inputs
                 updateTextInput(session, "group",
                                 label = "Control group name:", value = "")
                 updateSelectInput(session, "prev",
@@ -233,7 +231,7 @@ select_contrasts <- function(gse_name, eset) {
                 message("Select contrasts.")
 
             } else {
-                #for groups in rows to delete
+                # for groups in rows to delete
                 for (group in unlist(contrasts[rows, ])){
 
                     # remove from previos if not in another row
@@ -243,18 +241,18 @@ select_contrasts <- function(gse_name, eset) {
                     updateSelectInput(session, "prev",
                                       choices = c("", names(previous)))
                 }
-                #remove rows from contrasts
+                # remove rows from contrasts
                 contrasts <<- contrasts[-rows, ]
                 row.names(contrasts) <<- NULL
 
-                #update contrast state
+                # update contrast state
                 state$contrast <- state$contrast + 1
             }
         })
 
 
 
-        #------------------- select previous
+        # ------------------- select previous
 
 
         observeEvent(input$prev, {
@@ -271,7 +269,7 @@ select_contrasts <- function(gse_name, eset) {
 
 
 
-        #------------------- click 'Done'
+        # ------------------- click 'Done'
 
 
         observeEvent(input$done, {

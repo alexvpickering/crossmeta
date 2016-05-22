@@ -337,14 +337,14 @@ entrez_map <- function(eset, homologene) {
         suppressMessages(map <- AnnotationDbi::select(biocpack, ID, "ENTREZID"))
 
 
-        # if not, check fData column for entrez id
     } else {
+        # if not, check fData column for entrez id
         cols <- grep("gene_id|^gene$|entrez",
                      fvarLabels(eset), ignore.case = TRUE, value = TRUE)
 
 
-        # pick col with most homologene matches (min 1/4)
         if (length(cols) != 0) {
+            # pick col with most homologene matches (min 1/4)
             matches <- sapply(cols, function(col) {
                 sum(fData(eset)[, col] %in% homologene$ENTREZID)
             })
