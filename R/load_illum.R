@@ -20,56 +20,59 @@ load_illum <- function (gse_names, homologene, data_dir, overwrite) {
     for (gse_name in gse_names) {
 
         gse_dir <- file.path(data_dir, gse_name)
-        save_name <- paste(gse_name, "eset.rds", sep="_")
-        eset_path <- list.files(gse_dir, save_name, full.names=TRUE)
+        save_name <- paste(gse_name, "eset.rds", sep = "_")
+        eset_path <- list.files(gse_dir, save_name, full.names = TRUE)
 
-        #check if saved copy
+        # check if saved copy
         if (length(eset_path) != 0 & overwrite == FALSE) {
             eset <- readRDS(eset_path)
 
         } else {
-            #get GSEMatrix (for pheno data)
-            eset <- GEOquery::getGEO(gse_name, destdir=gse_dir, GSEMatrix=TRUE)[[1]]
+            # get GSEMatrix (for pheno data)
+            eset <- GEOquery::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE)
 
-            #load non-normalized txt files and normalize
-            data_paths <- list.files(gse_dir, pattern="non.norm.*txt",
-                                     full.names=TRUE, ignore.case=TRUE)
-            data <- limma::read.ilmn(data_paths, probeid="ID_REF")
+            if (length(eset) > 1) {
+                warning("Multi-platform Illumina GSEs not supported. ", gse_name)
+                next
+            }
+            eset <- eset[[1]]
+
+            # load non-normalized txt files and normalize
+            data_paths <- list.files(gse_dir, pattern = "non.norm.*txt",
+                                     full.names = TRUE, ignore.case = TRUE)
+            data <- limma::read.ilmn(data_paths, probeid = "ID_REF")
             data <- tryCatch (
                 limma::neqc(data),
                 error = function(cond) {
-                    data <- limma::backgroundCorrect(data, method="normexp",
-                                                     normexp.method="rma",
-                                                     offset=16)
+                    data <- limma::backgroundCorrect(data, method = "normexp",
+                                                     normexp.method = "rma",
+                                                     offset = 16)
 
-                    return(limma::normalizeBetweenArrays(data, method="quantile"))
+                    return(limma::normalizeBetweenArrays(data, method = "quantile"))
                 })
 
-
-            #to check if sample order mismatch
-            pData(eset)$title_GSEMatrix <- pData(eset)$title
-
-            #use raw data titles to ensure correct contrasts
+            # use raw data titles to ensure correct contrasts
             pData(eset)$title <- colnames(data)
             colnames(data) <- sampleNames(eset)
 
-            #fix up feature names and transfer data
+            # fix up data feature names
             data <- fix_illum_features(eset, data)
+
+            # reserve '.' for duplicates
             row.names(eset) <- gsub(".", "*", row.names(eset), fixed = TRUE)
 
-            exprs(eset) <- data$E[row.names(data$E) != "", ]
+            # transfer data to eset
+            exprs(eset) <- data$E
             fData(eset) <- merge_fdata(fData(eset),
                                        data.frame(row.names = row.names(data)))
-            fData(eset) <- fData(eset)[featureNames(eset), ]
 
-            #transfer pvals from data to eset
-            pvals <- data$other$Detection
-            eset <- add_pvals(eset, pvals)
+            # transfer pvals from data to eset
+            eset <- add_pvals(eset, data$other$Detection)
 
-            #add SYMBOL annotation
+            # add SYMBOL annotation
             eset <- symbol_annot(eset, homologene, gse_name)
 
-            #save to disc
+            # save to disc
             saveRDS(eset, file.path(gse_dir, save_name))
         }
         esets[[gse_name]] <- eset
@@ -78,36 +81,43 @@ load_illum <- function (gse_names, homologene, data_dir, overwrite) {
 }
 
 
+# -------------------
 
-# Convert data features to eset features.
+
+# Convert Illumina data features to eset features.
 #
-# @param eset
-# @param data
+# Maps from raw data row names to eset row names.
 #
-# @return
+# Illumina raw data ('EList' object) has no feature information other than
+# row names. These rownames may not match those of the eset GSEMatrix
+# ('ExpressionSet' object). This is fixed by mapping from raw data row names to
+# eset row names through the eset feature data column that best matches the
+# raw data row names.
+#
+# @param eset ExpressionSet from call to getGEO with GSEMatrix = TRUE.
+# @param data EList from loading raw Illumina data then limma::neqc.
+#
+# @return data with rownames matching eset rownames.
 
 fix_illum_features <- function(eset, data) {
 
+    data <- data[row.names(data) != "", ]
     fData(eset)$rownames <- featureNames(eset)
 
-    dataf <- data.frame(dfn = row.names(data), stringsAsFactors = FALSE)
-    esetf <- data.frame(efn = featureNames(eset), stringsAsFactors = FALSE)
+    df <- data.frame(dfn = row.names(data), stringsAsFactors = FALSE)
+    ef <- data.frame(efn = featureNames(eset), stringsAsFactors = FALSE)
 
     # find eset fData column that best matches data features
     cols <- colnames(fData(eset))
 
-    matches <- rep(0, length(cols))
-    names(matches) <- cols
+    matches <- sapply(cols, function(col) {
+        sum(df$dfn %in% fData(eset)[, col])
+    })
 
-    for (col in cols) {
-        vals <- fData(eset)[, col]
-        matches[col] <- sum(dataf$dfn %in% vals)
-    }
-    best <- names(which.max(matches))
-    esetf$best <- fData(eset)[, best]
+    ef$best <- fData(eset)[, names(which.max(matches))]
 
     # get map from data features -> best eset match -> eset features
-    map <- merge(dataf, esetf, by.x="dfn", by.y="best", sort = FALSE)
+    map <- merge(df, ef, by.x = "dfn", by.y = "best", sort = FALSE)
 
     # expand 1:many map
     data <- data[map$dfn, ]
@@ -118,6 +128,9 @@ fix_illum_features <- function(eset, data) {
 
     return(data)
 }
+
+
+# -------------------
 
 
 # Add detection p-values to Illumina expression set.
@@ -138,30 +151,31 @@ add_pvals <- function (eset, pvals) {
 }
 
 
+# -------------------
 
 
-open_raw_illum <- function (gse_names, data_dir=getwd()) {
+open_raw_illum <- function (gse_names, data_dir = getwd()) {
 
-    #OUT: names of successfully formated (probeid = "ID_REF",
+    # OUT: names of successfully formated (probeid = "ID_REF",
     #                                     exprs = "AVG_Signal-sample_name",
     #                                     pvals = "Detection-sample_name",
     #                                     sep = "\t")
     out_names <- gse_names
     for (i in seq_along(gse_names)) {
-        #get data paths
-        gse_dir <- paste(data_dir, gse_names[i], sep="/")
-        data_paths <- list.files(gse_dir, pattern="non.norm.*txt",
-                                 full.names=TRUE, ignore.case=TRUE)
-        data_paths <- c(data_paths, list.files(gse_dir, pattern=".xls",
-                                               full.names=TRUE))
-        #open data file
+        # get data paths
+        gse_dir <- paste(data_dir, gse_names[i], sep = "/")
+        data_paths <- list.files(gse_dir, pattern = "non.norm.*txt",
+                                 full.names = TRUE, ignore.case = TRUE)
+        data_paths <- c(data_paths, list.files(gse_dir, pattern = ".xls",
+                                               full.names = TRUE))
+        # open data file
         for (j in seq_along(data_paths)) system2("xdg-open", data_paths[j])
 
-        #check success
+        # check success
         success <- tcltk::tk_select.list(choices = c("Yes", "No"),
                                          title = paste(gse_names[i],
                                                        "formated successfully?"))
-        #remove unsuccessful
+        # remove unsuccessful
         if (success == "No") out_names <- setdiff(out_names, gse_names[i])
     }
     return(out_names)

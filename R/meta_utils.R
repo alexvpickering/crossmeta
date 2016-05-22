@@ -24,6 +24,20 @@
 #'    \code{\link{fdrtool}}.
 #'
 #' @examples
+#'
+#' library(lydata)
+#'
+#' # location of data
+#' data_dir <- system.file("extdata", package = "lydata")
+#'
+#' # gather GSE names
+#' gse_names  <- c("GSE9601", "GSE15069", "GSE50841", "GSE34817", "GSE29689")
+#'
+#' # load previous analysis
+#' anals <- load_diff(gse_names, data_dir)
+#'
+#' # perform meta-analysis
+#' es <- es_meta(anals)
 
 es_meta <- function(diff_exprs, cutoff = 0.3) {
 
@@ -56,7 +70,7 @@ es_meta <- function(diff_exprs, cutoff = 0.3) {
     return(scores)
 }
 
-#---------------------
+# ---------------------
 
 # Get dprimes and vardprimes for each contrast.
 #
@@ -69,42 +83,42 @@ get_scores <- function(diff_exprs, cutoff = 0.3) {
     scores <- list()
 
     for (study in names(diff_exprs)) {
-        #get study degrees of freedom
+        # get study degrees of freedom
         diff <- diff_exprs[[study]]
         df <- diff$ebayes_sv$df.residual + diff$ebayes_sv$df.prior
 
         scores_cons <- list()
 
         for (con in names(diff$top_tables)) {
-            #get sample sizes and top table for contrast
+            # get sample sizes and top table for contrast
             classes <- pData(diff$eset)$treatment
             ni <- length(classes[classes == "ctrl"])
             nj <- length(classes[classes == "test"])
 
             tt <- diff$top_tables[[con]]
 
-            #get dprime and vardprime
+            # get dprime and vardprime
             res <-  metaMA::effectsize(tt$t, ((ni * nj)/(ni + nj)), df)
             res <- as.data.frame(res)
             res$SYMBOL <- row.names(tt)
 
-            #store result
+            # store result
             scores_cons[[con]] <- res[, c("SYMBOL", "dprime", "vardprime")]
         }
         scores[[study]] <- scores_cons
 
 
     }
-    #merge dataframes
+    # merge dataframes
     scores <- merge_dataframes(scores)
 
-    #only keep genes where more than cutoff fraction of studies have data
+    # only keep genes where more than cutoff fraction of studies have data
     filt <- apply(scores, 1, function(x) sum(!is.na(x))) >= (ncol(scores) * cutoff)
 
-    return(list(filt=scores[filt, ], raw=scores))
+    return(list(filt = scores[filt, ], raw = scores))
 }
 
-#---------------------
+# ---------------------
 
 # Merge a list of data.frames.
 #
@@ -118,24 +132,24 @@ merge_dataframes <- function(ls, key = "SYMBOL") {
 
     ls <- unlist(ls, recursive = FALSE)
 
-    #ensure non 'by' names are not duplicated
+    # ensure non 'by' names are not duplicated
     ls = Map(function(x, i)
-        setNames(x, ifelse(names(x) %in% key,
-                           names(x),
-                           sprintf('%s.%d', names(x), i))),
+        stats::setNames(x, ifelse(names(x) %in% key,
+                                  names(x),
+                                  sprintf('%s.%d', names(x), i))),
         ls, seq_along(ls))
 
-    #merge list
-    res <- Reduce(function(...) merge(..., by=key, all=TRUE), ls)
+    # merge list
+    res <- Reduce(function(...) merge(..., by = key, all = TRUE), ls)
 
-    #format result
+    # format result
     row.names(res) <- res[, key]
     res[, key] <- NULL
     return(res)
     print(class(res))
 }
 
-#---------------------
+# ---------------------
 
 # Modifed f.Q from GeneMeta (allows NAs)
 #
@@ -156,7 +170,7 @@ f.Q <- function (dadj, varadj) {
     Q <- rowSums(w * (dadj - mu)^2, na.rm = TRUE)
 }
 
-#---------------------
+# ---------------------
 
 # Modifed tau2.DL from GeneMeta (allows NAs)
 
@@ -178,7 +192,7 @@ tau2.DL <- function (Q, num.studies, my.weights) {
     apply(value, 1, max)
 }
 
-#---------------------
+# ---------------------
 
 # Modifed mu.tau2 from GeneMeta (allows NAs)
 #
@@ -198,7 +212,7 @@ mu.tau2 <- function (my.d, my.vars.new) {
     mu <- rowSums(tmp1, na.rm = TRUE)/rowSums(w, na.rm = TRUE)
 }
 
-#---------------------
+# ---------------------
 
 # Modifed var.tau2 from GeneMeta (allows NAs)
 #

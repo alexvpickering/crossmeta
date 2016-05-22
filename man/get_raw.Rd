@@ -22,6 +22,6 @@ stored in the supplied data directory under the GSE name.
 get_raw("GSE41845")
 }
 \seealso{
-\code{\link{load_raw}}, \code{\link{open_raw_illum}}.
+\code{\link{load_raw}}.
 }
 

@@ -4,24 +4,31 @@
 \alias{load_raw}
 \title{Load and annotate raw data downloaded from GEO.}
 \usage{
-load_raw(gse_names, homologene_path, data_dir = getwd(), overwrite = FALSE)
+load_raw(gse_names, homologene_path = NULL, data_dir = getwd(),
+  overwrite = FALSE)
 }
 \arguments{
 \item{gse_names}{Character vector of GSE names.}
 
+\item{homologene_path}{String specifying path to homologene file. See Details.}
+
 \item{data_dir}{String specifying directory with GSE folders.}
+
+\item{overwrite}{Do you want to overwrite saved esets?}
 }
 \value{
 List of annotated esets.
 }
 \description{
 Loads and annotates raw data previously downloaded with \code{get_raw}.
-Supported platforms include Affymetrix, Agilent, and Illumina.
+Supported platforms include Affymetrix, Agilent, and Illumina. The
+homologene.data file can be obtained from
+\href{http://1.usa.gov/240COzR}{HomoloGene}.
 }
 \examples{
 library(lydata)
 data_dir <- system.file("extdata", package = "lydata")
-eset <- load_raw("GSE9601", data_dir)
+eset <- load_raw("GSE9601", data_dir = data_dir)
 }
 \seealso{
 \code{\link{get_raw}} to obtain raw data.

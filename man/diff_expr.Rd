@@ -44,24 +44,21 @@ selections/names will be reused.
 \examples{
 library(lydata)
 
-#location of raw data
+# location of raw data
 data_dir <- system.file("extdata", package = "lydata")
 
-#gather GSE names
-affy_names  <- c("GSE9601", "GSE15069")
-illum_names <- c("GSE50841", "GSE34817", "GSE29689")
-gse_names   <- c(affy_names, illum_names)
+# gather GSE names
+gse_names  <- c("GSE9601", "GSE15069", "GSE50841", "GSE34817", "GSE29689")
 
-#load and commonize esets
-esets <- load_raw(gse_names, data_dir)
-com_esets <- commonize(esets)
+# load first eset
+esets <- load_raw(gse_names[1], data_dir = data_dir)
 
-#run analysis
-anals <- diff_expr(com_esets, data_dir)
+# run analysis
+# anals <- diff_expr(esets, data_dir)
 
-#re-run analysis
-prev <- load_diff(gse_names, data_dir)
-anals <- diff_expr(com_esets, data_dir, prev_anals=prev)
+# re-run analysis on first eset
+prev <- load_diff(gse_names[1], data_dir)
+anals <- diff_expr(esets[1], data_dir, prev_anals = prev)
 }
 \seealso{
 \code{\link{get_raw}}, \code{\link{load_raw}}, and

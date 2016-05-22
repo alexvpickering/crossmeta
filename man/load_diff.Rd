@@ -21,7 +21,6 @@ Previous runs of \code{diff_expr} are loaded.
 }
 \examples{
 library(lydata)
-library(crossmeta)
 
 data_dir <- system.file("extdata", package = "lydata")
 gse_names<- c("GSE9601", "GSE34817")

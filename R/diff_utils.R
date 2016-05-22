@@ -1,8 +1,3 @@
-#hack to fool R CMD CHK
-#issue caused by dplyr in diff_anal
-globalVariables(c("x", "y", "adj.P.Val"))
-
-
 #' Differential expression of esets.
 #'
 #' User selects contrasts, then surrogate variable analysis (sva) and
@@ -42,35 +37,32 @@ globalVariables(c("x", "y", "adj.P.Val"))
 #' @examples
 #' library(lydata)
 #'
-#' #location of raw data
+#' # location of raw data
 #' data_dir <- system.file("extdata", package = "lydata")
 #'
-#' #gather GSE names
-#' affy_names  <- c("GSE9601", "GSE15069")
-#' illum_names <- c("GSE50841", "GSE34817", "GSE29689")
-#' gse_names   <- c(affy_names, illum_names)
+#' # gather GSE names
+#' gse_names  <- c("GSE9601", "GSE15069", "GSE50841", "GSE34817", "GSE29689")
 #'
-#' #load and commonize esets
-#' esets <- load_raw(gse_names, data_dir)
-#' com_esets <- commonize(esets)
+#' # load first eset
+#' esets <- load_raw(gse_names[1], data_dir = data_dir)
 #'
-#' #run analysis
-#' anals <- diff_expr(com_esets, data_dir)
+#' # run analysis
+#' # anals <- diff_expr(esets, data_dir)
 #'
-#' #re-run analysis
-#' prev <- load_diff(gse_names, data_dir)
-#' anals <- diff_expr(com_esets, data_dir, prev_anals=prev)
+#' # re-run analysis on first eset
+#' prev <- load_diff(gse_names[1], data_dir)
+#' anals <- diff_expr(esets[1], data_dir, prev_anals = prev)
 
 
-diff_expr <- function (esets, data_dir=getwd(),
-                       annot="SYMBOL", prev_anals=list(NULL)) {
+diff_expr <- function (esets, data_dir = getwd(),
+                       annot = "SYMBOL", prev_anals = list(NULL)) {
 
-    #check for annot column
+    # check for annot column
     chk <- sapply(esets, function(x) annot %in% colnames(fData(x)))
 
     if (FALSE %in% chk) {
         stop(annot, " column in fData missing for esets: ",
-             paste(names(which(!chk)), sep=", "))
+             paste(names(which(!chk)), sep = ", "))
     }
 
     prev_anals <- prev_anals[names(esets)]
@@ -81,21 +73,22 @@ diff_expr <- function (esets, data_dir=getwd(),
         gse_name <- names(esets)[i]
         prev_anal <- prev_anals[[i]]
 
-        gse_folder <- strsplit(gse_name, "\\.")[[1]][1]  #name can be "GSE.GPL"
-        gse_dir <- paste(data_dir, gse_folder, sep="/")
+        gse_folder <- strsplit(gse_name, "\\.")[[1]][1]  # name can be "GSE.GPL"
+        gse_dir <- paste(data_dir, gse_folder, sep = "/")
 
-        #select contrasts
+        # select contrasts
         cons <- add_contrasts(eset, gse_name, prev_anal)
         if (is.null(cons)) next
 
-        #setup for differential expression
+        # setup for differential expression
         setup <- diff_setup(cons$eset, cons$levels, gse_name)
 
-        #remove rows with duplicated/NA annot (SYMBOL or PROBE)
+
+        # remove rows with duplicated/NA annot (SYMBOL or PROBE)
         dups <- iqr_duplicates(cons$eset, setup$mod, setup$svobj, annot)
 
 
-        #differential expression
+        # differential expression
         anal <- diff_anal(dups$eset, dups$exprs_sva,
                           cons$contrasts, cons$levels,
                           setup$mod, setup$modsv, setup$svobj,
@@ -108,7 +101,7 @@ diff_expr <- function (esets, data_dir=getwd(),
 
 
 
-#---------------------
+# ---------------------
 
 
 # Reuse contrast selections from previous analysis.
@@ -124,11 +117,11 @@ diff_expr <- function (esets, data_dir=getwd(),
 
 match_prev_eset <- function(eset, prev_anal) {
 
-    #retain previously selected samples only
+    # retain previously selected samples only
     selected_samples <- sampleNames(prev_anal$eset)
     eset <- eset[, selected_samples]
 
-    #transfer previous treatment, group, and pairs to eset
+    # transfer previous treatment, group, and pairs to eset
     pData(eset)$treatment <- pData(prev_anal$eset)$treatment
     pData(eset)$group     <- pData(prev_anal$eset)$group
     pData(eset)$pairs     <- NA
@@ -141,7 +134,7 @@ match_prev_eset <- function(eset, prev_anal) {
 }
 
 
-#------------------------
+# ------------------------
 
 
 # Select contrasts for each GSE.
@@ -161,59 +154,59 @@ match_prev_eset <- function(eset, prev_anal) {
 add_contrasts <- function (eset, gse_name, prev_anal) {
 
     if (!is.null(prev_anal)) {
-        #re-use selections/sample labels from previous analysis
+        # re-use selections/sample labels from previous analysis
         eset <- match_prev_eset(eset, prev_anal)
 
-        #get contrast info from previous analysis
+        # get contrast info from previous analysis
         contrasts    <- colnames(prev_anal$ebayes$contrasts)
         group_levels <- unique(pData(prev_anal$eset)$group)
 
 
     } else {
-        #get contrast info from user input
+        # get contrast info from user input
         sels <- select_contrasts(gse_name, eset)
 
-        #add pairs info to pheno data
+        # add pairs info to pheno data
         pData(eset)$pairs <- sels$pairs
 
-        if (length(sels$cons$Control) == 0) return(NULL)
+        if (length(sels$cons$Control) ==  0) return(NULL)
 
-        #setup data for each contrast
+        # setup data for each contrast
         for (i in seq_along(sels$cons$Control)) {
-            #get group names
+            # get group names
             cgrp <- sels$cons[i, "Control"]
             tgrp <- sels$cons[i, "Test"]
 
-            #get sample names
+            # get sample names
             ctrl <- sampleNames(eset)[ sels$rows[[cgrp]] ]
             test <- sampleNames(eset)[ sels$rows[[tgrp]] ]
 
-            #add treatment/group labels to pheno
+            # add treatment/group labels to pheno
             pData(eset)[ctrl, "treatment"] <- "ctrl"
             pData(eset)[test, "treatment"] <- "test"
 
             pData(eset)[ctrl, "group"] <- cgrp
             pData(eset)[test, "group"] <- tgrp
         }
-        #create contrast names
-        contrasts <- paste(sels$cons$Test, sels$cons$Control, sep="-")
+        # create contrast names
+        contrasts <- paste(sels$cons$Test, sels$cons$Control, sep = "-")
 
-        #store levels for group name variable
+        # store levels for group name variable
         group_levels <- names(sels$rows)
 
-        #retain selected samples only
+        # retain selected samples only
         eset <- eset[, unique(unlist(sels$rows))]
     }
 
-    #put data together
-    contrast_data <- list(eset=eset, contrasts=contrasts, levels=group_levels)
+    # put data together
+    contrast_data <- list(eset = eset, contrasts = contrasts, levels = group_levels)
 
     return (contrast_data)
 }
 
 
 
-#------------------------
+# ------------------------
 
 
 # Generate model matrix with surrogate variables.
@@ -231,43 +224,43 @@ add_contrasts <- function (eset, gse_name, prev_anal) {
 
 diff_setup <- function(eset, group_levels, gse_name){
 
-    #make full and null model matrix
-    group <- factor(pData(eset)$group, levels=group_levels)
+    # make full and null model matrix
+    group <- factor(pData(eset)$group, levels = group_levels)
     pairs <- factor(pData(eset)$pairs)
 
     if (length(levels(pairs)) > 1) {
-        mod <- model.matrix(~0 + group + pairs)
-        mod0 <- model.matrix(~1 + pairs)
+        mod <- stats::model.matrix(~0 + group + pairs)
+        mod0 <- stats::model.matrix(~1 + pairs)
     } else {
-        mod <- model.matrix(~0 + group)
-        mod0 <- model.matrix(~1, data=group)
+        mod <- stats::model.matrix(~0 + group)
+        mod0 <- stats::model.matrix(~1, data = group)
     }
     colnames(mod)[1:length(group_levels)] <- group_levels
 
 
-
-    #surrogate variable analysis
+    # surrogate variable analysis
+    # remove duplicated rows (from 1:many PROBE:SYMBOL) as affect sva
+    expr <- unique(data.table(exprs(eset)))
     svobj <- tryCatch (
-        {capture.output(svobj <- sva::sva(exprs(eset), mod, mod0))
-            svobj},
+        {utils::capture.output(svobj <- sva::sva(as.matrix(expr), mod, mod0)); svobj},
 
         error = function(cond) {
             message(gse_name, ": sva failed - continuing without.")
-            return(list("sv"=NULL))
+            return(list("sv" = NULL))
         })
 
-    if (is.null(svobj$sv) || svobj$n.sv == 0) {
+    if (is.null(svobj$sv) || svobj$n.sv ==  0) {
         svobj$sv <- NULL
         modsv <- mod
     } else {
         modsv <- cbind(mod, svobj$sv)
-        colnames(modsv) <- c(colnames(mod), paste("SV", 1:svobj$n.sv, sep=""))
+        colnames(modsv) <- c(colnames(mod), paste("SV", 1:svobj$n.sv, sep = ""))
     }
-    return (list("mod"=mod, "modsv"=modsv, "svobj"=svobj))
+    return (list("mod" = mod, "modsv" = modsv, "svobj" = svobj))
 }
 
 
-#------------------------
+# ------------------------
 
 
 
@@ -285,42 +278,42 @@ diff_setup <- function(eset, group_levels, gse_name){
 #    \item{exprs_sva}{Expression data from eset with effect of surrogate
 #       variable removed.}
 
-iqr_duplicates <- function (eset, mod, svobj, annot="SYMBOL") {
+iqr_duplicates <- function (eset, mod, svobj, annot = "SYMBOL") {
 
-    #get eset with surrogate variables modeled out
+    # get eset with surrogate variables modeled out
     exprs_sva <- clean_y(exprs(eset), mod, svobj$sv)
 
-    #add inter-quartile ranges, row, and feature data to exprs data
+    # add inter-quartile ranges, row, and feature data to exprs data
     data <- as.data.frame(exprs_sva)
     data$IQR <- matrixStats::rowIQRs(exprs_sva)
     data$row <- 1:nrow(data)
     data[, colnames(fData(eset))] <- fData(eset)
 
-    #remove rows with NA annot (occurs if annot is SYMBOL)
+    # remove rows with NA annot (occurs if annot is SYMBOL)
     data <- data[!is.na(data[, annot]), ]
 
-    #for rows with same annot, keep highest IQR
+    # for rows with same annot, keep highest IQR
     data %>%
         dplyr::group_by_(annot) %>%
-        dplyr::arrange(dplyr::desc(IQR)) %>%
+        dplyr::arrange_("dplyr::desc(IQR)") %>%
         dplyr::slice(1) %>%
         dplyr::ungroup() ->
         data
 
 
-    #use row number to keep selected features
+    # use row number to keep selected features
     eset <- eset[data$row, ]
     exprs_sva <- exprs_sva[data$row, ]
 
-    #use annot for feature names
+    # use annot for feature names
     featureNames(eset) <- fData(eset)[, annot]
     row.names(exprs_sva)   <- fData(eset)[, annot]
 
-    return (list(eset=eset, exprs_sva=exprs_sva))
+    return (list(eset = eset, exprs_sva = exprs_sva))
 }
 
 
-#------------------------
+# ------------------------
 
 
 # Run limma analysis.
@@ -350,53 +343,53 @@ iqr_duplicates <- function (eset, mod, svobj, annot="SYMBOL") {
 #   meta-analysis.
 
 diff_anal <- function(eset, exprs_sva, contrasts, group_levels,
-                      mod, modsv, svobj, gse_dir, gse_name, annot="SYMBOL"){
+                      mod, modsv, svobj, gse_dir, gse_name, annot = "SYMBOL"){
 
-    #differential expression (surrogate variables modeled and not)
+    # differential expression (surrogate variables modeled and not)
     ebayes_sv <- fit_ebayes(eset, contrasts, modsv)
     ebayes <- fit_ebayes(eset, contrasts, mod)
 
-    #annotate/store results
+    # annotate/store results
     top_tables <- list()
-    contrast_names <- paste(gse_name, contrasts, sep="_")
+    contrast_names <- paste(gse_name, contrasts, sep = "_")
 
     for (i in seq_along(contrast_names)) {
-        top_genes <- limma::topTable(ebayes_sv, coef=i, n=Inf)
-        num_sig <- dim(dplyr::filter(top_genes, adj.P.Val < 0.05))[1]
+        top_genes <- limma::topTable(ebayes_sv, coef = i, n = Inf)
+        num_sig <- sum(top_genes$adj.P.Val < 0.05)
         top_tables[[contrast_names[i]]] <- top_genes
         cat (contrast_names[i], "(# p < 0.05):", num_sig, "\n")
     }
     cat("\n")
 
-    #setup plot items
-    group <- factor(pData(eset)$group, levels=group_levels)
+    # setup plot items
+    group <- factor(pData(eset)$group, levels = group_levels)
     palette <- RColorBrewer::brewer.pal(12, "Paired")
     colours <- palette[group]
 
-    #Add extra space to right of plot area
-    par(mar = c(5, 4, 2, 6))
+    # Add extra space to right of plot area
+    graphics::par(mar = c(5, 4, 2, 6))
 
-    #plot MDS
-    limma::plotMDS(exprs_sva, pch=19, main = gse_name, col = colours)
-    legend("topright", inset=c(-0.4, 0), legend=group_levels,
-           fill=unique(colours), xpd=TRUE, bty="n", cex=0.65)
+    # plot MDS
+    limma::plotMDS(exprs_sva, pch = 19, main = gse_name, col = colours)
+    graphics::legend("topright", inset = c(-0.4, 0), legend = group_levels,
+                     fill = unique(colours), xpd = TRUE, bty = "n", cex = 0.65)
 
 
-    #save to disk
-    diff_expr <- list(eset=eset, top_tables=top_tables,
-                      ebayes_sv=ebayes_sv, ebayes=ebayes)
+    # save to disk
+    diff_expr <- list(eset = eset, top_tables = top_tables,
+                      ebayes_sv = ebayes_sv, ebayes = ebayes)
 
-    if (annot == "SYMBOL") save_name <- paste (gse_name,
-                                               "diff_expr.rds", sep="_")
-    if (annot == "PROBE")  save_name <- paste (gse_name,
-                                               "diff_expr_probe.rds", sep="_")
+    if (annot ==  "SYMBOL") save_name <- paste (gse_name,
+                                                "diff_expr.rds", sep = "_")
+    if (annot ==  "PROBE")  save_name <- paste (gse_name,
+                                                "diff_expr_probe.rds", sep = "_")
 
-    saveRDS(diff_expr, file = paste(gse_dir, save_name, sep="/"))
+    saveRDS(diff_expr, file = paste(gse_dir, save_name, sep = "/"))
     return (diff_expr)
 }
 
 
-#------------------------
+# ------------------------
 
 
 # Perform eBayes analysis from limma.
@@ -414,14 +407,14 @@ diff_anal <- function(eset, exprs_sva, contrasts, group_levels,
 # @return result from call to limma \code{eBayes}.
 
 fit_ebayes <- function(eset, contrasts, mod) {
-    contrast_matrix <- limma::makeContrasts(contrasts=contrasts, levels=mod)
+    contrast_matrix <- limma::makeContrasts(contrasts = contrasts, levels = mod)
     fit <- limma::contrasts.fit(limma::lmFit(exprs(eset), mod), contrast_matrix)
     return (limma::eBayes(fit))
 }
 
 
 
-#------------------------
+# ------------------------
 
 
 # Adjusts expression data for surrogate variables.
@@ -448,7 +441,7 @@ clean_y <- function(y, mod, svs) {
 }
 
 
-#------------------------
+# ------------------------
 
 
 
@@ -465,27 +458,26 @@ clean_y <- function(y, mod, svs) {
 #' @return Result of previous call to \code{diff_expr}.
 #' @examples
 #' library(lydata)
-#' library(crossmeta)
 #'
 #' data_dir <- system.file("extdata", package = "lydata")
 #' gse_names<- c("GSE9601", "GSE34817")
 #' prev <- load_diff(gse_names, data_dir)
 
-load_diff <- function(gse_names, data_dir=getwd(), probe=FALSE) {
+load_diff <- function(gse_names, data_dir = getwd(), probe = FALSE) {
 
     anals <- list()
     for (gse_name in gse_names) {
         gse_dir <- file.path (data_dir, gse_name)
 
         if (probe) {
-            anal_paths <- list.files(gse_dir, pattern=".*_diff_expr_probe.rds",
-                                     full.names=TRUE)
+            anal_paths <- list.files(gse_dir, pattern = ".*_diff_expr_probe.rds",
+                                     full.names = TRUE)
         } else {
-            anal_paths <- list.files(gse_dir, pattern=".*_diff_expr.rds",
-                                     full.names=TRUE)
+            anal_paths <- list.files(gse_dir, pattern = ".*_diff_expr.rds",
+                                     full.names = TRUE)
         }
-        #load each diff path
-        #multiple if more than one platform per GSE)
+        # load each diff path
+        # multiple if more than one platform per GSE)
         for (path in anal_paths) {
             anal <- readRDS(path)
             anal_name <- strsplit(names(anal$top_tables), "_")[[1]][1]

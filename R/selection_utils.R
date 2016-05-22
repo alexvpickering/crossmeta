@@ -15,7 +15,7 @@
 
 select_contrasts <- function(gse_name, eset) {
 
-    #------------------- setup
+    #------------------- Setup
 
     # objects we will update
     previous <- list()
@@ -32,7 +32,7 @@ select_contrasts <- function(gse_name, eset) {
     # link for GSE
     gse_name <- strsplit(gse_name, ".", fixed = TRUE)[[1]][1]
     gse_link <- paste("https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=",
-                      gse_name, sep="")
+                      gse_name, sep = "")
 
 
 
@@ -43,7 +43,7 @@ select_contrasts <- function(gse_name, eset) {
         # title bar
         gadgetTitleBar("Select Contrasts", left = miniTitleBarButton("geo",
                                                                      a("GEO",
-                                                                       href=gse_link))),
+                                                                       href = gse_link))),
         miniTabstripPanel(
             miniTabPanel("Samples", icon = icon("table"),
                          miniContentPanel(
@@ -155,7 +155,7 @@ select_contrasts <- function(gse_name, eset) {
                 message("Select rows.")
 
 
-            #check for wrong input
+                #check for wrong input
             } else if (make.names(group) != group) {
                 message("Group name invalid.")
 
@@ -168,7 +168,7 @@ select_contrasts <- function(gse_name, eset) {
                 message("Selection in use with different group name.")
 
 
-            #add ctrl group data to previous and contrasts
+                #add ctrl group data to previous and contrasts
             } else if (state$ctrl == 1) {
                 if (!group %in% names(previous))
                     previous <<- c(previous, group_data)
@@ -186,7 +186,7 @@ select_contrasts <- function(gse_name, eset) {
                 state$contrast <- state$contrast + 1
 
 
-            #add test group data to previous and contrasts
+                #add test group data to previous and contrasts
             } else {
                 if (!group %in% names(previous))
                     previous <<- c(previous, group_data)
@@ -281,7 +281,7 @@ select_contrasts <- function(gse_name, eset) {
                 message("No contrasts selected.")
                 stopApp(NULL)
             } else {
-                stopApp(list(rows=previous, cons=contrasts, pairs=pdata$Pair))
+                stopApp(list(rows = previous, cons = contrasts, pairs = pdata$Pair))
             }
         })
 

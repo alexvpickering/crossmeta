@@ -6,44 +6,48 @@
 #' @param gse_names Character vector of GSE names to download.
 #' @param data_dir  String specifying directory for GSE folders.
 #'
-#' @seealso \code{\link{load_raw}}, \code{\link{open_raw_illum}}.
+#' @seealso \code{\link{load_raw}}.
 #' @return NULL (for download/unpack only).
 #' @export
 #' @examples
 #' get_raw("GSE41845")
 
-get_raw <- function (gse_names, data_dir=getwd()) {
+get_raw <- function (gse_names, data_dir = getwd()) {
 
     for (gse_name in gse_names) {
 
-        gse_dir <- paste(data_dir, gse_name, sep="/")
-        #get raw data
+        gse_dir <- paste(data_dir, gse_name, sep = "/")
+        # get raw data
         if (!file.exists(gse_dir)) {
-            GEOquery::getGEOSuppFiles(gse_name, baseDir=data_dir)
+            GEOquery::getGEOSuppFiles(gse_name, baseDir = data_dir)
         }
-        #untar
-        tar_names <- list.files(gse_dir, pattern="tar")
+        # untar
+        tar_names <- list.files(gse_dir, pattern = "tar")
         if (length(tar_names) > 0) {
-            utils::untar(paste(gse_dir, tar_names, sep="/"), exdir=gse_dir)
+            utils::untar(paste(gse_dir, tar_names, sep = "/"), exdir = gse_dir)
         }
-        #unzip
-        paths <- list.files(gse_dir, pattern=".gz",
-                            full.names=TRUE, ignore.case=TRUE)
-        sapply(paths, GEOquery::gunzip, overwrite=TRUE)
+        # unzip
+        paths <- list.files(gse_dir, pattern = ".gz",
+                            full.names = TRUE, ignore.case = TRUE)
+        sapply(paths, GEOquery::gunzip, overwrite = TRUE)
     }
 }
 
-#-----------
+# -----------
 
 #' Load and annotate raw data downloaded from GEO.
 #'
 #' Loads and annotates raw data previously downloaded with \code{get_raw}.
-#' Supported platforms include Affymetrix, Agilent, and Illumina.
+#' Supported platforms include Affymetrix, Agilent, and Illumina. The
+#' homologene.data file can be obtained from
+#' \href{http://1.usa.gov/240COzR}{HomoloGene}.
 #'
-#' @import tcltk data.table
+#' @import data.table
 #'
 #' @param gse_names Character vector of GSE names.
+#' @param homologene_path String specifying path to homologene file. See Details.
 #' @param data_dir  String specifying directory with GSE folders.
+#' @param overwrite Do you want to overwrite saved esets?
 #'
 #' @seealso \code{\link{get_raw}} to obtain raw data.
 #'
@@ -52,17 +56,20 @@ get_raw <- function (gse_names, data_dir=getwd()) {
 #' @examples
 #' library(lydata)
 #' data_dir <- system.file("extdata", package = "lydata")
-#' eset <- load_raw("GSE9601", data_dir)
+#' eset <- load_raw("GSE9601", data_dir = data_dir)
 
 
-load_raw <- function(gse_names, homologene_path, data_dir=getwd(),
-                     overwrite=FALSE) {
+load_raw <- function(gse_names, homologene_path = NULL, data_dir = getwd(),
+                     overwrite = FALSE) {
 
-    #no duplicates allowed (somehow causes mismatched names/esets)
+
+    # no duplicates allowed (somehow causes mismatched names/esets)
     gse_names <- unique(gse_names)
 
-    #get homologene
-    homologene <- get_homologene(homologene_path)
+    # get homologene
+    homologene <- NULL  # to re-load w/o homologene_path
+    if (!is.null(homologene_path))
+        homologene <- get_homologene(homologene_path)
 
     affy_names  <- c()
     agil_names  <- c()
@@ -70,14 +77,14 @@ load_raw <- function(gse_names, homologene_path, data_dir=getwd(),
 
     for (gse_name in gse_names) {
 
-        #determine platform (based on filenames)
-        gse_dir <- paste(data_dir, gse_name, sep="/")
+        # determine platform (based on filenames)
+        gse_dir <- paste(data_dir, gse_name, sep = "/")
 
-        affy  <- list.files(gse_dir, ".CEL", ignore.case=TRUE)
-        agil  <- list.files(gse_dir, "^GSM.*txt", ignore.case=TRUE)
-        illum <- list.files(gse_dir, "non.norm.*txt", ignore.case=TRUE)
+        affy  <- list.files(gse_dir, ".CEL", ignore.case = TRUE)
+        agil  <- list.files(gse_dir, "^GSM.*txt", ignore.case = TRUE)
+        illum <- list.files(gse_dir, "non.norm.*txt", ignore.case = TRUE)
 
-        #add to appropriate names vector
+        # add to appropriate names vector
         if (length(affy) != 0) {
             affy_names  <- c(affy_names, gse_name)
 
@@ -89,7 +96,7 @@ load_raw <- function(gse_names, homologene_path, data_dir=getwd(),
         }
     }
 
-    #load esets
+    # load esets
     affy_esets  <- load_affy(affy_names, homologene, data_dir, overwrite)
     agil_esets  <- load_agil(agil_names, homologene, data_dir, overwrite)
     illum_esets <- load_illum(illum_names, homologene, data_dir, overwrite)
@@ -99,39 +106,37 @@ load_raw <- function(gse_names, homologene_path, data_dir=getwd(),
 
 
 
-#' Get homologene data frame.
-#'
-#' Function loads and, if necessary, sets up homologene data frame.
-#'
-#' Setup results in a dataframe with all entrez ids in one column ('entrez') and
-#' the homologous human entrez ids in another column ('entrez_HS').
-#'
-#' @param homologene_path
-#'
-#' @return
-#' @export
-#'
-#' @examples
+# Get homologene data frame.
+#
+# Function loads and, if necessary, sets up homologene data frame.
+#
+# Setup results in a dataframe with all entrez ids in one column ('ENTREZID') and
+# the homologous human entrez ids in another column ('ENTREZID_HS').
+#
+# @param homologene_path String specifying full path to homologene file.
+#
+# @return data.frame with column ENTREZID and ENTREZID_HS.
+
 get_homologene <- function(homologene_path) {
 
-    homologene <- read.delim(homologene_path, header = FALSE)
+    homologene <- utils::read.delim(homologene_path, header = FALSE)
 
     if (ncol(homologene) == 6) {
 
         message("Setting up homologene data. Will take a while (one time only).")
 
-        #get homologous human (9606) entrez ids for all entrez ids (V3)
+        # get homologous human (9606) entrez ids for all entrez ids (V3)
         entrez_HS <- annotationTools::getHOMOLOG(homologene$V3,
                                                  9606,
                                                  homologene)
 
-        #remove entrez ids with homologous human entrez id
+        # remove entrez ids with homologous human entrez id
         homologene <- homologene[!is.na(entrez_HS), ]
         entrez_HS  <- entrez_HS[!is.na(entrez_HS)]
 
-        #expand homologene where multiple homologous human entrez ids
+        # expand homologene where multiple homologous human entrez ids
         homologene$entrez_HS <- sapply(entrez_HS,
-                                       function(x) paste(x, collapse=","))
+                                       function(x) paste(x, collapse = ","))
 
         homologene <- data.table::data.table(homologene)
         homologene <- homologene[,
@@ -140,42 +145,43 @@ get_homologene <- function(homologene_path) {
 
         homologene <- as.data.frame(homologene)
 
-        #save to disc
-        write.table(homologene, file = homologene_path,
-                    sep = "\t", row.names = FALSE, col.names = FALSE)
+        # save to disc
+        utils::write.table(homologene, file = homologene_path,
+                           sep = "\t", row.names = FALSE, col.names = FALSE)
     }
-    colnames(homologene) <- c("entrez", "entrez_HS")
+    colnames(homologene) <- c("ENTREZID", "ENTREZID_HS")
     return(homologene)
 }
 
-# Title
+# Merge feature data from eset and raw data.
 #
-# Returns data.frame, same order/nrow as data_fdat with feature info from eset
+# Merges feature data from eset GSEMatrix and raw data.
 #
-# @import data.table
-# @param eset
-# @param data
+# Data.frames are merged on feature names. Result has same row names as raw
+# feature data. NAs are added where eset feature data is missing a feature
+# in raw data.
 #
-# @return
+# @param efdat data.frame with eset feature data (fData).
+# @param dfdat data.frame with raw feature data (varies).
 #
-# @examples
+# @return Data.frame with all columns present in efdat and dfdat. Row names
+#    are same as dfdat.
 
+merge_fdata <- function(efdat, dfdat) {
 
-merge_fdata <- function(eset_fdat, data_fdat) {
+    # merge feature data from raw data and eset
+    efdat$rn <- sapply(strsplit(row.names(efdat), "\\."), `[[`, 1)
+    dfdat$rn <- sapply(strsplit(row.names(dfdat), "\\."), `[[`, 1)
 
-    #merge feature data from raw data and eset
-    eset_fdat$rn <- sapply(strsplit(row.names(eset_fdat), "\\."), `[[`, 1)
-    data_fdat$rn <- sapply(strsplit(row.names(data_fdat), "\\."), `[[`, 1)
+    dt1 <- data.table(efdat, key = "rn")
+    dt2 <- data.table(dfdat, key = "rn")
 
-    dt1 <- data.table(eset_fdat, key="rn")
-    dt2 <- data.table(data_fdat, key="rn")
+    fdat <- dt1[dt2]
+    fdat <- as.data.frame(fdat)
+    row.names(fdat) <- make.unique(fdat$rn)
+    fdat$rn <- NULL
 
-    feature_data <- dt1[dt2]
-    feature_data <- as.data.frame(feature_data)
-    row.names(feature_data) <- make.unique(feature_data$rn)
-    feature_data$rn <- NULL
-
-    return(feature_data[row.names(data_fdat), ])
+    return(fdat[row.names(dfdat), ])
 }
 
 
@@ -191,8 +197,7 @@ merge_fdata <- function(eset_fdat, data_fdat) {
 get_biocpack <- function(biocpack_name) {
 
     if (!requireNamespace(biocpack_name, quietly = TRUE)) {
-        source("https://bioconductor.org/biocLite.R")
-        biocLite(biocpack_name)
+        BiocInstaller::biocLite(biocpack_name)
     }
     db <- get(biocpack_name, getNamespace(biocpack_name))
     return (db)
@@ -214,18 +219,19 @@ get_biocpack <- function(biocpack_name) {
 
 get_biocpack_name <- function (gpl_name) {
 
-    #get from gpl_bioc
+    # get from gpl_bioc
     biocpack_name <- gpl_bioc[gpl_name, "bioc_package"]
 
-    #manual entry if needed
+    # manual entry if needed
     if (is.na(biocpack_name)) {
-        biocpack_name <- inputs(box1="Enter biocpack_name", def1=gpl_name)
+        biocpack_name <- readline(prompt = paste("Enter biocpack_name for",
+                                                 gpl_name, ":"))
     }
-    return (paste(biocpack_name, ".db", sep=""))
+    return (paste(biocpack_name, ".db", sep = ""))
 }
 
 
-#------------------------
+# ------------------------
 
 
 # Add gene symbol to expression set.
@@ -245,91 +251,49 @@ symbol_annot <- function (eset, homologene, gse_name = "") {
 
     cat("Annotating")
 
-
-    #--------------------- Get Entrez ID
-
-
-    # check internal data or UI for biocpack_name
-    biocpack_name <- get_biocpack_name(annotation(eset))
-    hs <- get_biocpack("org.Hs.eg.db")
-
-    # if biocpack_name not empty, use to get entrez id
-    if (!biocpack_name %in% c("", ".db")) {
-
-        biocpack <- get_biocpack(biocpack_name)
-        ID <- sapply(strsplit(featureNames(eset), "\\."), `[[`, 1)
-
-        suppressMessages(map <- AnnotationDbi::select(biocpack, ID, "ENTREZID"))
-        eset <- eset[map$PROBEID, ] #expands one-to-many mappings
-        entrez <- map$ENTREZID
-
-    # if not, ask user for fData column with entrez id
-    } else {
-
-        # default if no selection
-        entrez <- rep(NA, nrow(eset))
-
-        # ask for fData column
-        while (TRUE) {
-            choices <- fvarLabels(eset)
-            column <- tcltk::tk_select.list(choices, title="select ENTREZID column")
-            if (column == "") break
-
-            entrez <- as.character(fData(eset)[, column])
-
-            #test if column is mostly digits
-            chk <- grepl("^[[:digit:]]*$", unique(entrez))
-            if (sum(chk) >= 0.5 * length(unique(entrez))) break
-
-            message(column, " not mostly digits - unlikely to be entrez ids.")
-        }
-
-        if (column != "") {
-            #expand one-to-many
-            entrez <- strsplit(entrez, "\\D+")
-            rn <- sapply(seq_along(entrez),
-                         function(x) rep(x, length(entrez[[x]])))
-
-            entrez <- as.integer(unlist(entrez))
-            eset <- eset[unlist(rn), ]
-        }
-    }
+    # --------------------- Map Features to Homologous Human Entrez ID
 
 
-    #--------------------- Map Entrez ID to Homologous Human Entrez ID
+    # get map from features to entrez ids
+    map <- entrez_map(eset, homologene)
 
-
-    # where entrez id in homologene:
-    endf <- data.frame(entrez, rn = 1:length(entrez))
-    filt <- entrez %in% homologene$entrez
-    map <- merge(endf[filt, ], homologene, by="entrez")
+    # get map from entrez ids to homologous human entrez ids
+    map <- merge(map, homologene, by = "ENTREZID", all.x = TRUE, sort = FALSE)
 
     # where no homology, use original entrez id (useful if human platform):
-    endf$entrez_HS <- entrez
-    map <- rbind(endf[!filt, ], map)
-    eset <- eset[map$rn, ] #expands one-to-many mappings
+    filt <- is.na(map$ENTREZID_HS)
+    map[filt, "ENTREZID_HS"] <- map$ENTREZID[filt]
 
+    # expand one-to-many mappings
+    eset <- eset[map$PROBEID, ]
 
+    # --------------------- Map Human Entrez ID to Gene Symbol
 
-    #--------------------- Map Human Entrez ID to Gene Symbol
-
+    hs <- get_biocpack("org.Hs.eg.db")
 
     SYMBOL <- tryCatch (
         {
             suppressMessages(
-                SYMBOL <- AnnotationDbi::select(hs, as.character(map$entrez_HS),
-                                      "SYMBOL", "ENTREZID")$SYMBOL)
+                SYMBOL <- AnnotationDbi::select(hs, as.character(map$ENTREZID_HS),
+                                                "SYMBOL", "ENTREZID")$SYMBOL)
         },
         error = function(c) {
             if (grepl("valid keys", c$message)) {
+                message("Annotation failed.")
                 warning(gse_name, ": Annotation failed. ",
                         "Add human gene symbols to 'SYMBOL' column in fData.")
                 return(NULL)
             }
         }
     )
-    # PROBE is feature names (remove '.' then restore '*' to '.')
+
+    # --------------------- Add 'PROBE' and 'SYMBOL' to Feature Data
+
+    # PROBE is feature names
+    # added '.' to identify duplicates (remove)
     PROBE <- sapply(strsplit(featureNames(eset), "\\."), `[[`, 1)
+
+    # replaced '.' with '*' in Illumina features (reverse)
     PROBE <- gsub("*", ".", PROBE, fixed = TRUE)
 
     # add PROBE to fData and use for unique row names
@@ -345,70 +309,93 @@ symbol_annot <- function (eset, homologene, gse_name = "") {
 
 
 
+# ------------------------
 
-#-------------------
 
 
-# Query user to provide description.
+# Get map from eset features to entrez id.
 #
-# Uses tcltk to request input from user.
 #
-# @param msg Message to display in title bar.
-# @param box1 Description beside box1.
-# @param def1 Default value for box1.
-# @param box2 Description beside box2.
-# @param def2 Default value for box2.
-# @param two Do you want two input boxes? If FALSE, one box.
+# @param eset Expression set.
+# @param homologene Data.frame with columns 'ENTREZID' and 'ENTREZID_HS'.
 #
-# @seealso \code{\link{add_contrasts}}, \code{\link{get_biocpack_name}}.
-# @return Character vector with inputs typed into box1 and/or box2.
+# @return Data.frame with columns 'PROBEID' and 'ENTREZID' which maps from eset
+#    feature names to corresponding entrez gene ids.
 
-inputs <- function(msg="", box1="eg. CTRL",
-                   def1="CTRL", box2="eg. TEST", def2="TEST", two=FALSE) {
+entrez_map <- function(eset, homologene) {
 
-    xvar <- tclVar(def1)
-    if (two) {
-        yvar <- tclVar(def2)
-    }
+    # default
+    map <- data.frame(PROBEID = 1:nrow(eset), ENTREZID = NA)
 
-    tt <- tktoplevel()
-    tkwm.title(tt,"")
-    x.entry <- tkentry(tt, textvariable=xvar)
-    if (two) {
-        y.entry <- tkentry(tt, textvariable=yvar)
-    }
+    # check internal data or UI for biocpack_name
+    biocpack_name <- get_biocpack_name(annotation(eset))
 
-    submit <- function() {
-        e <- parent.env(environment())
-        x <- as.character(tclvalue(xvar))
-        e$x <- x
-        if (two) {
-            y <- as.character(tclvalue(yvar))
-            e$y <- y
-        }
-        tkdestroy(tt)
-    }
-    submit.but <- tkbutton(tt, text="Submit", command=submit)
+    # if biocpack_name not empty, use to get entrez id
+    if (!biocpack_name %in% c("", ".db")) {
+        biocpack <- get_biocpack(biocpack_name)
+        ID <- sapply(strsplit(featureNames(eset), "\\."), `[[`, 1)
+        suppressMessages(map <- AnnotationDbi::select(biocpack, ID, "ENTREZID"))
 
-    reset <- function() {
-        tclvalue(xvar)<-""
-        if (two) {
-            tclvalue(yvar)<-""
-        }
-    }
-    reset.but <- tkbutton(tt, text="Reset", command=reset)
 
-    tkgrid(tklabel(tt,text=msg),columnspan=2)
-    tkgrid(tklabel(tt,text=box1), x.entry, pady = 10, padx =10)
-    if (two) {
-        tkgrid(tklabel(tt,text=box2), y.entry, pady = 10, padx =10)
-    }
-    tkgrid(submit.but, reset.but)
-
-    tkwait.window(tt)
-    if (two) {
-        return (c(x,y))
+        # if not, check fData column for entrez id
     } else {
-        return (x)
+        cols <- grep("gene_id|^gene$|entrez",
+                     fvarLabels(eset), ignore.case = TRUE, value = TRUE)
+
+
+        # pick col with most homologene matches (min 1/4)
+        if (length(cols) != 0) {
+            matches <- sapply(cols, function(col) {
+                sum(fData(eset)[, col] %in% homologene$ENTREZID)
+            })
+            best <- names(which.max(matches))
+
+
+            # expand one-to-many (row-to-entrez)
+            if (matches[best] >= 0.25 * nrow(eset)) {
+                entrez <- as.character(fData(eset)[, best])
+                entrez <- strsplit(entrez, "\\D+")
+                rn <- sapply(seq_along(entrez),
+                             function(x) rep(x, length(entrez[[x]])))
+                map <- data.frame(PROBEID = unlist(rn),
+                                  ENTREZID = as.integer(unlist(entrez)))
+            }
+        }
     }
+    return(map)
+}
+
+
+# ------------------------
+
+
+# Get eset names for load_affy and load_agil.
+#
+# Helper function to get around issue of a single GSE having multiple platforms
+# (and thus \code{getGEO} returns a list of esets). To distinguish these cases,
+# the GPL platform is appended to the GSE name.
+#
+# @param List of annotated esets. Created by \code{load_affy} or \code{load_agil}.
+# @param gse_names Character vector of GSE names for each eset.
+#
+# @seealso \code{\link{load_affy}}, \code{\link{load_agil}}
+# @return Character vector of GSE names with GPL appended when multiple
+#   platforms per GSE.
+
+get_eset_names <- function(esets, gse_names) {
+    eset_names <- c()
+
+    for (i in seq_along(esets)) {
+        # get gse name
+        gse_name <- gse_names[i]
+
+        if (length(esets[[i]]) > 1) {
+            # add gpl_name to make gse_name unique
+            gpl_name <- sapply(esets[[i]], annotation)
+            gse_name <- paste(gse_name, gpl_name, sep = ".")
+        }
+        # add gse_name to eset_names
+        eset_names <- c(eset_names, gse_name)
+    }
+    return(eset_names)
 }

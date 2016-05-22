@@ -30,6 +30,22 @@ In addition to allowing for genes that were not measured in all studies, this
 method uses moderated unbiased effect sizes calculated by \code{metaMA} and
 determines false discovery rates using \code{fdrtool}.
 }
+\examples{
+
+library(lydata)
+
+# location of data
+data_dir <- system.file("extdata", package = "lydata")
+
+# gather GSE names
+gse_names  <- c("GSE9601", "GSE15069", "GSE50841", "GSE34817", "GSE29689")
+
+# load previous analysis
+anals <- load_diff(gse_names, data_dir)
+
+# perform meta-analysis
+es <- es_meta(anals)
+}
 \seealso{
 \code{\link[GeneMeta]{zScores}}, \code{\link[metaMA]{effectsize}},
    \code{\link{fdrtool}}.
