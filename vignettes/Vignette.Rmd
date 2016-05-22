@@ -7,29 +7,29 @@ vignette: >
   %\VignetteIndexEntry{crossmeta vignette}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
-  ---
+---
+
+### Introduction
+This package helps in the meta-analysis of microarray data obtained from Gene
+Expression Omnibus ([GEO](http://www.ncbi.nlm.nih.gov/geo/)).
+
+### Obtaining Raw Data
+Search GEO to find some GSEs that you want to do a meta-analysis for. For
+this example, I searched for LY-294002. I restricted the search to:
+
+* **Entry type**: Series
+* **Organism**: Homo sapiens and Mus musculus
+* **Study type**: Expression profiling by array
+
+This search produced 35 hits. The following five were chosen for this example.
+In practice, it is best to select all GSEs matching the necessary criteria
+(supplementary raw data files available, multiple samples for each treatment,
+and from either Affymetrix, Illumina, or Agilent single channel arrays).
+
+After you have chosen all the GSEs that you want to run a meta-analysis on,
+the next step is to obtain and decompress the raw data:
   
-  ### Introduction
-  This package helps in the meta-analysis of microarray data obtained from Gene
-  Expression Omnibus ([GEO](http://www.ncbi.nlm.nih.gov/geo/)).
-  
-  ### Obtaining Raw Data
-  Search GEO to find some GSEs that you want to do a meta-analysis for. For
-  this example, I searched for LY-294002. I restricted the search to:
-  
-  * **Entry type**: Series
-  * **Organism**: Homo sapiens and Mus musculus
-  * **Study type**: Expression profiling by array
-  
-  This search produced 35 hits. The following five were chosen for this example.
-  In practice, it is best to select all GSEs matching the necessary criteria
-  (supplementary raw data files available, multiple samples for each treatment,
-  and from either Affymetrix, Illumina, or Agilent single channel arrays).
-  
-  After you have chosen all the GSEs that you want to run a meta-analysis on,
-  the next step is to obtain and decompress the raw data:
-  
-  ```{r}
+```{r}
 library(crossmeta)
 
 # specify where data will be downloaded
@@ -61,9 +61,9 @@ Ensure the following:
 * File format is tab seperated .txt file 
 * File name includes 'non-normalized'
 * Column header formats:
-* probeid header is __ID_REF__
-* expression data headers are __AVG_Signal-sample_name__
-* pval headers are __Detection-sample_name__
+    * probeid header is __ID_REF__
+    * expression data headers are __AVG_Signal-sample_name__
+    * pval headers are __Detection-sample_name__
 
 The relevant raw illumina files will be in `data_dir` in a seperate folder for 
 each GSE. They are usually txt files and must include 'non-normalized' in their
@@ -106,6 +106,22 @@ Now that the data is downloaded (and Illumina data is in correct format), we
 must load and annotate the data. All necessary bioconductor annotation data
 packages will be downloaded on the fly. 
 
+You will need the homologene.data file in order to annotate all probes with the
+homologous human gene symbol. The homologene.data file can be obtained from
+[Homologene](http://1.usa.gov/240COzR).
+
+
+```{r, message=FALSE, warning=FALSE, results='hide'}
+# for initial loading:
+# esets <- load_raw(gsenames, homologene_path, data_dir)
+
+# homologene_path is a string specifying the path to homologene.data
+
+# for subsequent re-loading (faster)
+esets <- load_raw(gse_names, data_dir = data_dir)
+```
+
+
 If crossmeta does not know the bioconductor annotation data package for a given
 platform, entry will be requested. Use the given platform (GPL) to search online
 for the correct package name. 
@@ -115,10 +131,9 @@ bioconductor annotation data package. Entry was requested, so I went to [GEO](ht
 title was "Illumina HumanRef-8 v3.0 expression beadchip" so I searched on [Bioconductor](https://bioconductor.org/) for "illuminahuman" to find the 
 appropriate package (illuminaHumanv3).
 
-
-```{r, message=FALSE, warning=FALSE, results='hide'}
-esets <- load_raw(gse_names, data_dir = data_dir)
-```
+If you can't find the bioconductor annotation data package (or none exists), hit
+enter with a blank entry and crossmeta will attempt annotation using the
+feature data from the study in question.
 
 
 ### Differential Expression
@@ -130,10 +145,10 @@ the next study.  You can re-select a previous control group by selecting the
 name of the group in the drop down box. You can also view and delete current 
 contrasts in the "Contrasts" tab.
 
-If you need to look up experimental detail for the study (e.g. tissue and group)
+If you need to look up experimental details for the study (e.g. tissue and group)
 Click the `GEO` button in the top left corner.
 
-For **Illumina** samples, rely on the supplied titles to select groups 
+**For Illumina samples**, rely on the supplied titles to select groups 
 (accession numbers may be incorrect). The supplied titles are the headers from 
 the raw data and may differ from those on GEO. As such, you may need to look in 
 the individual sample records on GEO to identify which sample belongs to which

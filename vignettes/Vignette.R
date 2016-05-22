@@ -24,6 +24,12 @@ library(lydata)
 data_dir <- system.file("extdata", package = "lydata")
 
 ## ---- message=FALSE, warning=FALSE, results='hide'-----------------------
+# for initial loading:
+# esets <- load_raw(gsenames, homologene_path, data_dir)
+
+# homologene_path is a string specifying the path to homologene.data
+
+# for subsequent re-loading (faster)
 esets <- load_raw(gse_names, data_dir = data_dir)
 
 ## ---- eval=FALSE---------------------------------------------------------
