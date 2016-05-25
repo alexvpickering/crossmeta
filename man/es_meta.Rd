@@ -13,7 +13,10 @@ es_meta(diff_exprs, cutoff = 0.3)
 Between 0 and 1.}
 }
 \value{
-A data.frame with columns:
+A list with two named data.frames. The first ('filt') has all the
+   columns below for genes present in cutoff or more fraction of contrasts.
+   The second ('raw') has only dprime and vardprime columns but for all genes
+   (NAs for genes not measured by a given contrast).
    \item{dprime}{Unbiased effect sizes (one column per contrast).}
    \item{vardprime}{Variances of unbiased effect sizes (one column per contrast).}
    \item{mu}{Overall mean effect sizes.}

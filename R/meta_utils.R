@@ -11,7 +11,10 @@
 #' @param cutoff Minimum fraction of contrasts that must have measured each gene.
 #'    Between 0 and 1.
 #'
-#' @return A data.frame with columns:
+#' @return A list with two named data.frames. The first ('filt') has all the
+#'    columns below for genes present in cutoff or more fraction of contrasts.
+#'    The second ('raw') has only dprime and vardprime columns but for all genes
+#'    (NAs for genes not measured by a given contrast).
 #'    \item{dprime}{Unbiased effect sizes (one column per contrast).}
 #'    \item{vardprime}{Variances of unbiased effect sizes (one column per contrast).}
 #'    \item{mu}{Overall mean effect sizes.}
@@ -106,11 +109,9 @@ get_scores <- function(diff_exprs, cutoff = 0.3) {
             scores_cons[[con]] <- res[, c("SYMBOL", "dprime", "vardprime")]
         }
         scores[[study]] <- scores_cons
-
-
     }
     # merge dataframes
-    scores <- merge_dataframes(scores)
+    scores <- merge_dataframes(unlist(scores, recursive = FALSE))
 
     # only keep genes where more than cutoff fraction of studies have data
     filt <- apply(scores, 1, function(x) sum(!is.na(x))) >= (ncol(scores) * cutoff)
@@ -129,8 +130,6 @@ get_scores <- function(diff_exprs, cutoff = 0.3) {
 
 
 merge_dataframes <- function(ls, key = "SYMBOL") {
-
-    ls <- unlist(ls, recursive = FALSE)
 
     # ensure non 'by' names are not duplicated
     ls = Map(function(x, i)
