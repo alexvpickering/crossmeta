@@ -4,17 +4,17 @@ library(crossmeta)
 # specify where data will be downloaded
 data_dir <- file.path(getwd(), "data", "LY")
 
-# gather GSE names; also gather Illumina GSE names in seperate vector 
-# (see 'Checking Raw Illumina Data')
+# gather all GSEs
 gse_names  <- c("GSE9601", "GSE15069", "GSE50841", "GSE34817", "GSE29689")
+
+# gather Illumina GSEs (see 'Checking Raw Illumina Data')
 illum_names <- c("GSE50841", "GSE34817", "GSE29689")
 
-## ---- eval=FALSE---------------------------------------------------------
-#  # download raw data
-#  get_raw(gse_names, data_dir)
+# download raw data
+# get_raw(gse_names, data_dir)
 
 ## ---- eval=FALSE---------------------------------------------------------
-#  # this is why we kept track of Illumina names in seperate vector
+#  # this is why we gathered Illumina GSEs
 #  crossmeta:::open_raw_illum(illum_names, data_dir)
 
 ## ---- message=FALSE, warning=FALSE---------------------------------------
@@ -25,30 +25,68 @@ data_dir <- system.file("extdata", package = "lydata")
 
 ## ---- message=FALSE, warning=FALSE, results='hide'-----------------------
 # for initial loading:
-# esets <- load_raw(gsenames, homologene_path, data_dir)
+# homologene_path <- "path/to/homologene.data"
+# esets <- load_raw(gse_names, homologene_path, data_dir)
 
-# homologene_path is a string specifying the path to homologene.data
-
-# for subsequent re-loading (faster)
+# to reload:
 esets <- load_raw(gse_names, data_dir = data_dir)
+
+## ----eval = FALSE--------------------------------------------------------
+#  # check feature data to see what columns are available
+#  library(Biobase)
+#  View(fData(esets$GSE29689))
+#  View(fData(esets$GSE15069))
+#  
+#  # if human platform and hgnc symbol present in fData:
+#  # ---------------------------------------------------
+#  
+#  # use column with hgnc symbol for annotation
+#  fData(esets$GSE29689)$SYMBOL <- toupper(fData(esets$GSE29689)$Symbol)
+#  
+#  # to overwrite saved eset (avoids repeating above)
+#  saveRDS(esets$GSE29689, file.path(data_dir, "GSE29689", "GSE29689_eset.rds"))
+#  
+#  
+#  # if non-human platform and accession numbers present in fData:
+#  # -------------------------------------------------------------
+#  
+#  # load annotation package for appropriate species
+#  library(org.Mm.eg.db)
+#  
+#  # map from accession number to entrez gene ids
+#  ac_nums <- as.character(fData(esets$GSE15069)$GB_ACC)
+#  map <- AnnotationDbi::select(org.Mm.eg.db, ac_nums, "ENTREZID", "ACCNUM")
+#  
+#  # add entrez gene ids to fData 'GENE_ID' column
+#  fData(esets$GSE15069)$GENE_ID <- map$ENTREZID
+#  
+#  # use crossmeta to map from entrez gene ids to homologous hgnc symbol
+#  homologene <- crossmeta:::get_homologene(homologene_path)
+#  esets$GSE15069 <- crossmeta:::symbol_annot(esets$GSE15069, homologene)
+#  
+#  # to overwrite saved eset (avoids repeating above)
+#  saveRDS(esets$GSE15069, file.path(data_dir, "GSE15069", "GSE15069_eset.rds"))
 
 ## ---- eval=FALSE---------------------------------------------------------
 #  anals <- diff_expr(esets, data_dir)
 
-## ---- fig.height=5, fig.width=5, message=FALSE, warning=FALSE------------
+## ------------------------------------------------------------------------
 # load auto-saved results of previous call to diff_expr
-# (In this case, all of gse_names)
 prev <- load_diff(gse_names, data_dir)
 
 # supply prev to diff_expr
-# omit "[1]" to analyze all esets
-anals <- diff_expr(esets[1], data_dir, prev_anals=prev)
+# anals <- diff_expr(esets, data_dir, prev_anals=prev)
 
-## ---- message=FALSE, warning=FALSE---------------------------------------
+## ---- message=FALSE, results='hide'--------------------------------------
 # re-load previous analyses if need to
 anals <- load_diff(gse_names, data_dir)
 
-## ---- warning=FALSE------------------------------------------------------
 # perform meta analysis
 es <- es_meta(anals)
+
+# to see results of meta-analysis
+View(es$filt)
+
+# for explanation of values
+# ?es_meta
 

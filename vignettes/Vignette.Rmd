@@ -1,33 +1,37 @@
 ---
-title: "Cross-Platform Meta-Analysis of Microarrays"
-author: "Alex Pickering"
-date: "`r Sys.Date()`"
-output: rmarkdown::html_vignette
+title: "Cross-Platform Meta Analysis"
+output: html_document
 vignette: >
   %\VignetteIndexEntry{crossmeta vignette}
   %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteEncoding{UTF-8}
+  %\VignetteEncoding{UTF-8}  
 ---
 
-### Introduction
-This package helps in the meta-analysis of microarray data obtained from Gene
-Expression Omnibus ([GEO](http://www.ncbi.nlm.nih.gov/geo/)).
+`crossmeta` streamlines the cross-platform meta-analysis of 
+microarray data. For the analysis, you will need a list of Affymetrix, Illumina,
+and/or Agilent GSE numbers from [GEO](http://www.ncbi.nlm.nih.gov/geo/). All 21
+species in the current [homologene](http://1.usa.gov/1TGoIy7) build are supported.
+
+-----------------
 
 ### Obtaining Raw Data
-Search GEO to find some GSEs that you want to do a meta-analysis for. For
-this example, I searched for LY-294002. I restricted the search to:
+
+Search [GEO](http://www.ncbi.nlm.nih.gov/geo/) to find relevant microarray 
+data for the meta-analysis. For this example, I searched for the PI3K 
+inhibitor LY-294002. The search was filtered as follows:
 
 * **Entry type**: Series
 * **Organism**: Homo sapiens and Mus musculus
 * **Study type**: Expression profiling by array
 
-This search produced 35 hits. The following five were chosen for this example.
-In practice, it is best to select all GSEs matching the necessary criteria
-(supplementary raw data files available, multiple samples for each treatment,
-and from either Affymetrix, Illumina, or Agilent single channel arrays).
+This search produced 35 hits from which five were chosen. In practice, it is 
+best to select all GSEs matching the necessary criteria (supplementary raw data
+files available, multiple samples for each treatment, and from either Affymetrix,
+Illumina, or Agilent single channel arrays).
 
-After you have chosen all the GSEs that you want to run a meta-analysis on,
-the next step is to obtain and decompress the raw data:
+After identifying GSEs for the meta-analysis, download and decompress the raw
+data as follows. For raw Illumina data only, you must check that it has the 
+correct format (and edit it if needed).
   
 ```{r}
 library(crossmeta)
@@ -35,62 +39,67 @@ library(crossmeta)
 # specify where data will be downloaded
 data_dir <- file.path(getwd(), "data", "LY")
 
-# gather GSE names; also gather Illumina GSE names in seperate vector 
-# (see 'Checking Raw Illumina Data')
+# gather all GSEs
 gse_names  <- c("GSE9601", "GSE15069", "GSE50841", "GSE34817", "GSE29689")
+
+# gather Illumina GSEs (see 'Checking Raw Illumina Data')
 illum_names <- c("GSE50841", "GSE34817", "GSE29689")
-```
 
-```{r, eval=FALSE}
 # download raw data
-get_raw(gse_names, data_dir)
+# get_raw(gse_names, data_dir)
 ```
 
-After the raw data has been obtained, it's time to load it. For raw Illumina
-data only, you must check that it has the correct format (and edit it if needed).
+-----------------
 
 ### Checking Raw Illumina Data
-To help, I recommend that you download and set Sublime Text 2 as your default
-text editor. It has very nice regular expression capabilities.
+
+To format raw Illumina data, I recommend that you download and set Sublime Text 
+2 as your default text editor. It has very nice regular expression capabilities.
 [Here](https://www.cheatography.com/davechild/cheat-sheets/regular-expressions/)
 is a good regular expression cheat-sheat.
 
-Ensure the following:
+Raw illumina files will be in `data_dir` in a seperate folder for each GSE. They
+are usually _.txt_ files and include _non-normalized_ in their name. Ensure the
+following:
 
-* Detection p-values present(usually every second column)
-* File format is tab seperated .txt file 
-* File name includes 'non-normalized'
-* Column header formats:
-    * probeid header is __ID_REF__
-    * expression data headers are __AVG_Signal-sample_name__
-    * pval headers are __Detection-sample_name__
+* __Detection p-values__: present (usually every second column)
+* __File format__: tab seperated _.txt_ file 
+* __File name__: includes _non-normalized_
 
-The relevant raw illumina files will be in `data_dir` in a seperate folder for 
-each GSE. They are usually txt files and must include 'non-normalized' in their
-name. To open these files one at a time with your default text editor:
+Also ensure that column names have the following format:
+
+* __Probe ID__: _ID_REF_
+* __Expression values__: _AVG_Signal-sample_name_
+* __Detection p-values__: _Detection-sample_name_
+
+
+
+To open these files one at a time with your default text editor:
 
 ```{r, eval=FALSE}
-# this is why we kept track of Illumina names in seperate vector
+# this is why we gathered Illumina GSEs
 crossmeta:::open_raw_illum(illum_names, data_dir)
 ```
 
 
-For **GSE50841**:
+For GSE50841:
 
-* using Sublime Text 2, click "Find --> Replace" (or "Ctrl + h")
-* __Find What__: _(SAMPLE \\d+)\\tDetection Pval_
-* __Replace With__: _AVG_Signal-\\1\\tDetection-\\1_
+* click _Find_ then _Replace_ (or _Ctrl + h_)
+* _Find What_: _(SAMPLE \\d+)\\tDetection Pval_
+* _Replace With_: _AVG_Signal-\\1\\tDetection-\\1_
 
 
-For **GSE34817**:
+For GSE34817:
 
-* using Sublime Text 2, click "Find --> Replace" (or "Ctrl + h")
-* __Find What__: _(MDA.+?)\\tDetection Pval_
-* __Replace With__: _AVG_Signal-\\1\\tDetection-\\1_
+* click _Find_ then _Replace_ (or _Ctrl + h_)
+* _Find What_: _(MDA.+?)\\tDetection Pval_
+* _Replace With_: _AVG_Signal-\\1\\tDetection-\\1_
 
-For **GSE29689** just change PROBE_ID to ID_REF.
+For GSE29689:
 
-A bioconductor data package (lydata) is available where all the above was 
+* change _PROBE\_ID_ to _ID\_REF_.
+
+A bioconductor data package (`lydata`) is available where all the above was 
 performed. This data package will be used for subsequent demonstrations.
 
 ```{r, message=FALSE, warning=FALSE}
@@ -100,105 +109,148 @@ library(lydata)
 data_dir <- system.file("extdata", package = "lydata")
 ```
 
-### Loading Data
+-----------------
 
-Now that the data is downloaded (and Illumina data is in correct format), we
-must load and annotate the data. All necessary bioconductor annotation data
-packages will be downloaded on the fly. 
+### Loading and Annotating Data
 
-You will need the homologene.data file in order to annotate all probes with the
-homologous human gene symbol. The homologene.data file can be obtained from
-[Homologene](http://1.usa.gov/240COzR).
+After downloading the raw data, it must be loaded and annotated. The necessary 
+bioconductor annotation data packages will be downloaded as needed. 
+
+You will need the _homologene.data_ file which is used to map entrez gene ids 
+from supported species to the homologous human gene symbol. The _homologene.data_
+file can be obtained from [Homologene](http://1.usa.gov/240COzR).
 
 
 ```{r, message=FALSE, warning=FALSE, results='hide'}
 # for initial loading:
-# esets <- load_raw(gsenames, homologene_path, data_dir)
+# homologene_path <- "path/to/homologene.data"
+# esets <- load_raw(gse_names, homologene_path, data_dir)
 
-# homologene_path is a string specifying the path to homologene.data
-
-# for subsequent re-loading (faster)
+# to reload:
 esets <- load_raw(gse_names, data_dir = data_dir)
 ```
 
 
-If crossmeta does not know the bioconductor annotation data package for a given
+If `crossmeta` does not know the bioconductor annotation data package for a given
 platform, entry will be requested. Use the given platform (GPL) to search online
-for the correct package name. 
+for the correct package name. For example, entry was requested for GSE29689 
+(platform GPL6883). A search for _GPL6883_ on [GEO](http://www.ncbi.nlm.nih.gov/geo/) identified the title for this platform as _Illumina HumanRef-8 v3.0 expression beadchip_.
+A subsequent search on [Bioconductor](https://bioconductor.org/) for 
+_illuminahuman_ identified the appropriate package as _illuminaHumanv3_.
 
-As an example, for GSE29689 (platform GPL6883) crossmeta did not know the 
-bioconductor annotation data package. Entry was requested, so I went to [GEO](http://www.ncbi.nlm.nih.gov/geo/) and searched for "GPL6883". The platform 
-title was "Illumina HumanRef-8 v3.0 expression beadchip" so I searched on [Bioconductor](https://bioconductor.org/) for "illuminahuman" to find the 
-appropriate package (illuminaHumanv3).
+If you can't find the bioconductor annotation data package (or none exists), type
+enter with a blank entry and `crossmeta` will attempt annotation using entrez 
+gene ids in the feature data from the study in question. If entrez ids are absent,
+a warning message will request that you _Add human gene symbols to 'SYMBOL' 
+column in fData._ Two options to do so are shown:
 
-If you can't find the bioconductor annotation data package (or none exists), hit
-enter with a blank entry and crossmeta will attempt annotation using the
-feature data from the study in question.
+```{r eval = FALSE}
+# check feature data to see what columns are available
+library(Biobase)
+View(fData(esets$GSE29689))
+View(fData(esets$GSE15069))
 
+# if human platform and hgnc symbol present in fData:
+# ---------------------------------------------------
+
+# use column with hgnc symbol for annotation
+fData(esets$GSE29689)$SYMBOL <- toupper(fData(esets$GSE29689)$Symbol)
+
+# to overwrite saved eset (avoids repeating above)
+saveRDS(esets$GSE29689, file.path(data_dir, "GSE29689", "GSE29689_eset.rds"))
+
+
+# if non-human platform and accession numbers present in fData:
+# -------------------------------------------------------------
+
+# load annotation package for appropriate species
+library(org.Mm.eg.db)
+
+# map from accession number to entrez gene ids
+ac_nums <- as.character(fData(esets$GSE15069)$GB_ACC)
+map <- AnnotationDbi::select(org.Mm.eg.db, ac_nums, "ENTREZID", "ACCNUM")
+
+# add entrez gene ids to fData 'GENE_ID' column
+fData(esets$GSE15069)$GENE_ID <- map$ENTREZID
+
+# use crossmeta to map from entrez gene ids to homologous hgnc symbol
+homologene <- crossmeta:::get_homologene(homologene_path)
+esets$GSE15069 <- crossmeta:::symbol_annot(esets$GSE15069, homologene)
+
+# to overwrite saved eset (avoids repeating above)
+saveRDS(esets$GSE15069, file.path(data_dir, "GSE15069", "GSE15069_eset.rds"))
+```
+
+-----------------
 
 ### Differential Expression
 
-We are now ready for differential expression analysis! Select samples and supply
-a group name for control/test samples for each contrast you want to analyse.
-Once done for a study, hit "Done" and you will be prompted to do the same for
-the next study.  You can re-select a previous control group by selecting the 
-name of the group in the drop down box. You can also view and delete current 
-contrasts in the "Contrasts" tab.
-
-If you need to look up experimental details for the study (e.g. tissue and group)
-Click the `GEO` button in the top left corner.
-
-**For Illumina samples**, rely on the supplied titles to select groups 
-(accession numbers may be incorrect). The supplied titles are the headers from 
-the raw data and may differ from those on GEO. As such, you may need to look in 
-the individual sample records on GEO to identify which sample belongs to which
-group (not always possible).
+After loading and annotating the data, you may proceed with differential
+expression analysis:
 
 ```{r, eval=FALSE}
 anals <- diff_expr(esets, data_dir)
 ```
 
+You will be prompted to type group names and select samples for each control and
+test group that you wish to compare. Once done for a study, click `Done` and you
+will be prompted to do the same for the next study. You can re-select a previous
+control group by selecting the group name in the drop down box. You can also 
+view and delete current contrasts in the `Contrasts` tab.
+
+If you need to look up experimental details for the study (e.g. group membership)
+Click the `GEO` button in the top left corner.
+
+**For Illumina samples**, rely on the supplied titles to select groups as the
+accession numbers may be incorrect. The supplied titles are the headers from 
+the raw data and may differ from those on GEO. As such, you may need to look in 
+the individual sample records on GEO to identify which sample belongs to which
+group (not always possible).
+
 If you need to re-run the above analysis, you can avoid having to reselect 
-samples and rename groups.
+samples and rename groups:
 
-For example:
-
-```{r, fig.height=5, fig.width=5, message=FALSE, warning=FALSE}
+```{r}
 # load auto-saved results of previous call to diff_expr
-# (In this case, all of gse_names)
 prev <- load_diff(gse_names, data_dir)
 
 # supply prev to diff_expr
-# omit "[1]" to analyze all esets
-anals <- diff_expr(esets[1], data_dir, prev_anals=prev)
+# anals <- diff_expr(esets, data_dir, prev_anals=prev)
 ```
 
-Multi-dimensional scaling plots are generated for each analyzed GSE. 
-These plots are generated from expression data with the effects of surrogate 
-variables removed.
+Multi-dimensional scaling plots are generated for each GSE. These plots are 
+generated from expression data with the effects of surrogate variables removed.
+
+-----------------
 
 ### Meta-Analysis
 
-Now that differential expression analyses have been performed for each study,
-let's combine the studies.
+After differential expression analyses, overall effect sizes can be determined
+through meta-analysis. The meta-analysis method determines an overall
+standardized effect size and false discovery rate for each gene that is present 
+in a specified fraction of studies (30% by default). 
 
-```{r, message=FALSE, warning=FALSE}
+```{r, message=FALSE, results='hide'}
 # re-load previous analyses if need to
 anals <- load_diff(gse_names, data_dir)
-```
 
-The meta-analysis method determines an overall standardized effect size and 
-false discovery rate for each gene that is present in a specified fraction of 
-studies (30% by default). 
-
-```{r, warning=FALSE}
 # perform meta analysis
 es <- es_meta(anals)
+
+# to see results of meta-analysis
+View(es$filt)
+
+# for explanation of values
+# ?es_meta
 ```
+
+The meta-analysis method was adapted from `GeneMeta`. Differences include the
+use of moderated unbiased effect sizes calculated by `metaMA`, the calculation 
+of false discovery rates by `fdrtool`, and the allowance for genes measured in 
+only a fraction of studies.
 
 One application of the signature generated by this meta-analysis method is to 
 search for a drug, or combination of drugs that is predicted to reverse or mimic
-your signature. These drugs might reverse diseases or mimic healthy lifestyles.
-
-To predict a drug/combination to either mimic or reverse your signature, please
-see the ccmap (**C**ombination **C**onnectivity **M**aping) package.
+your signature. These drugs might reverse diseases or mimic healthy lifestyles. 
+To predict a drug or drug combination to either mimic or reverse your signature,
+please see the `ccmap` (**C**ombination **C**onnectivity **M**aping) package.
