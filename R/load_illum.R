@@ -28,6 +28,8 @@ load_illum <- function (gse_names, homologene, data_dir, overwrite) {
             eset <- readRDS(eset_path)
 
         } else {
+            if (is.null(homologene)) stop("homologene_path required")
+
             # get GSEMatrix (for pheno data)
             eset <- GEOquery::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE)
 

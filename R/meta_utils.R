@@ -45,11 +45,11 @@
 es_meta <- function(diff_exprs, cutoff = 0.3) {
 
     # get dp and vardp
-    scores <- get_scores(diff_exprs, cutoff)
-    df     <- scores$filt
+    es <- get_es(diff_exprs, cutoff)
+    df <- es$filt
 
-    dp     <- df[, seq(1, ncol(df), 2)]
-    var    <- df[, seq(2, ncol(df), 2)]
+    dp  <- df[, seq(1, ncol(df), 2)]
+    var <- df[, seq(2, ncol(df), 2)]
 
     # get Cochran Q statistic
     Q <- f.Q(dp, var)
@@ -68,55 +68,80 @@ es_meta <- function(diff_exprs, cutoff = 0.3) {
     df$z   <- df$mu/sqrt(df$var)
     df$fdr <- fdrtool::fdrtool(df$z, plot = FALSE, verbose = FALSE)$qval
 
-    scores$filt <- df
+    es$filt <- df
 
-    return(scores)
+    return(es)
 }
 
 # ---------------------
 
-# Get dprimes and vardprimes for each contrast.
+# Add metaMA effectsize values to top tables.
+#
+# Used by get_es.
 #
 # @inheritParams es_meta
+# @return diff_exprs with metaMA effectsize values added to top tables.
+
+add_es <- function(diff_exprs) {
+
+    for (i in seq_along(diff_exprs)) {
+
+        # get study degrees of freedom and group classes
+        study <- diff_exprs[[i]]
+
+        df <- study$ebayes_sv$df.residual + study$ebayes_sv$df.prior
+        classes <- pData(study$eset)$group
+
+        for (cname in names(study$top_tables)) {
+            # get group names for contrast
+            groups <- gsub("GSE\\d+_", "", cname)
+            groups <- strsplit(groups, "-")[[1]]
+
+            # get sample sizes for groups
+            ni <- sum(classes == groups[2])
+            nj <- sum(classes == groups[1])
+
+            # get effectsize values
+            tt <- study$top_tables[[cname]]
+            es <- metaMA::effectsize(tt$t, ((ni * nj)/(ni + nj)), df)
+
+            # bind effectsize values with top table
+            study$top_tables[[cname]] <- cbind(tt, es)
+        }
+        diff_exprs[[i]] <- study
+    }
+    return(diff_exprs)
+}
+
+# ---------------------
+
+# Get dprimes and vardprimes values for each contrast.
 #
+# @inheritParams es_meta
 # @return data.frame with dprime and vardprime values.
 
-get_scores <- function(diff_exprs, cutoff = 0.3) {
+get_es <- function(diff_exprs, cutoff = 0.3) {
 
-    scores <- list()
+    # add dprimes and vardprimes to top tables
+    diff_exprs <- add_es(diff_exprs)
 
-    for (study in names(diff_exprs)) {
-        # get study degrees of freedom
-        diff <- diff_exprs[[study]]
-        df <- diff$ebayes_sv$df.residual + diff$ebayes_sv$df.prior
+    # get top tables
+    es <- lapply(diff_exprs, function(study) study$top_tables)
+    es <- unlist(es, recursive = FALSE)
 
-        scores_cons <- list()
+    # get desired top table columns
+    es <- lapply(es, function(top) {
+        top$SYMBOL <- row.names(top)
+        top[, c("SYMBOL", "dprime", "vardprime")]
+    })
 
-        for (con in names(diff$top_tables)) {
-            # get sample sizes and top table for contrast
-            classes <- pData(diff$eset)$treatment
-            ni <- length(classes[classes == "ctrl"])
-            nj <- length(classes[classes == "test"])
-
-            tt <- diff$top_tables[[con]]
-
-            # get dprime and vardprime
-            res <-  metaMA::effectsize(tt$t, ((ni * nj)/(ni + nj)), df)
-            res <- as.data.frame(res)
-            res$SYMBOL <- row.names(tt)
-
-            # store result
-            scores_cons[[con]] <- res[, c("SYMBOL", "dprime", "vardprime")]
-        }
-        scores[[study]] <- scores_cons
-    }
     # merge dataframes
-    scores <- merge_dataframes(unlist(scores, recursive = FALSE))
+    es <- merge_dataframes(es)
 
     # only keep genes where more than cutoff fraction of studies have data
-    filt <- apply(scores, 1, function(x) sum(!is.na(x))) >= (ncol(scores) * cutoff)
+    filt <- apply(es, 1, function(x) sum(!is.na(x))) >= (ncol(es) * cutoff)
 
-    return(list(filt = scores[filt, ], raw = scores))
+    return(list(filt = es[filt, ], raw = es))
 }
 
 # ---------------------

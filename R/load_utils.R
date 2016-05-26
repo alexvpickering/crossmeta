@@ -67,7 +67,7 @@ load_raw <- function(gse_names, homologene_path = NULL, data_dir = getwd(),
     gse_names <- unique(gse_names)
 
     # get homologene
-    homologene <- NULL  # to re-load w/o homologene_path
+    homologene <- NULL  # allows re-load w/o homologene_path
     if (!is.null(homologene_path))
         homologene <- get_homologene(homologene_path)
 

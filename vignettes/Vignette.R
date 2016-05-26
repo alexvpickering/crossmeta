@@ -84,9 +84,6 @@ anals <- load_diff(gse_names, data_dir)
 # perform meta analysis
 es <- es_meta(anals)
 
-# to see results of meta-analysis
-View(es$filt)
-
 # for explanation of values
 # ?es_meta
 

@@ -260,9 +260,6 @@ anals &lt;- load_diff(gse_names, data_dir)
 # perform meta analysis
 es &lt;- es_meta(anals)
 
-# to see results of meta-analysis
-View(es$filt)
-
 # for explanation of values
 # ?es_meta</code></pre>
 <p>The meta-analysis method was adapted from <code>GeneMeta</code>. Differences include the use of moderated unbiased effect sizes calculated by <code>metaMA</code>, the calculation of false discovery rates by <code>fdrtool</code>, and the allowance for genes measured in only a fraction of studies.</p>

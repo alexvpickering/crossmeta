@@ -25,6 +25,8 @@ load_agil <- function (gse_names, homologene, data_dir, overwrite) {
             eset <- readRDS(eset_path)
 
         } else {
+            if (is.null(homologene)) stop("homologene_path required")
+
             # get GSEMatrices (for pheno/feature data)
             eset <- GEOquery::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE)
 
