@@ -25,14 +25,14 @@
 #'   \code{\link{load_diff}}.
 #'
 #' @return List of lists (one per GSE), each containing:
-#'   \item{eset}{Expression set with selected samples and non-duplicate
-#'      features named by either gene symbol or probe. Treatment (ctl or test),
-#'      tissue, and group columns have been added to the \code{pData} slot.}
+#'   \item{eset}{Expression set without expression or feature data. Treatment
+#'      (ctl or test) and group columns have been added to the \code{pData} slot.
+#'      Only selected samples kept.}
 #'   \item{top_tables}{List with results of \code{\link{topTable}} call (one per
 #'      contrast). These results account for the effects of nuissance variables
 #'      discovered by surrogate variable analysis.}
-#'   \item{ebayes_sv, ebayes}{Results of call to \code{\link{eBayes}}, with
-#'      surrogate variables included and not included in the model matrix.}
+#'   \item{ebayes_sv}{Results of call to \code{\link{eBayes}} with surrogate
+#'      variables included in the model matrix.}
 #'
 #' @examples
 #' library(lydata)
@@ -62,7 +62,7 @@ diff_expr <- function (esets, data_dir = getwd(),
 
     if (FALSE %in% chk) {
         stop(annot, " column in fData missing for esets: ",
-             paste(names(which(!chk)), sep = ", "))
+             paste(names(which(!chk)), collapse = ", "))
     }
 
     prev_anals <- prev_anals[names(esets)]
@@ -91,7 +91,7 @@ diff_expr <- function (esets, data_dir = getwd(),
         # differential expression
         anal <- diff_anal(dups$eset, dups$exprs_sva,
                           cons$contrasts, cons$levels,
-                          setup$mod, setup$modsv, setup$svobj,
+                          setup$modsv, setup$svobj,
                           gse_dir, gse_name, annot)
 
         anals[[gse_name]] <- anal
@@ -158,7 +158,7 @@ add_contrasts <- function (eset, gse_name, prev_anal) {
         eset <- match_prev_eset(eset, prev_anal)
 
         # get contrast info from previous analysis
-        contrasts    <- colnames(prev_anal$ebayes$contrasts)
+        contrasts    <- colnames(prev_anal$ebayes_sv$contrasts)
         group_levels <- unique(pData(prev_anal$eset)$group)
 
 
@@ -343,11 +343,10 @@ iqr_duplicates <- function (eset, mod, svobj, annot = "SYMBOL") {
 #   meta-analysis.
 
 diff_anal <- function(eset, exprs_sva, contrasts, group_levels,
-                      mod, modsv, svobj, gse_dir, gse_name, annot = "SYMBOL"){
+                      modsv, svobj, gse_dir, gse_name, annot = "SYMBOL"){
 
     # differential expression (surrogate variables modeled and not)
     ebayes_sv <- fit_ebayes(eset, contrasts, modsv)
-    ebayes <- fit_ebayes(eset, contrasts, mod)
 
     # annotate/store results
     top_tables <- list()
@@ -374,15 +373,18 @@ diff_anal <- function(eset, exprs_sva, contrasts, group_levels,
     graphics::legend("topright", inset = c(-0.4, 0), legend = group_levels,
                      fill = unique(colours), xpd = TRUE, bty = "n", cex = 0.65)
 
+    # remove expression and feature data before storing eset (large)
+    exprs(eset) <- matrix()
+    fData(eset) <- data.frame()
 
     # save to disk
-    diff_expr <- list(eset = eset, top_tables = top_tables,
-                      ebayes_sv = ebayes_sv, ebayes = ebayes)
+    diff_expr <- list(eset = eset, top_tables = top_tables, ebayes_sv = ebayes_sv)
 
-    if (annot ==  "SYMBOL") save_name <- paste (gse_name,
-                                                "diff_expr.rds", sep = "_")
-    if (annot ==  "PROBE")  save_name <- paste (gse_name,
-                                                "diff_expr_probe.rds", sep = "_")
+    if (annot ==  "SYMBOL")
+        save_name <- paste (gse_name, "diff_expr.rds", sep = "_")
+
+    if (annot ==  "PROBE")
+        save_name <- paste (gse_name, "diff_expr_probe.rds", sep = "_")
 
     saveRDS(diff_expr, file = paste(gse_dir, save_name, sep = "/"))
     return (diff_expr)

@@ -21,14 +21,14 @@ selections and names will be reused.}
 }
 \value{
 List of lists (one per GSE), each containing:
-  \item{eset}{Expression set with selected samples and non-duplicate
-     features named by either gene symbol or probe. Treatment (ctl or test),
-     tissue, and group columns have been added to the \code{pData} slot.}
+  \item{eset}{Expression set without expression or feature data. Treatment
+     (ctl or test) and group columns have been added to the \code{pData} slot.
+     Only selected samples kept.}
   \item{top_tables}{List with results of \code{\link{topTable}} call (one per
      contrast). These results account for the effects of nuissance variables
      discovered by surrogate variable analysis.}
-  \item{ebayes_sv, ebayes}{Results of call to \code{\link{eBayes}}, with
-     surrogate variables included and not included in the model matrix.}
+  \item{ebayes_sv}{Results of call to \code{\link{eBayes}} with surrogate
+     variables included in the model matrix.}
 }
 \description{
 User selects contrasts, then surrogate variable analysis (sva) and

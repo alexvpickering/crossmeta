@@ -37,7 +37,7 @@ cel_dates <- function(cel_paths) {
 # @seealso \code{\link{get_raw}} to obtain raw data.
 # @return List of annotated esets (one for each unique GSE/GPL platform).
 
-load_affy <- function (gse_names, homologene, data_dir, overwrite) {
+load_affy <- function (gse_names, data_dir, overwrite) {
 
     esets <- list()
     for (gse_name in gse_names) {
@@ -51,13 +51,11 @@ load_affy <- function (gse_names, homologene, data_dir, overwrite) {
             eset <- readRDS(eset_path)
 
         } else {
-            if (is.null(homologene)) stop("homologene_path required")
-
             # get GSEMatrix (for pheno data)
             eset <- GEOquery::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE)
 
             # load eset for each platform in GSE
-            eset <- lapply(eset, load_affy_plat, homologene, gse_dir, gse_name)
+            eset <- lapply(eset, load_affy_plat, gse_dir, gse_name)
 
             # save to disc
             saveRDS(eset, file.path(gse_dir, save_name))
@@ -85,7 +83,7 @@ load_affy <- function (gse_names, homologene, data_dir, overwrite) {
 # @seealso \code{\link{load_affy}}.
 # @return Annotated eset with scan_date in pData slot.
 
-load_affy_plat <- function (eset, homologene, gse_dir, gse_name) {
+load_affy_plat <- function (eset, gse_dir, gse_name) {
 
     sample_names <- sampleNames(eset)
     pattern <- paste(sample_names, ".*CEL$", collapse = "|", sep = "")
@@ -130,6 +128,10 @@ load_affy_plat <- function (eset, homologene, gse_dir, gse_name) {
     # rename samples in data
     sampleNames(data) <- stringr::str_extract(sampleNames(data), "GSM[0-9]+")
 
+     #reserve '.' for duplicate features
+    row.names(eset) <- gsub(".", "*", row.names(eset), fixed = TRUE)
+    row.names(data) <- gsub(".", "*", row.names(data), fixed = TRUE)
+
     # transfer exprs from data to eset (maintaining eset sample order)
     sample_order <- sampleNames(eset)[sampleNames(eset) %in% sampleNames(data)]
 
@@ -145,7 +147,7 @@ load_affy_plat <- function (eset, homologene, gse_dir, gse_name) {
     pData(eset)$scan_date <- scan_dates[sample_order]
 
     # add SYMBOL annotation
-    eset <- symbol_annot(eset, homologene, gse_name)
+    eset <- symbol_annot(eset, gse_name)
 
     return(eset)
 }

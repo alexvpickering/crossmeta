@@ -14,7 +14,7 @@
 
 # @return List of annotated esets.
 
-load_illum <- function (gse_names, homologene, data_dir, overwrite) {
+load_illum <- function (gse_names, data_dir, overwrite) {
 
     esets <- list()
     for (gse_name in gse_names) {
@@ -28,8 +28,6 @@ load_illum <- function (gse_names, homologene, data_dir, overwrite) {
             eset <- readRDS(eset_path)
 
         } else {
-            if (is.null(homologene)) stop("homologene_path required")
-
             # get GSEMatrix (for pheno data)
             eset <- GEOquery::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE)
 
@@ -72,7 +70,7 @@ load_illum <- function (gse_names, homologene, data_dir, overwrite) {
             eset <- add_pvals(eset, data$other$Detection)
 
             # add SYMBOL annotation
-            eset <- symbol_annot(eset, homologene, gse_name)
+            eset <- symbol_annot(eset, gse_name)
 
             # save to disc
             saveRDS(eset, file.path(gse_dir, save_name))

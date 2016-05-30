@@ -24,12 +24,8 @@ library(lydata)
 data_dir <- system.file("extdata", package = "lydata")
 
 ## ---- message=FALSE, warning=FALSE, results='hide'-----------------------
-# for initial loading:
-# homologene_path <- "path/to/homologene.data"
-# esets <- load_raw(gse_names, homologene_path, data_dir)
-
-# to reload:
-esets <- load_raw(gse_names, data_dir = data_dir)
+# reloads if previously called
+esets <- load_raw(gse_names, data_dir)
 
 ## ----eval = FALSE--------------------------------------------------------
 #  # check feature data to see what columns are available
@@ -55,14 +51,13 @@ esets <- load_raw(gse_names, data_dir = data_dir)
 #  
 #  # map from accession number to entrez gene ids
 #  ac_nums <- as.character(fData(esets$GSE15069)$GB_ACC)
-#  map <- AnnotationDbi::select(org.Mm.eg.db, ac_nums, "ENTREZID", "ACCNUM")
+#  en_id  <- AnnotationDbi::mapIds(org.Mm.eg.db, ac_nums, "ENTREZID", "ACCNUM")
 #  
 #  # add entrez gene ids to fData 'GENE_ID' column
-#  fData(esets$GSE15069)$GENE_ID <- map$ENTREZID
+#  fData(esets$GSE15069)$GENE_ID <- en_id
 #  
 #  # use crossmeta to map from entrez gene ids to homologous hgnc symbol
-#  homologene <- crossmeta:::get_homologene(homologene_path)
-#  esets$GSE15069 <- crossmeta:::symbol_annot(esets$GSE15069, homologene)
+#  esets$GSE15069 <- crossmeta:::symbol_annot(esets$GSE15069)
 #  
 #  # to overwrite saved eset (avoids repeating above)
 #  saveRDS(esets$GSE15069, file.path(data_dir, "GSE15069", "GSE15069_eset.rds"))

@@ -45,7 +45,6 @@ get_raw <- function (gse_names, data_dir = getwd()) {
 #' @import data.table
 #'
 #' @param gse_names Character vector of GSE names.
-#' @param homologene_path String specifying path to homologene file. See Details.
 #' @param data_dir  String specifying directory with GSE folders.
 #' @param overwrite Do you want to overwrite saved esets?
 #'
@@ -59,17 +58,11 @@ get_raw <- function (gse_names, data_dir = getwd()) {
 #' eset <- load_raw("GSE9601", data_dir = data_dir)
 
 
-load_raw <- function(gse_names, homologene_path = NULL, data_dir = getwd(),
-                     overwrite = FALSE) {
+load_raw <- function(gse_names, data_dir = getwd(), overwrite = FALSE) {
 
 
     # no duplicates allowed (somehow causes mismatched names/esets)
     gse_names <- unique(gse_names)
-
-    # get homologene
-    homologene <- NULL  # allows re-load w/o homologene_path
-    if (!is.null(homologene_path))
-        homologene <- get_homologene(homologene_path)
 
     affy_names  <- c()
     agil_names  <- c()
@@ -97,61 +90,13 @@ load_raw <- function(gse_names, homologene_path = NULL, data_dir = getwd(),
     }
 
     # load esets
-    affy_esets  <- load_affy(affy_names, homologene, data_dir, overwrite)
-    agil_esets  <- load_agil(agil_names, homologene, data_dir, overwrite)
-    illum_esets <- load_illum(illum_names, homologene, data_dir, overwrite)
+    affy_esets  <- load_affy(affy_names, data_dir, overwrite)
+    agil_esets  <- load_agil(agil_names, data_dir, overwrite)
+    illum_esets <- load_illum(illum_names, data_dir, overwrite)
 
     return (c(affy_esets, agil_esets, illum_esets))
 }
 
-
-
-# Get homologene data frame.
-#
-# Function loads and, if necessary, sets up homologene data frame.
-#
-# Setup results in a dataframe with all entrez ids in one column ('ENTREZID') and
-# the homologous human entrez ids in another column ('ENTREZID_HS').
-#
-# @param homologene_path String specifying full path to homologene file.
-#
-# @return data.frame with column ENTREZID and ENTREZID_HS.
-
-get_homologene <- function(homologene_path) {
-
-    homologene <- utils::read.delim(homologene_path, header = FALSE)
-
-    if (ncol(homologene) == 6) {
-
-        message("Setting up homologene data. Will take a while (one time only).")
-
-        # get homologous human (9606) entrez ids for all entrez ids (V3)
-        entrez_HS <- annotationTools::getHOMOLOG(homologene$V3,
-                                                 9606,
-                                                 homologene)
-
-        # remove entrez ids with homologous human entrez id
-        homologene <- homologene[!is.na(entrez_HS), ]
-        entrez_HS  <- entrez_HS[!is.na(entrez_HS)]
-
-        # expand homologene where multiple homologous human entrez ids
-        homologene$entrez_HS <- sapply(entrez_HS,
-                                       function(x) paste(x, collapse = ","))
-
-        homologene <- data.table::data.table(homologene)
-        homologene <- homologene[,
-                                 list(entrez_HS = unlist(strsplit(entrez_HS, ","))),
-                                 by = V3]
-
-        homologene <- as.data.frame(homologene)
-
-        # save to disc
-        utils::write.table(homologene, file = homologene_path,
-                           sep = "\t", row.names = FALSE, col.names = FALSE)
-    }
-    colnames(homologene) <- c("ENTREZID", "ENTREZID_HS")
-    return(homologene)
-}
 
 # Merge feature data from eset and raw data.
 #
@@ -176,7 +121,7 @@ merge_fdata <- function(efdat, dfdat) {
     dt1 <- data.table(efdat, key = "rn")
     dt2 <- data.table(dfdat, key = "rn")
 
-    fdat <- dt1[dt2]
+    fdat <- merge(unique(dt1), dt2, by = "rn", all.y = TRUE)
     fdat <- as.data.frame(fdat)
     row.names(fdat) <- make.unique(fdat$rn)
     fdat$rn <- NULL
@@ -247,7 +192,7 @@ get_biocpack_name <- function (gpl_name) {
 #   \code{\link{get_biocpack}}.
 # @return Annotated eset.
 
-symbol_annot <- function (eset, homologene, gse_name = "") {
+symbol_annot <- function (eset, gse_name = "") {
 
     cat("Annotating")
 
@@ -255,7 +200,7 @@ symbol_annot <- function (eset, homologene, gse_name = "") {
 
 
     # get map from features to entrez ids
-    map <- entrez_map(eset, homologene)
+    map <- entrez_map(eset)
 
     # get map from entrez ids to homologous human entrez ids
     map <- merge(map, homologene, by = "ENTREZID", all.x = TRUE, sort = FALSE)
@@ -293,7 +238,7 @@ symbol_annot <- function (eset, homologene, gse_name = "") {
     # added '.' to identify duplicates (remove)
     PROBE <- sapply(strsplit(featureNames(eset), "\\."), `[[`, 1)
 
-    # replaced '.' with '*' in Illumina features (reverse)
+    # replaced '.' with '*' in features (reverse)
     PROBE <- gsub("*", ".", PROBE, fixed = TRUE)
 
     # add PROBE to fData and use for unique row names
@@ -312,17 +257,15 @@ symbol_annot <- function (eset, homologene, gse_name = "") {
 # ------------------------
 
 
-
 # Get map from eset features to entrez id.
 #
 #
 # @param eset Expression set.
-# @param homologene Data.frame with columns 'ENTREZID' and 'ENTREZID_HS'.
 #
 # @return Data.frame with columns 'PROBEID' and 'ENTREZID' which maps from eset
 #    feature names to corresponding entrez gene ids.
 
-entrez_map <- function(eset, homologene) {
+entrez_map <- function(eset) {
 
     # default
     map <- data.frame(PROBEID = 1:nrow(eset), ENTREZID = NA)
@@ -333,15 +276,21 @@ entrez_map <- function(eset, homologene) {
     # if biocpack_name not empty, use to get entrez id
     if (!biocpack_name %in% c("", ".db")) {
         biocpack <- get_biocpack(biocpack_name)
+
+        # added '.' to identify duplicates (remove)
         ID <- sapply(strsplit(featureNames(eset), "\\."), `[[`, 1)
+
+        # replaced '.' with '*' in features (reverse)
+        ID <- gsub("*", ".", ID, fixed = TRUE)
         suppressMessages(map <- AnnotationDbi::select(biocpack, ID, "ENTREZID"))
 
+        # replace '.' with '*' (to match eset row names)
+        map$PROBEID <- gsub(".", "*", map$PROBEID, fixed = TRUE)
 
     } else {
         # if not, check fData column for entrez id
         cols <- grep("gene_id|^gene$|entrez",
                      fvarLabels(eset), ignore.case = TRUE, value = TRUE)
-
 
         if (length(cols) != 0) {
             # pick col with most homologene matches (min 1/4)
@@ -349,7 +298,6 @@ entrez_map <- function(eset, homologene) {
                 sum(fData(eset)[, col] %in% homologene$ENTREZID)
             })
             best <- names(which.max(matches))
-
 
             # expand one-to-many (row-to-entrez)
             if (matches[best] >= 0.25 * nrow(eset)) {

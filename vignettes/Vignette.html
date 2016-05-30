@@ -190,13 +190,8 @@ data_dir &lt;- system.file(&quot;extdata&quot;, package = &quot;lydata&quot;)</c
 <div id="loading-and-annotating-data" class="section level3">
 <h3>Loading and Annotating Data</h3>
 <p>After downloading the raw data, it must be loaded and annotated. The necessary bioconductor annotation data packages will be downloaded as needed.</p>
-<p>You will need the <em>homologene.data</em> file which is used to map entrez gene ids from supported species to the homologous human gene symbol. The <em>homologene.data</em> file can be obtained from <a href="http://1.usa.gov/240COzR">Homologene</a>.</p>
-<pre class="r"><code># for initial loading:
-# homologene_path &lt;- &quot;path/to/homologene.data&quot;
-# esets &lt;- load_raw(gse_names, homologene_path, data_dir)
-
-# to reload:
-esets &lt;- load_raw(gse_names, data_dir = data_dir)</code></pre>
+<pre class="r"><code># reloads if previously called
+esets &lt;- load_raw(gse_names, data_dir)</code></pre>
 <p>If <code>crossmeta</code> does not know the bioconductor annotation data package for a given platform, entry will be requested. Use the given platform (GPL) to search online for the correct package name. For example, entry was requested for GSE29689 (platform GPL6883). A search for <em>GPL6883</em> on <a href="http://www.ncbi.nlm.nih.gov/geo/">GEO</a> identified the title for this platform as <em>Illumina HumanRef-8 v3.0 expression beadchip</em>. A subsequent search on <a href="https://bioconductor.org/">Bioconductor</a> for <em>illuminahuman</em> identified the appropriate package as <em>illuminaHumanv3</em>.</p>
 <p>If you can’t find the bioconductor annotation data package (or none exists), type enter with a blank entry and <code>crossmeta</code> will attempt annotation using entrez gene ids in the feature data from the study in question. If entrez ids are absent, a warning message will request that you <em>Add human gene symbols to ‘SYMBOL’ column in fData.</em> Two options to do so are shown:</p>
 <pre class="r"><code># check feature data to see what columns are available
@@ -222,14 +217,13 @@ library(org.Mm.eg.db)
 
 # map from accession number to entrez gene ids
 ac_nums &lt;- as.character(fData(esets$GSE15069)$GB_ACC)
-map &lt;- AnnotationDbi::select(org.Mm.eg.db, ac_nums, &quot;ENTREZID&quot;, &quot;ACCNUM&quot;)
+en_id  &lt;- AnnotationDbi::mapIds(org.Mm.eg.db, ac_nums, &quot;ENTREZID&quot;, &quot;ACCNUM&quot;)
 
 # add entrez gene ids to fData 'GENE_ID' column
-fData(esets$GSE15069)$GENE_ID &lt;- map$ENTREZID
+fData(esets$GSE15069)$GENE_ID &lt;- en_id 
 
 # use crossmeta to map from entrez gene ids to homologous hgnc symbol
-homologene &lt;- crossmeta:::get_homologene(homologene_path)
-esets$GSE15069 &lt;- crossmeta:::symbol_annot(esets$GSE15069, homologene)
+esets$GSE15069 &lt;- crossmeta:::symbol_annot(esets$GSE15069)
 
 # to overwrite saved eset (avoids repeating above)
 saveRDS(esets$GSE15069, file.path(data_dir, &quot;GSE15069&quot;, &quot;GSE15069_eset.rds&quot;))</code></pre>

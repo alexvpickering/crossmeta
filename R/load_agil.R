@@ -11,7 +11,7 @@
 # @seealso \code{\link{get_raw}} to obtain raw data.
 # @return List of annotated esets.
 
-load_agil <- function (gse_names, homologene, data_dir, overwrite) {
+load_agil <- function (gse_names, data_dir, overwrite) {
 
     esets <- list()
     for (gse_name in gse_names) {
@@ -25,13 +25,11 @@ load_agil <- function (gse_names, homologene, data_dir, overwrite) {
             eset <- readRDS(eset_path)
 
         } else {
-            if (is.null(homologene)) stop("homologene_path required")
-
             # get GSEMatrices (for pheno/feature data)
             eset <- GEOquery::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE)
 
             # load eset for each platform in GSE
-            eset <- lapply(eset, load_agil_plat, homologene, gse_dir, gse_name)
+            eset <- lapply(eset, load_agil_plat, gse_dir, gse_name)
 
             # save to disc
             saveRDS(eset, file.path(gse_dir, save_name))
@@ -49,7 +47,7 @@ load_agil <- function (gse_names, homologene, data_dir, overwrite) {
 # ------------------------
 
 
-load_agil_plat <- function (eset, homologene, gse_dir, gse_name) {
+load_agil_plat <- function (eset, gse_dir, gse_name) {
 
     # get paths to raw files for samples in eset
     pattern <- paste(sampleNames(eset), ".*txt", collapse = "|", sep = "")
@@ -72,7 +70,7 @@ load_agil_plat <- function (eset, homologene, gse_dir, gse_name) {
     fData(eset) <- merge_fdata(fData(eset), data$genes)
 
     # add SYMBOL annotation
-    eset <- symbol_annot(eset, homologene, gse_name)
+    eset <- symbol_annot(eset, gse_name)
 
     return(eset)
 }
@@ -107,10 +105,11 @@ fix_agil_features <- function(eset, data) {
     })
 
     best <- fData(eset)[, names(which.max(matches))]
+    na   <- best %in% c("", NA)
     best <- make.unique(as.character(best))
 
-    eset <- eset[!is.na(best), ]
-    row.names(eset) <- best[!is.na(best)]
+    eset <- eset[!na, ]
+    row.names(eset) <- best[!na]
 
     fData(eset)$rownames <- NULL
     return(eset)

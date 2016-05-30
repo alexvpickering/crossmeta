@@ -4,13 +4,10 @@
 \alias{load_raw}
 \title{Load and annotate raw data downloaded from GEO.}
 \usage{
-load_raw(gse_names, homologene_path = NULL, data_dir = getwd(),
-  overwrite = FALSE)
+load_raw(gse_names, data_dir = getwd(), overwrite = FALSE)
 }
 \arguments{
 \item{gse_names}{Character vector of GSE names.}
-
-\item{homologene_path}{String specifying path to homologene file. See Details.}
 
 \item{data_dir}{String specifying directory with GSE folders.}
 

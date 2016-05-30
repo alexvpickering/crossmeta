@@ -108,24 +108,16 @@ test_that("merge_fdata merges on rownames, preserving data nrow and order", {
 test_that("symbol_annot finds entrez in eset fData and maps to hgnc symbol", {
 
     # gets correct hgnc symbol
-    eset <- crossmeta:::symbol_annot(eset, hgene, "GSE1")
+    eset <- crossmeta:::symbol_annot(eset, "GSE1")
 
     expect_equal(fData(eset)$GeneSymbol, fData(eset)$SYMBOL)
 
 
     # Gene_ID is column being used
     fData(eset)$Gene_ID <- fData(eset)$Gene_ID[3:1]
-    eset <- crossmeta:::symbol_annot(eset, hgene, "GSE1")
+    eset <- crossmeta:::symbol_annot(eset, "GSE1")
 
     expect_equal(fData(eset)$GeneSymbol, fData(eset)$SYMBOL[3:1])
-
-
-    # mapping is through homologene
-    hgene$ENTREZID[1:3] <- hgene$ENTREZID[3:1]
-    eset <- crossmeta:::symbol_annot(eset, hgene)
-
-    expect_equal(fData(eset)$GeneSymbol, fData(eset)$SYMBOL)
-    expect_equal(efdat$Gene_ID, fData(eset)$Gene_ID[3:1])
 })
 
 
@@ -149,7 +141,7 @@ pData(eset)$pairs     <- NA
 contrasts <- limma::makeContrasts("FOO-VEH", levels = c("VEH", "FOO"))
 
 prev <- list(GSE1 = list(eset = eset,
-                         ebayes = list(contrasts = contrasts)))
+                         ebayes_sv = list(contrasts = contrasts)))
 
 # run analysis on eset, using previous mimic
 anals <- diff_expr(esets, prev_anals = prev)

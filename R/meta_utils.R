@@ -68,50 +68,11 @@ es_meta <- function(diff_exprs, cutoff = 0.3) {
     df$z   <- df$mu/sqrt(df$var)
     df$fdr <- fdrtool::fdrtool(df$z, plot = FALSE, verbose = FALSE)$qval
 
-    es$filt <- df
+    es$filt <- df[order(df$fdr), ]
 
     return(es)
 }
 
-# ---------------------
-
-# Add metaMA effectsize values to top tables.
-#
-# Used by get_es.
-#
-# @inheritParams es_meta
-# @return diff_exprs with metaMA effectsize values added to top tables.
-
-add_es <- function(diff_exprs) {
-
-    for (i in seq_along(diff_exprs)) {
-
-        # get study degrees of freedom and group classes
-        study <- diff_exprs[[i]]
-
-        df <- study$ebayes_sv$df.residual + study$ebayes_sv$df.prior
-        classes <- pData(study$eset)$group
-
-        for (cname in names(study$top_tables)) {
-            # get group names for contrast
-            groups <- gsub("GSE\\d+_", "", cname)
-            groups <- strsplit(groups, "-")[[1]]
-
-            # get sample sizes for groups
-            ni <- sum(classes == groups[2])
-            nj <- sum(classes == groups[1])
-
-            # get effectsize values
-            tt <- study$top_tables[[cname]]
-            es <- metaMA::effectsize(tt$t, ((ni * nj)/(ni + nj)), df)
-
-            # bind effectsize values with top table
-            study$top_tables[[cname]] <- cbind(tt, es)
-        }
-        diff_exprs[[i]] <- study
-    }
-    return(diff_exprs)
-}
 
 # ---------------------
 
@@ -123,7 +84,7 @@ add_es <- function(diff_exprs) {
 get_es <- function(diff_exprs, cutoff = 0.3) {
 
     # add dprimes and vardprimes to top tables
-    diff_exprs <- add_es(diff_exprs)
+    diff_exprs <- ccmap:::add_es(diff_exprs)
 
     # get top tables
     es <- lapply(diff_exprs, function(study) study$top_tables)

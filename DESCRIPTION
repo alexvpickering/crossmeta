@@ -30,6 +30,7 @@ Imports:
     Biobase,
     BiocGenerics,
     BiocInstaller,
+    ccmap,
     data.table,
     dplyr,
     fdrtool,
