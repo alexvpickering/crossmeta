@@ -51,7 +51,7 @@ data_dir <- system.file("extdata", package = "lydata")
 gse_names  <- c("GSE9601", "GSE15069", "GSE50841", "GSE34817", "GSE29689")
 
 # load first eset
-esets <- load_raw(gse_names[1], data_dir = data_dir)
+esets <- load_raw(gse_names[1], data_dir)
 
 # run analysis
 # anals <- diff_expr(esets, data_dir)

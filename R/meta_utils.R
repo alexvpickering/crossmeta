@@ -84,7 +84,7 @@ es_meta <- function(diff_exprs, cutoff = 0.3) {
 get_es <- function(diff_exprs, cutoff = 0.3) {
 
     # add dprimes and vardprimes to top tables
-    diff_exprs <- ccmap:::add_es(diff_exprs)
+    diff_exprs <- ccmap::add_es(diff_exprs)
 
     # get top tables
     es <- lapply(diff_exprs, function(study) study$top_tables)
@@ -211,4 +211,65 @@ mu.tau2 <- function (my.d, my.vars.new) {
 var.tau2 <- function (my.vars.new) {
     w <- 1/my.vars.new
     my.var <- 1/rowSums(w, na.rm = TRUE)
+}
+
+
+# ---------------------
+
+
+#' Contribute results of meta-analysis to public database.
+#'
+#' Contributed results will be used to build a freely searchable database of
+#' gene expression meta-analyses.
+#'
+#' Performs meta-analysis using \code{es_meta} for . Sends overall mean effect size
+#' values and minimal information needed to reproduce meta-analysis.
+#'
+#'
+#' @param diff_exprs Result of call to \code{diff_expr}.
+#' @param subject String identifying meta-analysis subject (e.g. "rapamycin" or
+#'    "prostate_cancer").
+#'
+#' @export
+#'
+#' @examples
+#' library(lydata)
+#'
+#' # location of data
+#' data_dir <- system.file("extdata", package = "lydata")
+#'
+#' # gather GSE names
+#' gse_names  <- c("GSE9601", "GSE15069", "GSE50841", "GSE34817", "GSE29689")
+#'
+#' # load differential expression analyses
+#' anals <- load_diff(gse_names, data_dir)
+#'
+#' # contribute results of meta-analysis
+#' # contribute(anals, subject = "LY294002")
+
+contribute <- function(diff_exprs, subject) {
+
+    # get pdata
+    pcols <- c("treatment", "group", "pairs")
+    pdata <- lapply(diff_exprs, function(x) pData(x$eset)[, pcols])
+
+    # get contrasts
+    cons  <- lapply(diff_exprs, function(x) colnames(x$ebayes_sv$contrasts))
+
+    # get effect size values
+    es <- es_meta(diff_exprs)
+    es <- ccmap::get_dprimes(es)$meta
+
+    # put it all together
+    meta_info <- list(pdata = pdata, contrasts = cons, effectsize = es)
+
+    # upload to dropbox
+    tstamp    <- format(Sys.time(), "%Y%m%d_%H%M%S_")
+    save_name <- paste0(tstamp, subject, ".rds")
+
+    saveRDS(meta_info, save_name)
+    rdrop2::drop_upload(dtoken = token, save_name)
+    message("Thank you for your contribution!")
+    file.remove(save_name)
+    return(NULL)
 }

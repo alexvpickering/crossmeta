@@ -41,9 +41,7 @@ select_contrasts <- function(gse_name, eset) {
 
     ui <- miniPage(
         # title bar
-        gadgetTitleBar("Select Contrasts", left = miniTitleBarButton("geo",
-                                                                     a("GEO",
-                                                                       href = gse_link))),
+        gadgetTitleBar("Select Contrasts", left = miniTitleBarButton("geo", "GEO")),
         miniTabstripPanel(
             miniTabPanel("Samples", icon = icon("table"),
                          miniContentPanel(
@@ -281,6 +279,14 @@ select_contrasts <- function(gse_name, eset) {
             } else {
                 stopApp(list(rows = previous, cons = contrasts, pairs = pdata$Pair))
             }
+        })
+
+
+        # ------------------- click 'GEO'
+
+
+        observeEvent(input$geo, {
+            utils::browseURL(gse_link)
         })
 
     }

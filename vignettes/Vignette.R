@@ -30,36 +30,22 @@ esets <- load_raw(gse_names, data_dir)
 ## ----eval = FALSE--------------------------------------------------------
 #  # check feature data to see what columns are available
 #  library(Biobase)
-#  View(fData(esets$GSE29689))
 #  View(fData(esets$GSE15069))
 #  
-#  # if human platform and hgnc symbol present in fData:
-#  # ---------------------------------------------------
-#  
-#  # use column with hgnc symbol for annotation
-#  fData(esets$GSE29689)$SYMBOL <- toupper(fData(esets$GSE29689)$Symbol)
-#  
-#  # to overwrite saved eset (avoids repeating above)
-#  saveRDS(esets$GSE29689, file.path(data_dir, "GSE29689", "GSE29689_eset.rds"))
-#  
-#  
-#  # if non-human platform and accession numbers present in fData:
-#  # -------------------------------------------------------------
-#  
-#  # load annotation package for appropriate species
+#  # annotation package for appropriate species
 #  library(org.Mm.eg.db)
 #  
 #  # map from accession number to entrez gene ids
-#  ac_nums <- as.character(fData(esets$GSE15069)$GB_ACC)
-#  en_id  <- AnnotationDbi::mapIds(org.Mm.eg.db, ac_nums, "ENTREZID", "ACCNUM")
+#  acnums  <- as.character(fData(esets$GSE15069)$GB_ACC)
+#  enids   <- AnnotationDbi::mapIds(org.Mm.eg.db, acnums, "ENTREZID", "ACCNUM")
 #  
 #  # add entrez gene ids to fData 'GENE_ID' column
-#  fData(esets$GSE15069)$GENE_ID <- en_id
+#  fData(esets$GSE15069)$GENE_ID <- enids
 #  
 #  # use crossmeta to map from entrez gene ids to homologous hgnc symbol
-#  esets$GSE15069 <- crossmeta:::symbol_annot(esets$GSE15069)
+#  esets$GSE15069 <- symbol_annot(esets$GSE15069)
 #  
-#  # to overwrite saved eset (avoids repeating above)
+#  # overwrite saved eset (to avoid repeating above)
 #  saveRDS(esets$GSE15069, file.path(data_dir, "GSE15069", "GSE15069_eset.rds"))
 
 ## ---- eval=FALSE---------------------------------------------------------
@@ -81,4 +67,10 @@ es <- es_meta(anals)
 
 # for explanation of values
 # ?es_meta
+
+## ----eval=FALSE----------------------------------------------------------
+#  # subject is the focus of the meta-analysis (e.g. drug/disease name)
+#  contribute(anals, subject = "LY294002")
+#  
+#  # Thank you!
 

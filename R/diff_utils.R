@@ -9,7 +9,7 @@
 #' and supplied to the \code{prev_anals} parameter. In this case, previous
 #' selections/names will be reused.
 #'
-#' @import magrittr Biobase shiny miniUI
+#' @import Biobase shiny miniUI
 #' @importFrom BiocGenerics annotation
 #'
 #' @param esets List of annotated esets. Created by \code{load_raw}.
@@ -44,7 +44,7 @@
 #' gse_names  <- c("GSE9601", "GSE15069", "GSE50841", "GSE34817", "GSE29689")
 #'
 #' # load first eset
-#' esets <- load_raw(gse_names[1], data_dir = data_dir)
+#' esets <- load_raw(gse_names[1], data_dir)
 #'
 #' # run analysis
 #' # anals <- diff_expr(esets, data_dir)
@@ -293,13 +293,8 @@ iqr_duplicates <- function (eset, mod, svobj, annot = "SYMBOL") {
     data <- data[!is.na(data[, annot]), ]
 
     # for rows with same annot, keep highest IQR
-    data %>%
-        dplyr::group_by_(annot) %>%
-        dplyr::arrange_("dplyr::desc(IQR)") %>%
-        dplyr::slice(1) %>%
-        dplyr::ungroup() ->
-        data
-
+    data <- data.table(data)
+    data <- data[, .SD[which.max(IQR)], by = SYMBOL]
 
     # use row number to keep selected features
     eset <- eset[data$row, ]

@@ -32,20 +32,19 @@ Imports:
     BiocInstaller,
     ccmap,
     data.table,
-    dplyr,
     fdrtool,
     GEOquery,
     limma,
-    magrittr,
     matrixStats,
     metaMA,
     miniUI,
     oligo,
     org.Hs.eg.db,
     RColorBrewer,
+    rdrop2,
     stringr,
     sva,
-    shiny,
+    shiny
 RoxygenNote: 5.0.1
 VignetteBuilder: knitr
 biocViews:

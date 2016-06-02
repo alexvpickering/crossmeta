@@ -11,7 +11,7 @@ See [vignette](http://bit.ly/1P199F9) for usage.
 
 
 A high quality meta-analysis is achieved by addressing the key issues in 
-conducting a meta-analysis of microarray data (1):
+conducting a meta-analysis of microarray data^1^:
   
   
   
@@ -35,14 +35,34 @@ conducting a meta-analysis of microarray data (1):
   * User selects contrasts and any paired samples (`shiny` GUI).
   * Plots group clustering (multidimensional scaling plots).
 
-
 **Meta-analysis of results**  
 
   * Extends method in `GeneMeta` to allow for genes that were not measured in 
     all studies.
   * Analysis uses moderated unbiased effect sizes calculated by `metaMA` and
     determines false discovery rates using `fdrtool`.
-  
+
+-------------------------------
+
+In general, the analysis workflow is as follows (see 
+[vignette](http://bit.ly/1P199F9) for details):
+
+```R
+# studies from GEO
+gse_names  <- c("GSE9601", "GSE15069")
+
+# get raw data for specified studies
+get_raw(gse_names)
+
+# load and annotate raw data
+esets <- load_raw(gse_names)
+
+# perform differential expression analysis
+anals <- diff_expr(esets)
+
+# perform meta-analysis
+es <- es_meta(anals)
+```
   
 -----------------
 

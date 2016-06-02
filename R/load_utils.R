@@ -179,18 +179,36 @@ get_biocpack_name <- function (gpl_name) {
 # ------------------------
 
 
-# Add gene symbol to expression set.
-#
-# Function uses platform (GPL) to identify and download corresponding
-# bioconductor annotation data package. Gene ("SYMBOL") and probe ("PROBE")
-# names are then added to featureData slot of supplied eset.
-#
-# @param eset Expression set to annotate.
-# @param gpl_name Platform name used to look up annotation data package.
-#
-# @seealso \code{\link{load_raw}}, \code{\link{get_biocpack_name}},
-#   \code{\link{get_biocpack}}.
-# @return Annotated eset.
+#' Add hgnc symbol to expression set.
+#'
+#' Function first maps entrez gene ids to homologous human entrez gene ids and
+#' then to hgnc symbols.
+#'
+#' Initial entrez gene ids are obtained from bioconductor annotation data
+#' packages or from feature data of supplied expression set. Homologous human
+#' entrez ids are obtained from homologene and then mapped to hgnc symbols
+#' using org.Hs.eg.db. Expression set is expanded if 1:many mappings occur.
+#'
+#' @param eset Expression set to annotate.
+#' @param gse_name GSE name for eset.
+#'
+#' @export
+#' @seealso \code{\link{load_raw}}.
+#'
+#' @return Expression set with hgnc symbols ("SYMBOL") and row names ("PROBE")
+#'    added to fData slot.
+#'
+#' @examples
+#' library(lydata)
+#'
+#' # location of raw data
+#' data_dir <- system.file("extdata", package = "lydata")
+#'
+#' # load eset
+#' eset <- load_raw("GSE9601", data_dir)[[1]]
+#'
+#' # annotate eset (need if load_raw failed to annotate)
+#' eset <- symbol_annot(eset)
 
 symbol_annot <- function (eset, gse_name = "") {
 
