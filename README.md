@@ -11,7 +11,7 @@ See [vignette](http://bit.ly/1P199F9) for usage.
 
 
 A high quality meta-analysis is achieved by addressing the key issues in 
-conducting a meta-analysis of microarray data^1^:
+conducting a meta-analysis of microarray data (1):
   
   
   
@@ -62,6 +62,9 @@ anals <- diff_expr(esets)
 
 # perform meta-analysis
 es <- es_meta(anals)
+
+# contribute your results
+contribute(anals)
 ```
   
 -----------------
