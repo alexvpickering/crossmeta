@@ -38,13 +38,13 @@ conducting a meta-analysis of microarray data (1):
   
   
   
-#### CONSISTENTLY NORMALIZE RAW DATA 
+#### Consistently normalize raw data
 
   * Raw data is downloaded from GEO supplementary files.
   * Raw data is norm-exp background corrected, quantile normalized, and log2
     transformed.
   
-#### ANNOTATE PROBES
+#### Annotate probes
 
   * Probes are mapped to human gene symbol (or homolog).
   * One-to-many (probe-to-symbol): keeps all.
@@ -52,14 +52,14 @@ conducting a meta-analysis of microarray data (1):
     selected samples.
   
   
-#### DIFFERENTIAL EXPRESSION ANALYSIS 
+#### Differential expression analysis
 
   * Controls for unknown batch effects (`sva`).
   * User selects contrasts and any paired samples (`shiny` GUI).
   * Plots group clustering (multidimensional scaling plots).
   
 
-#### META-ANALYSIS OF RESULTS
+#### Meta-analysis of results
 
   * Extends method in `GeneMeta` to allow for genes that were not measured in 
     all studies.
