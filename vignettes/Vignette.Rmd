@@ -76,12 +76,11 @@ Also ensure that column names have the following format:
 * __Detection p-values__: _Detection-sample_name_
 
 
-
 To open these files one at a time with your default text editor:
 
 ```{r, eval=FALSE}
 # this is why we gathered Illumina GSEs
-crossmeta:::open_raw_illum(illum_names, data_dir)
+open_raw_illum(illum_names, data_dir)
 ```
 
 
@@ -135,9 +134,8 @@ _illuminahuman_ identified the appropriate package as _illuminaHumanv3_.
 If you can't find the bioconductor annotation data package (or none exists), type
 enter with a blank entry and `crossmeta` will attempt annotation using entrez 
 gene ids in the feature data from the study in question. If entrez ids are absent,
-a warning message will request that you _Add human gene symbols to 'SYMBOL' 
-column in fData._ To do so, I reccommend that you add entrez ids and then use
-`crossmeta` to map these to hgnc symbols. For example:
+annotation will fail. To proceed, I reccommend that you add entrez ids and then
+use `crossmeta` to map these to hgnc symbols. For example:
 
 ```{r eval = FALSE}
 # check feature data to see what columns are available

@@ -167,7 +167,7 @@ illum_names &lt;- c(&quot;GSE50841&quot;, &quot;GSE34817&quot;, &quot;GSE29689&q
 </ul>
 <p>To open these files one at a time with your default text editor:</p>
 <pre class="r"><code># this is why we gathered Illumina GSEs
-crossmeta:::open_raw_illum(illum_names, data_dir)</code></pre>
+open_raw_illum(illum_names, data_dir)</code></pre>
 <p>For GSE50841:</p>
 <ul>
 <li>click <em>Find</em> then <em>Replace</em> (or <em>Ctrl + h</em>)</li>
@@ -197,7 +197,7 @@ data_dir &lt;- system.file(&quot;extdata&quot;, package = &quot;lydata&quot;)</c
 <pre class="r"><code># reloads if previously called
 esets &lt;- load_raw(gse_names, data_dir)</code></pre>
 <p>If <code>crossmeta</code> does not know the bioconductor annotation data package for a given platform, entry will be requested. Use the given platform (GPL) to search online for the correct package name. For example, entry was requested for GSE29689 (platform GPL6883). A search for <em>GPL6883</em> on <a href="http://www.ncbi.nlm.nih.gov/geo/">GEO</a> identified the title for this platform as <em>Illumina HumanRef-8 v3.0 expression beadchip</em>. A subsequent search on <a href="https://bioconductor.org/">Bioconductor</a> for <em>illuminahuman</em> identified the appropriate package as <em>illuminaHumanv3</em>.</p>
-<p>If you can’t find the bioconductor annotation data package (or none exists), type enter with a blank entry and <code>crossmeta</code> will attempt annotation using entrez gene ids in the feature data from the study in question. If entrez ids are absent, a warning message will request that you <em>Add human gene symbols to ‘SYMBOL’ column in fData.</em> To do so, I reccommend that you add entrez ids and then use <code>crossmeta</code> to map these to hgnc symbols. For example:</p>
+<p>If you can’t find the bioconductor annotation data package (or none exists), type enter with a blank entry and <code>crossmeta</code> will attempt annotation using entrez gene ids in the feature data from the study in question. If entrez ids are absent, annotation will fail. To proceed, I reccommend that you add entrez ids and then use <code>crossmeta</code> to map these to hgnc symbols. For example:</p>
 <pre class="r"><code># check feature data to see what columns are available
 library(Biobase)
 View(fData(esets$GSE15069))

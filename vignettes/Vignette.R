@@ -15,7 +15,7 @@ illum_names <- c("GSE50841", "GSE34817", "GSE29689")
 
 ## ---- eval=FALSE---------------------------------------------------------
 #  # this is why we gathered Illumina GSEs
-#  crossmeta:::open_raw_illum(illum_names, data_dir)
+#  open_raw_illum(illum_names, data_dir)
 
 ## ---- message=FALSE, warning=FALSE---------------------------------------
 library(lydata)

@@ -280,6 +280,9 @@ diff_setup <- function(eset, group_levels, gse_name){
 
 iqr_duplicates <- function (eset, mod, svobj, annot = "SYMBOL") {
 
+    # for R CMD check
+    iqrange = SYMBOL = NULL
+
     # get eset with surrogate variables modeled out
     exprs_sva <- clean_y(exprs(eset), mod, svobj$sv)
 

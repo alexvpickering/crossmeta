@@ -154,12 +154,32 @@ add_pvals <- function (eset, pvals) {
 # -------------------
 
 
+#' Open raw Illumina microarray files.
+#'
+#' Helper function to open raw Illumina microarray files in order to check that
+#' they are formatted correctly. For details on correct format, please see
+#' 'Checking Raw Illumina Data' in vignette.
+#'
+#' @param gse_names Character vector of Illumina GSE names to open.
+#' @param data_dir String specifying directory with GSE folders.
+#'
+#' @return Character vector of successfully formated Illumina GSE names.
+#' @export
+#'
+#' @examples
+#' library(lydata)
+#'
+#' # Illumina GSE names
+#' illum_names <- c("GSE50841", "GSE34817", "GSE29689")
+#'
+#' # location of raw data
+#' data_dir <- system.file("extdata", package = "lydata")
+#'
+#' # open raw data files with default text editor
+#' # open_raw_illum(illum_names)
+
 open_raw_illum <- function (gse_names, data_dir = getwd()) {
 
-    # OUT: names of successfully formated (probeid = "ID_REF",
-    #                                     exprs = "AVG_Signal-sample_name",
-    #                                     pvals = "Detection-sample_name",
-    #                                     sep = "\t")
     out_names <- gse_names
     for (i in seq_along(gse_names)) {
         # get data paths

@@ -90,7 +90,14 @@ load_raw <- function(gse_names, data_dir = getwd(), overwrite = FALSE) {
     # load esets
     affy_esets  <- load_affy(affy_names, data_dir, overwrite)
     agil_esets  <- load_agil(agil_names, data_dir, overwrite)
-    illum_esets <- load_illum(illum_names, data_dir, overwrite)
+    illum_esets <- tryCatch (
+        load_illum(illum_names, data_dir, overwrite),
+        error = function(c){
+            c$message <- paste("Couldn't load previous Illumina GSE. Please",
+                               "see 'Checking Raw Illumina Data' in vignette.")
+            stop(c)
+        }
+    )
 
     return (c(affy_esets, agil_esets, illum_esets))
 }
@@ -241,8 +248,9 @@ symbol_annot <- function (eset, gse_name = "") {
         error = function(c) {
             if (grepl("valid keys", c$message)) {
                 message("Annotation failed.")
-                warning(gse_name, ": Annotation failed. ",
-                        "Add human gene symbols to 'SYMBOL' column in fData.")
+                c$message <- paste0(gse_name, ": Annotation failed. Please see ",
+                                    "'Loading and Annotating Data' in vignette")
+                warning(c)
                 return(NULL)
             }
         }
