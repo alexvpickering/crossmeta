@@ -21,9 +21,9 @@ selections and names will be reused.}
 }
 \value{
 List of lists (one per GSE), each containing:
-  \item{eset}{Expression set without expression or feature data. Treatment
-     (ctl or test) and group columns have been added to the \code{pData} slot.
-     Only selected samples kept.}
+  \item{eset}{Expression set without expression or feature data.
+     \code{Treatment} ('ctl' or 'test') and \code{group} columns have been
+     added to the \code{pData} slot. Only selected samples kept.}
   \item{top_tables}{List with results of \code{\link{topTable}} call (one per
      contrast). These results account for the effects of nuissance variables
      discovered by surrogate variable analysis.}

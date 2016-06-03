@@ -1,11 +1,14 @@
 ---
 title: "Cross-Platform Meta Analysis"
-output: html_document
-vignette: >
-  %\VignetteIndexEntry{crossmeta vignette}
-  %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteEncoding{UTF-8}  
+output:
+  html_document:
+    theme: flatly
 ---
+<!--
+%\VignetteEngine{knitr::rmarkdown}
+%\VignetteIndexEntry{crossmeta vignette}
+-->
+
 
 `crossmeta` streamlines the cross-platform meta-analysis of 
 microarray data. For the analysis, you will need a list of Affymetrix, Illumina,

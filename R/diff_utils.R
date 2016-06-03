@@ -25,9 +25,9 @@
 #'   \code{\link{load_diff}}.
 #'
 #' @return List of lists (one per GSE), each containing:
-#'   \item{eset}{Expression set without expression or feature data. Treatment
-#'      (ctl or test) and group columns have been added to the \code{pData} slot.
-#'      Only selected samples kept.}
+#'   \item{eset}{Expression set without expression or feature data.
+#'      \code{Treatment} ('ctl' or 'test') and \code{group} columns have been
+#'      added to the \code{pData} slot. Only selected samples kept.}
 #'   \item{top_tables}{List with results of \code{\link{topTable}} call (one per
 #'      contrast). These results account for the effects of nuissance variables
 #'      discovered by surrogate variable analysis.}
@@ -285,7 +285,7 @@ iqr_duplicates <- function (eset, mod, svobj, annot = "SYMBOL") {
 
     # add inter-quartile ranges, row, and feature data to exprs data
     data <- as.data.frame(exprs_sva)
-    data$IQR <- matrixStats::rowIQRs(exprs_sva)
+    data$iqrange <- matrixStats::rowIQRs(exprs_sva)
     data$row <- 1:nrow(data)
     data[, colnames(fData(eset))] <- fData(eset)
 
@@ -294,7 +294,7 @@ iqr_duplicates <- function (eset, mod, svobj, annot = "SYMBOL") {
 
     # for rows with same annot, keep highest IQR
     data <- data.table(data)
-    data <- data[, .SD[which.max(IQR)], by = SYMBOL]
+    data <- data[, .SD[which.max(iqrange)], by = SYMBOL]
 
     # use row number to keep selected features
     eset <- eset[data$row, ]

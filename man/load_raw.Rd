@@ -18,9 +18,7 @@ List of annotated esets.
 }
 \description{
 Loads and annotates raw data previously downloaded with \code{get_raw}.
-Supported platforms include Affymetrix, Agilent, and Illumina. The
-homologene.data file can be obtained from
-\href{http://1.usa.gov/240COzR}{HomoloGene}.
+Supported platforms include Affymetrix, Agilent, and Illumina.
 }
 \examples{
 library(lydata)

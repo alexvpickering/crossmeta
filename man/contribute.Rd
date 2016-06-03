@@ -12,13 +12,17 @@ contribute(diff_exprs, subject)
 \item{subject}{String identifying meta-analysis subject (e.g. "rapamycin" or
 "prostate_cancer").}
 }
+\value{
+NULL (used to contribute meta-analysis).
+}
 \description{
 Contributed results will be used to build a freely searchable database of
 gene expression meta-analyses.
 }
 \details{
-Performs meta-analysis using \code{es_meta} for . Sends overall mean effect size
-values and minimal information needed to reproduce meta-analysis.
+Performs meta-analysis on \code{diff_exprs} using \code{es_meta}. Sends
+overall mean effect size values and minimal information needed to reproduce
+meta-analysis.
 }
 \examples{
 library(lydata)

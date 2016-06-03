@@ -15,8 +15,8 @@ Between 0 and 1.}
 \value{
 A list with two named data.frames. The first ('filt') has all the
    columns below for genes present in cutoff or more fraction of contrasts.
-   The second ('raw') has only dprime and vardprime columns but for all genes
-   (NAs for genes not measured by a given contrast).
+   The second ('raw') has only \code{dprime} and \code{vardprime} columns but
+   for all genes (NAs for genes not measured by a given contrast).
    \item{dprime}{Unbiased effect sizes (one column per contrast).}
    \item{vardprime}{Variances of unbiased effect sizes (one column per contrast).}
    \item{mu}{Overall mean effect sizes.}

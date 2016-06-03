@@ -13,8 +13,8 @@
 #'
 #' @return A list with two named data.frames. The first ('filt') has all the
 #'    columns below for genes present in cutoff or more fraction of contrasts.
-#'    The second ('raw') has only dprime and vardprime columns but for all genes
-#'    (NAs for genes not measured by a given contrast).
+#'    The second ('raw') has only \code{dprime} and \code{vardprime} columns but
+#'    for all genes (NAs for genes not measured by a given contrast).
 #'    \item{dprime}{Unbiased effect sizes (one column per contrast).}
 #'    \item{vardprime}{Variances of unbiased effect sizes (one column per contrast).}
 #'    \item{mu}{Overall mean effect sizes.}
@@ -76,6 +76,7 @@ es_meta <- function(diff_exprs, cutoff = 0.3) {
 
 # ---------------------
 
+
 # Get dprimes and vardprimes values for each contrast.
 #
 # @inheritParams es_meta
@@ -84,7 +85,7 @@ es_meta <- function(diff_exprs, cutoff = 0.3) {
 get_es <- function(diff_exprs, cutoff = 0.3) {
 
     # add dprimes and vardprimes to top tables
-    diff_exprs <- ccmap::add_es(diff_exprs)
+    diff_exprs <- add_es(diff_exprs)
 
     # get top tables
     es <- lapply(diff_exprs, function(study) study$top_tables)
@@ -105,7 +106,73 @@ get_es <- function(diff_exprs, cutoff = 0.3) {
     return(list(filt = es[filt, ], raw = es))
 }
 
+
 # ---------------------
+
+
+# Add metaMA effectsize values to top tables.
+#
+# Used internally by \code{setup_combo_data} and \code{\link[crossmeta]{es_meta}}
+# to add moderated unbiased standardised effect sizes (dprimes) to top tables
+# from differential expression analysis.
+#
+# @param diff_exprs Result from call to \code{\link[crossmeta]{diff_expr}}.
+# @param cols Columns from \code{\link[metaMA]{effectsize}} result to add to
+#    top tables.
+#
+# @export
+# @seealso \link[crossmeta]{diff_expr}, \link[crossmeta]{es_meta}.
+#
+# @return diff_exprs with specified columns added to top_tables for each contrast.
+#
+# @examples
+# library(crossmeta)
+# library(lydata)
+#
+# # location of raw data
+# data_dir <- system.file("extdata", package = "lydata")
+#
+# # load previous analysis for eset
+# anal <- load_diff("GSE9601", data_dir)
+#
+# # add dprime and vardprime to top tables
+# anal <- add_es(anal)
+
+add_es <- function(diff_exprs, cols = c("dprime", "vardprime")) {
+
+    for (i in seq_along(diff_exprs)) {
+
+        # get study degrees of freedom and group classes
+        study <- diff_exprs[[i]]
+
+        df <- study$ebayes_sv$df.residual + study$ebayes_sv$df.prior
+        classes <- Biobase::pData(study$eset)$group
+
+        for (con in names(study$top_tables)) {
+            # get group names for contrast
+            groups <- gsub("GSE.+?_", "", con)
+            groups <- strsplit(groups, "-")[[1]]
+
+            # get sample sizes for groups
+            ni <- sum(classes == groups[2])
+            nj <- sum(classes == groups[1])
+
+            # bind effect size values with top table
+            tt <- study$top_tables[[con]]
+            es <- metaMA::effectsize(tt$t, ((ni * nj)/(ni + nj)), df)[, cols, drop = FALSE]
+            tt <- cbind(tt, es)
+
+            # store results
+            study$top_tables[[con]] <- tt
+        }
+        diff_exprs[[i]] <- study
+    }
+    return(diff_exprs)
+}
+
+
+# ---------------------
+
 
 # Merge a list of data.frames.
 #
@@ -222,8 +289,9 @@ var.tau2 <- function (my.vars.new) {
 #' Contributed results will be used to build a freely searchable database of
 #' gene expression meta-analyses.
 #'
-#' Performs meta-analysis using \code{es_meta} for . Sends overall mean effect size
-#' values and minimal information needed to reproduce meta-analysis.
+#' Performs meta-analysis on \code{diff_exprs} using \code{es_meta}. Sends
+#' overall mean effect size values and minimal information needed to reproduce
+#' meta-analysis.
 #'
 #'
 #' @param diff_exprs Result of call to \code{diff_expr}.
@@ -231,6 +299,8 @@ var.tau2 <- function (my.vars.new) {
 #'    "prostate_cancer").
 #'
 #' @export
+#'
+#' @return NULL (used to contribute meta-analysis).
 #'
 #' @examples
 #' library(lydata)
@@ -258,10 +328,11 @@ contribute <- function(diff_exprs, subject) {
 
     # get effect size values
     es <- es_meta(diff_exprs)
-    es <- ccmap::get_dprimes(es)$meta
+    mu <- es$filt$mu
+    names(mu) <- row.names(es$filt)
 
     # put it all together
-    meta_info <- list(pdata = pdata, contrasts = cons, effectsize = es)
+    meta_info <- list(pdata = pdata, contrasts = cons, effectsize = mu)
 
     # upload to dropbox
     tstamp    <- format(Sys.time(), "%Y%m%d_%H%M%S_")
