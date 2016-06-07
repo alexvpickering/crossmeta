@@ -342,5 +342,7 @@ contribute <- function(diff_exprs, subject) {
     rdrop2::drop_upload(dtoken = token, save_name)
     message("Thank you for your contribution!")
     file.remove(save_name)
-    return(NULL)
+
+    # prevent printing on return
+    save_name <- NULL
 }

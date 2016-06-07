@@ -135,27 +135,33 @@ If you can't find the bioconductor annotation data package (or none exists), typ
 enter with a blank entry and `crossmeta` will attempt annotation using entrez 
 gene ids in the feature data from the study in question. If entrez ids are absent,
 annotation will fail. To proceed, I reccommend that you add entrez ids and then
-use `crossmeta` to map these to hgnc symbols. For example:
+use `crossmeta` to map these to hgnc symbols. As an example, if annotation had
+failed for GSE15069:
 
 ```{r eval = FALSE}
-# check feature data to see what columns are available
 library(Biobase)
-View(fData(esets$GSE15069))
+library(AnnotationDbi)
+
+# check feature data to see what columns are available
+head(fData(esets$GSE15069))
+
+# if using RStudio
+# View(fData(esets$GSE15069))
 
 # annotation package for appropriate species
 library(org.Mm.eg.db)
 
 # map from accession number to entrez gene ids
 acnums  <- as.character(fData(esets$GSE15069)$GB_ACC)
-enids   <- AnnotationDbi::mapIds(org.Mm.eg.db, acnums, "ENTREZID", "ACCNUM")
+enids   <- mapIds(org.Mm.eg.db, acnums, "ENTREZID", "ACCNUM")
 
-# add entrez gene ids to fData 'GENE_ID' column
+# add 'GENE_ID' column with entrez ids
 fData(esets$GSE15069)$GENE_ID <- enids 
 
 # use crossmeta to map from entrez gene ids to homologous hgnc symbol
 esets$GSE15069 <- symbol_annot(esets$GSE15069)
 
-# overwrite saved eset (to avoid repeating above)
+# to overwrite saved eset (to avoid repeating above)
 saveRDS(esets$GSE15069, file.path(data_dir, "GSE15069", "GSE15069_eset.rds"))
 ```
 

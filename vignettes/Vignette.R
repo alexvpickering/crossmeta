@@ -28,24 +28,29 @@ data_dir <- system.file("extdata", package = "lydata")
 esets <- load_raw(gse_names, data_dir)
 
 ## ----eval = FALSE--------------------------------------------------------
-#  # check feature data to see what columns are available
 #  library(Biobase)
-#  View(fData(esets$GSE15069))
+#  library(AnnotationDbi)
+#  
+#  # check feature data to see what columns are available
+#  head(fData(esets$GSE15069))
+#  
+#  # if using RStudio
+#  # View(fData(esets$GSE15069))
 #  
 #  # annotation package for appropriate species
 #  library(org.Mm.eg.db)
 #  
 #  # map from accession number to entrez gene ids
 #  acnums  <- as.character(fData(esets$GSE15069)$GB_ACC)
-#  enids   <- AnnotationDbi::mapIds(org.Mm.eg.db, acnums, "ENTREZID", "ACCNUM")
+#  enids   <- mapIds(org.Mm.eg.db, acnums, "ENTREZID", "ACCNUM")
 #  
-#  # add entrez gene ids to fData 'GENE_ID' column
+#  # add 'GENE_ID' column with entrez ids
 #  fData(esets$GSE15069)$GENE_ID <- enids
 #  
 #  # use crossmeta to map from entrez gene ids to homologous hgnc symbol
 #  esets$GSE15069 <- symbol_annot(esets$GSE15069)
 #  
-#  # overwrite saved eset (to avoid repeating above)
+#  # to overwrite saved eset (to avoid repeating above)
 #  saveRDS(esets$GSE15069, file.path(data_dir, "GSE15069", "GSE15069_eset.rds"))
 
 ## ---- eval=FALSE---------------------------------------------------------

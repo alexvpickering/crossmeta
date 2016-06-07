@@ -59,6 +59,7 @@ load_agil_plat <- function (eset, gse_dir, gse_name) {
 
     # fix up sample/feature names
     colnames(data) <- stringr::str_match(colnames(data), ".*(GSM\\d+).*")[, 2]
+    data <- data[!is.na(data$genes$ProbeName), ]
 
     row.names(data$genes) <- make.unique(data$genes$ProbeName)
     row.names(data$E)     <- make.unique(data$genes$ProbeName)

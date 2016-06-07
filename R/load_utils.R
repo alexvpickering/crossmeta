@@ -22,12 +22,12 @@ get_raw <- function (gse_names, data_dir = getwd()) {
             GEOquery::getGEOSuppFiles(gse_name, baseDir = data_dir)
         }
         # untar
-        tar_names <- list.files(gse_dir, pattern = "tar")
+        tar_names <- list.files(gse_dir, pattern = "\\.tar")
         if (length(tar_names) > 0) {
             utils::untar(paste(gse_dir, tar_names, sep = "/"), exdir = gse_dir)
         }
         # unzip
-        paths <- list.files(gse_dir, pattern = ".gz",
+        paths <- list.files(gse_dir, pattern = "\\.gz",
                             full.names = TRUE, ignore.case = TRUE)
         sapply(paths, GEOquery::gunzip, overwrite = TRUE)
     }
@@ -175,7 +175,7 @@ get_biocpack_name <- function (gpl_name) {
     # manual entry if needed
     if (is.na(biocpack_name)) {
         biocpack_name <- readline(prompt = paste("Enter biocpack_name for",
-                                                 gpl_name, ":"))
+                                                 paste0(gpl_name, ":")))
     }
     return (paste(biocpack_name, ".db", sep = ""))
 }
