@@ -49,9 +49,9 @@ conducting a meta-analysis of microarray data (1):
   
 ##### Maps probes to human genes
 
-  * Different species use different symbols to reference related genes. These
-    differences can make it challenging to compare similar microarray experiments
-    in diverse species.
+  * Related genes from different species are often referenced with different 
+    symbols. These differences can make it challenging to compare similar 
+    microarray experiments in diverse species.
     
   * `crossmeta` maps probes to human gene symbols using homology relationships
     established by [HomoloGene](http://www.ncbi.nlm.nih.gov/homologene).
