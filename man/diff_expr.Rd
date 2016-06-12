@@ -5,7 +5,7 @@
 \title{Differential expression of esets.}
 \usage{
 diff_expr(esets, data_dir = getwd(), annot = "SYMBOL",
-  prev_anals = list(NULL))
+  prev_anals = list(NULL), use_sva = TRUE)
 }
 \arguments{
 \item{esets}{List of annotated esets. Created by \code{load_raw}.}

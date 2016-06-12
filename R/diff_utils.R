@@ -55,7 +55,7 @@
 
 
 diff_expr <- function (esets, data_dir = getwd(),
-                       annot = "SYMBOL", prev_anals = list(NULL)) {
+                       annot = "SYMBOL", prev_anals = list(NULL), use_sva = TRUE) {
 
     # check for annot column
     chk <- sapply(esets, function(x) annot %in% colnames(fData(x)))
@@ -87,12 +87,12 @@ diff_expr <- function (esets, data_dir = getwd(),
         # remove rows with duplicated/NA annot (SYMBOL or PROBE)
         dups <- iqr_duplicates(cons$eset, setup$mod, setup$svobj, annot)
 
+        # option to not account for surrogate variables
+        if (!use_sva) setup$modsv <- setup$mod
 
         # differential expression
-        anal <- diff_anal(dups$eset, dups$exprs_sva,
-                          cons$contrasts, cons$levels,
-                          setup$modsv, setup$svobj,
-                          gse_dir, gse_name, annot)
+        anal <- diff_anal(dups$eset, dups$exprs_sva, cons$contrasts, cons$levels,
+                          setup$modsv, gse_dir, gse_name, annot)
 
         anals[[gse_name]] <- anal
     }
@@ -341,7 +341,7 @@ iqr_duplicates <- function (eset, mod, svobj, annot = "SYMBOL") {
 #   meta-analysis.
 
 diff_anal <- function(eset, exprs_sva, contrasts, group_levels,
-                      modsv, svobj, gse_dir, gse_name, annot = "SYMBOL"){
+                      modsv, gse_dir, gse_name, annot = "SYMBOL"){
 
     # differential expression (surrogate variables modeled and not)
     ebayes_sv <- fit_ebayes(eset, contrasts, modsv)
