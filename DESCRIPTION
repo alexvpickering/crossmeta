@@ -1,0 +1,31 @@
+Package: crossmeta
+Title: Cross Platform Meta-Analysis of Microarrays
+Version: 0.99.5
+Author: Alex Pickering
+Maintainer: Alex Pickering <alexvpickering@gmail.com>
+Description: Implements cross platform and species meta-analyses of
+        Affymentrix, Illumina, and Agilent microarray data. This
+        package automates common tasks such as downloading,
+        normalizing, and annotating raw GEO data. A user interface
+        makes it easy to select control and treatment samples for each
+        contrast and study. This input is used for subsequent surrogate
+        variable analysis (models unaccounted sources of variation) and
+        differential expression analysis. Effect sizes from
+        differential expression analyses can be combined. This
+        meta-analysis can asses genes measured in only a subset of
+        studies.
+Depends: R (>= 3.3)
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+VignetteBuilder: knitr
+Suggests: knitr, rmarkdown, lydata, org.Hs.eg.db, testthat
+Imports: affy, affxparser, AnnotationDbi, DT, Biobase, BiocGenerics,
+        BiocInstaller, data.table, fdrtool, GEOquery, limma,
+        matrixStats, metaMA, miniUI, oligo, RColorBrewer, rdrop2,
+        stringr, sva, shiny
+RoxygenNote: 5.0.1
+biocViews: GeneExpression, Transcription, DifferentialExpression,
+        Microarray, TissueMicroarray, OneChannel, Annotation,
+        BatchEffect, Preprocessing
+NeedsCompilation: no
