@@ -14,7 +14,7 @@
 #'
 #' @param esets List of annotated esets. Created by \code{load_raw}.
 #' @param data_dir String specifying directory of GSE folders.
-#' @param annot String, either "PROBE" or "SYMBOL" for probe or gene level
+#' @param annot String, either "ENTREZID" or "SYMBOL" for probe or gene level
 #'   analysis respectively. For duplicated genes symbols,the feature with
 #'   the highest interquartile range across selected samples will be kept.
 #' @param prev_anals Previous result of \code{diff_expr}. If Present, previous
@@ -55,7 +55,7 @@
 
 
 diff_expr <- function (esets, data_dir = getwd(),
-                       annot = "SYMBOL", prev_anals = list(NULL), use_sva = TRUE) {
+                       annot = "SYMBOL", prev_anals = list(NULL)) {
 
     # check for annot column
     chk <- sapply(esets, function(x) annot %in% colnames(fData(x)))
@@ -84,11 +84,21 @@ diff_expr <- function (esets, data_dir = getwd(),
         setup <- diff_setup(cons$eset, cons$levels, gse_name)
 
 
-        # remove rows with duplicated/NA annot (SYMBOL or PROBE)
-        dups <- iqr_duplicates(cons$eset, setup$mod, setup$svobj, annot)
+        # remove rows with duplicated/NA annot (SYMBOL or ENTREZID)
+        dups <- tryCatch (
+            {iqr_duplicates(cons$eset, setup$mod, setup$svobj, annot)},
+
+            error = function(c) {
+                message(gse_name, ": couldn't fit model - skipping GSE.",
+                        " Could try non-GUI selection (see ?setup_prev).")
+                return(c)
+            })
+        if(inherits(dups, "error")) next
 
         # option to not account for surrogate variables
-        if (!use_sva) setup$modsv <- setup$mod
+        # to restore add 'use_sva = TRUE' as function parameter
+
+        # if (!use_sva) setup$modsv <- setup$mod
 
         # differential expression
         anal <- diff_anal(dups$eset, dups$exprs_sva, cons$contrasts, cons$levels,
@@ -297,7 +307,7 @@ iqr_duplicates <- function (eset, mod, svobj, annot = "SYMBOL") {
 
     # for rows with same annot, keep highest IQR
     data <- data.table(data)
-    data <- data[, .SD[which.max(iqrange)], by = SYMBOL]
+    data <- data[, .SD[which.max(iqrange)], by = eval(annot)]
 
     # use row number to keep selected features
     eset <- eset[data$row, ]
@@ -333,8 +343,8 @@ iqr_duplicates <- function (eset, mod, svobj, annot = "SYMBOL") {
 # @param svobj Result from \code{sva} function called during \code{diff_setup}.
 # @param gse_dir String, path to directory with GSE folders.
 # @param gse_name String, name of GSE.
-# @param annot String, either "PROBE" or "SYMBOL" for probe or gene level
-#   analysis respectively. If "PROBE", appends "_probe.rds" to save name.
+# @param annot String, either "ENTREZID" or "SYMBOL" for probe or gene level
+#   analysis respectively. If "ENTREZID", appends "_entrezid.rds" to save name.
 #
 # @seealso \code{\link{diff_expr}}.
 # @return List, final result of \code{diff_expr}. Used for subsequent
@@ -377,12 +387,8 @@ diff_anal <- function(eset, exprs_sva, contrasts, group_levels,
 
     # save to disk
     diff_expr <- list(eset = eset, top_tables = top_tables, ebayes_sv = ebayes_sv)
-
-    if (annot ==  "SYMBOL")
-        save_name <- paste (gse_name, "diff_expr.rds", sep = "_")
-
-    if (annot ==  "PROBE")
-        save_name <- paste (gse_name, "diff_expr_probe.rds", sep = "_")
+    save_name <- paste(gse_name, "diff_expr", tolower(annot), sep = "_")
+    save_name <- paste0(save_name, ".rds")
 
     saveRDS(diff_expr, file = paste(gse_dir, save_name, sep = "/"))
     return (diff_expr)
@@ -451,7 +457,7 @@ clean_y <- function(y, mod, svs) {
 #'
 #' @param gse_names Character vector specifying GSE names to be loaded.
 #' @param data_dir String specifying directory of GSE folders.
-#' @param probe Load probe level analysis? Default loads gene level analysis.
+#' @param annot Level of previous analysis (e.g. "SYMBOL" or "ENTREZID").
 #'
 #' @export
 #' @seealso \code{\link{diff_expr}}.
@@ -463,19 +469,23 @@ clean_y <- function(y, mod, svs) {
 #' gse_names<- c("GSE9601", "GSE34817")
 #' prev <- load_diff(gse_names, data_dir)
 
-load_diff <- function(gse_names, data_dir = getwd(), probe = FALSE) {
+load_diff <- function(gse_names, data_dir = getwd(), annot = "SYMBOL") {
 
     anals <- list()
     for (gse_name in gse_names) {
         gse_dir <- file.path (data_dir, gse_name)
 
-        if (probe) {
-            anal_paths <- list.files(gse_dir, pattern = ".*_diff_expr_probe.rds",
-                                     full.names = TRUE)
-        } else {
-            anal_paths <- list.files(gse_dir, pattern = ".*_diff_expr.rds",
-                                     full.names = TRUE)
+        # need until rename all previous
+        if (annot == "SYMBOL") {
+            paths <- list.files(gse_dir, pattern = ".*_diff_expr.rds", full.names = TRUE)
+            to    <- gsub("expr", "expr_symbol", paths, fixed = TRUE)
+            file.rename(paths, to)
         }
+
+        # get paths
+        pattern <- paste0(paste(".*_diff_expr", tolower(annot), sep="_"), ".rds")
+        anal_paths <- list.files(gse_dir, pattern, full.names = TRUE)
+
         # load each diff path
         # multiple if more than one platform per GSE)
         for (path in anal_paths) {

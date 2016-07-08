@@ -63,6 +63,33 @@ prev <- load_diff(gse_names, data_dir)
 # supply prev to diff_expr
 # anals <- diff_expr(esets, data_dir, prev_anals=prev)
 
+## ---- message=FALSE, warning=FALSE, results='hide', fig.keep='none'------
+library(Biobase)
+
+# load eset
+gse_name  <- c("GSE34817")
+eset <- load_raw(gse_name, data_dir)
+
+# inspect pData of eset
+# View(pData(eset$GSE34817))  # if using RStudio
+head(pData(eset$GSE34817))    # otherwise
+
+# get group info from pData (differs based on eset)
+group <- pData(eset$GSE34817)$characteristics_ch1.1
+
+# make group names concise and valid
+group <- gsub("treatment: ", "", group)
+group <- make.names(group)
+
+# add group to eset pData
+pData(eset$GSE34817)$group <- group
+
+# setup selections
+sel <- setup_prev(eset, contrasts = "LY-DMSO")
+
+# run differential expression analysis
+anal <- diff_expr(eset, data_dir, prev_anal = sel)
+
 ## ---- message=FALSE, results='hide'--------------------------------------
 # re-load previous analyses if need to
 anals <- load_diff(gse_names, data_dir)
@@ -78,4 +105,7 @@ es <- es_meta(anals)
 #  contribute(anals, subject = "LY294002")
 #  
 #  # Thank you!
+
+## ------------------------------------------------------------------------
+sessionInfo()
 

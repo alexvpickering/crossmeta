@@ -269,9 +269,13 @@ symbol_annot <- function (eset, gse_name = "") {
     fData(eset)$PROBE <- PROBE
     row.names(eset) <- make.unique(PROBE)
 
-    # add uppercase gene symbols to fData
     if (!is.null(SYMBOL)) {
+        # add uppercase gene symbols to fData
         fData(eset)$SYMBOL <- toupper(SYMBOL)
+
+        # add entrez ids to fData
+        fData(eset)$ENTREZID    <- map$ENTREZID
+        fData(eset)$ENTREZID_HS <- map$ENTREZID_HS
     }
     return (eset)
 }

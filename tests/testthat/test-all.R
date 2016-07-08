@@ -184,6 +184,36 @@ test_that("diff_expr removes duplicates based on IQR", {
 })
 
 
+test_that("setup_prev works", {
+
+    # no 'group' should result in error
+    expect_error(setup_prev(esets, "FOO-VEH"), "'group' column missing")
+
+    # add 'group' to pData
+    esets2 <- esets
+    pData(esets2$GSE1)$group <- pData(esets2$GSE1)$title
+
+    prev <- setup_prev(esets2, "FOO-VEH")
+    anals2 <- diff_expr(esets, prev_anal = prev)
+
+    # outcome should be same with setup_prev
+    expect_equal(anals, anals2)
+})
+
+test_that("diff_expr skips GSE if modeling not possible", {
+
+    # add 'group' to pData
+    esets2 <- esets
+    pData(esets2$GSE1)$group <- pData(esets2$GSE1)$title
+
+    # add confounded 'pairs' to pData
+    pData(esets2$GSE1)$pairs <- c(1, 1, 2, 2)
+
+    prev <- setup_prev(esets2, "FOO-VEH")
+    expect_message(diff_expr(esets, prev_anal = prev), "couldn't fit model")
+})
+
+
 
 # ----------------- Cleanup
 

@@ -5,14 +5,14 @@
 \title{Differential expression of esets.}
 \usage{
 diff_expr(esets, data_dir = getwd(), annot = "SYMBOL",
-  prev_anals = list(NULL), use_sva = TRUE)
+  prev_anals = list(NULL))
 }
 \arguments{
 \item{esets}{List of annotated esets. Created by \code{load_raw}.}
 
 \item{data_dir}{String specifying directory of GSE folders.}
 
-\item{annot}{String, either "PROBE" or "SYMBOL" for probe or gene level
+\item{annot}{String, either "ENTREZID" or "SYMBOL" for probe or gene level
 analysis respectively. For duplicated genes symbols,the feature with
 the highest interquartile range across selected samples will be kept.}
 
