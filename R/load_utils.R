@@ -24,7 +24,7 @@ get_raw <- function (gse_names, data_dir = getwd()) {
         # untar
         tar_names <- list.files(gse_dir, pattern = "\\.tar")
         if (length(tar_names) > 0) {
-            utils::untar(paste(gse_dir, tar_names, sep = "/"), exdir = gse_dir)
+            utils::untar(paste(gse_dir, tar_names, sep = "/"), exdir = path.expand(gse_dir))
         }
         # unzip
         paths <- list.files(gse_dir, pattern = "\\.gz",
