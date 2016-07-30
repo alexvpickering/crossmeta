@@ -3,6 +3,11 @@ library(testthat)
 library(Biobase)
 library(org.Hs.eg.db)
 
+# bugs:
+# -----
+
+# 1) load_raw(overwrite = "SYMBOL") interpreted as overwrite = TRUE
+# 2) shiny 'delete contrast' on test group selection strange behaviour
 
 
 # ------------------- Setup Toy Data

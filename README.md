@@ -5,7 +5,10 @@ Cross-Platform Meta-Analyis
 microarray data. For the analysis, you will need a list of Affymetrix, Illumina,
 and/or Agilent GSE numbers from [GEO](http://www.ncbi.nlm.nih.gov/geo/). All 21
 species in the current [homologene](http://1.usa.gov/1TGoIy7) build are supported. 
-See [vignette](http://bit.ly/1P199F9) for detailed usage.
+See [vignette](http://bioconductor.org/packages/devel/bioc/vignettes/crossmeta/inst/doc/Vignette.html) for detailed usage. 
+
+`crossmeta` is available through [Bioconductor](http://bioconductor.org/packages/crossmeta/).
+
 
 Basic Workflow
 --------------
