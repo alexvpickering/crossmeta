@@ -12,7 +12,7 @@ diff_expr(esets, data_dir = getwd(), annot = "SYMBOL",
 
 \item{data_dir}{String specifying directory of GSE folders.}
 
-\item{annot}{String, either "PROBE" or "SYMBOL" for probe or gene level
+\item{annot}{String, either "ENTREZID" or "SYMBOL" for probe or gene level
 analysis respectively. For duplicated genes symbols,the feature with
 the highest interquartile range across selected samples will be kept.}
 

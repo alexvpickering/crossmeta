@@ -24,7 +24,7 @@ get_raw <- function (gse_names, data_dir = getwd()) {
         # untar
         tar_names <- list.files(gse_dir, pattern = "\\.tar")
         if (length(tar_names) > 0) {
-            utils::untar(paste(gse_dir, tar_names, sep = "/"), exdir = gse_dir)
+            utils::untar(paste(gse_dir, tar_names, sep = "/"), exdir = path.expand(gse_dir))
         }
         # unzip
         paths <- list.files(gse_dir, pattern = "\\.gz",
@@ -71,9 +71,9 @@ load_raw <- function(gse_names, data_dir = getwd(), overwrite = FALSE) {
         # determine platform (based on filenames)
         gse_dir <- paste(data_dir, gse_name, sep = "/")
 
-        affy  <- list.files(gse_dir, ".CEL", ignore.case = TRUE)
-        agil  <- list.files(gse_dir, "^GSM.*txt", ignore.case = TRUE)
-        illum <- list.files(gse_dir, "non.norm.*txt", ignore.case = TRUE)
+        affy  <- list.files(gse_dir, ".CEL$", ignore.case = TRUE)
+        agil  <- list.files(gse_dir, "^GSM.*txt$", ignore.case = TRUE)
+        illum <- list.files(gse_dir, "non.norm.*txt$", ignore.case = TRUE)
 
         # add to appropriate names vector
         if (length(affy) != 0) {
@@ -269,9 +269,13 @@ symbol_annot <- function (eset, gse_name = "") {
     fData(eset)$PROBE <- PROBE
     row.names(eset) <- make.unique(PROBE)
 
-    # add uppercase gene symbols to fData
     if (!is.null(SYMBOL)) {
+        # add uppercase gene symbols to fData
         fData(eset)$SYMBOL <- toupper(SYMBOL)
+
+        # add entrez ids to fData
+        fData(eset)$ENTREZID    <- map$ENTREZID
+        fData(eset)$ENTREZID_HS <- map$ENTREZID_HS
     }
     return (eset)
 }

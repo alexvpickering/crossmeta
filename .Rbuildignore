@@ -1,0 +1,5 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+
+^\.ipynb_checkpoints$
+^data-raw$

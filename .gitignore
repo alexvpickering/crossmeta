@@ -1,0 +1,11 @@
+.Rproj.user
+.Rhistory
+.RData
+.ipynb_checkpoints/
+.sqlite
+crossmeta.Rproj
+
+#directories
+literature/
+data/
+inst/doc

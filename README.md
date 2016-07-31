@@ -5,7 +5,10 @@ Cross-Platform Meta-Analyis
 microarray data. For the analysis, you will need a list of Affymetrix, Illumina,
 and/or Agilent GSE numbers from [GEO](http://www.ncbi.nlm.nih.gov/geo/). All 21
 species in the current [homologene](http://1.usa.gov/1TGoIy7) build are supported. 
-See [vignette](http://bit.ly/1P199F9) for detailed usage.
+See [vignette](http://bioconductor.org/packages/devel/bioc/vignettes/crossmeta/inst/doc/Vignette.html) for detailed usage. 
+
+`crossmeta` is available through [Bioconductor](http://bioconductor.org/packages/crossmeta/).
+
 
 Basic Workflow
 --------------
@@ -38,33 +41,66 @@ conducting a meta-analysis of microarray data (1):
   
   
   
-##### Consistently normalize raw data
+##### Uses raw data
 
-  * Raw data is downloaded from GEO supplementary files.
-  * Raw data is norm-exp background corrected, quantile normalized, and log2
-    transformed.
+  * Different labs process their raw data differently. These differences in
+    data processing may lead to flawed conclusions upon meta-analysis. 
+    
+  * `crossmeta` starts with raw data, and uses a consistent processing pipeline 
+    for all studies.
+
   
-##### Annotate probes
+##### Maps probes to human genes
 
-  * Probes are mapped to human gene symbol (or homolog).
-  * One-to-many (probe-to-symbol): keeps all.
-  * Many-to-one (probe-to-symbol): keeps highest interquartile range among
-    selected samples.
+  * Related genes from different species are often referenced with different 
+    symbols. These differences can make it challenging to compare similar 
+    microarray experiments in diverse species.
+    
+  * `crossmeta` maps probes to human gene symbols using homology relationships
+    established by [HomoloGene](http://www.ncbi.nlm.nih.gov/homologene).
+    
+##### Resolves many-to-many mappings
+
+  * Single probes can measure multiple genes. To incorporate these measurements
+    appropriately, they are replaced with a new record for each gene.
+    
+  * Multiple probes can measure the same gene. Averaging these measurements is
+    inappropriate because measurement scales will vary with probe affinity.
+    `crossmeta` selects the measurement with the highest inter-quartile range as 
+    it is the least likely to occur by chance.
+    
+    
+##### Models nuisance variables
+
+  * In addition to variables of interest, there are sources of signal due to 
+    factors that are unknown, unmeasured, or too complicated to capture through
+    simple models. These factors can either hide true effects or introduce 
+    spurious ones.
+      
+  * `crossmeta` discovers and accounts for these nuissance variables using 
+    surrogate variable analysis.
   
   
-##### Differential expression analysis
+##### Simplifies model specification
 
-  * Controls for unknown batch effects (`sva`).
-  * User selects contrasts and any paired samples (`shiny` GUI).
-  * Plots group clustering (multidimensional scaling plots).
+  * Correctly specifying a model and contrast matrix can be challenging.
+  
+  * `crossmeta` uses an attractive user interface that allows you to simply select
+    the samples you want to compare. 
+    
+  * Paired samples (eg. the same subject before and after treatment) can also be
+    selected using the same interface.
   
 
-##### Meta-analysis of results
+##### Meta-analyzes genes with missing data
 
-  * Extends method in `GeneMeta` to allow for genes that were not measured in 
-    all studies.
-  * Analysis uses moderated unbiased effect sizes calculated by `metaMA` and
-    determines false discovery rates using `fdrtool`.
+  * Differences in microarray platforms often lead to thousands of genes that are
+    not measured in all studies. Most existing meta-analysis software requires 
+    that these genes with missing data are discarded.
+
+  * `crossmeta` extends the effect size meta-analysis method in `GeneMeta` to 
+    allow for genes that were not measured in all studies. Keep your data, find
+    more insights.
 
 
 -----------------
