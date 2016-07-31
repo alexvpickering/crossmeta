@@ -11,7 +11,7 @@ load_diff(gse_names, data_dir = getwd(), annot = "SYMBOL")
 
 \item{data_dir}{String specifying directory of GSE folders.}
 
-\item{annot}{Level of previous analysis (e.g. "SYMBOL" or "ENTREZID").}
+\item{annot}{Level of previous analysis (e.g. "SYMBOL" or "PROBE").}
 }
 \value{
 Result of previous call to \code{diff_expr}.

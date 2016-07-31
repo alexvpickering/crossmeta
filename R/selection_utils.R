@@ -20,9 +20,12 @@ select_contrasts <- function(gse_name, eset) {
     # objects we will update
     previous <- list()
 
+    pairs <- 0
+
     pdata <- data.frame(Accession = sampleNames(eset),
                         Title = pData(eset)$title,
-                        Pair = NA)
+                        Pair = NA,
+                        row.names = 1:ncol(eset))
 
     contrasts <- data.frame(Control = character(0),
                             Test = character(0), stringsAsFactors = FALSE)
@@ -109,13 +112,11 @@ select_contrasts <- function(gse_name, eset) {
         # show phenotype data
         output$pdata <- DT::renderDataTable({
 
-            # invalidate when pair state change
-            state$pair
-
             DT::datatable(
-                pdata,
-                rownames = FALSE,
+                isolate(loopData()),
+                #rownames = FALSE,
                 options = list(
+                    scrollY = FALSE,
                     paging = FALSE,
                     bInfo = 0
                 )
@@ -123,10 +124,34 @@ select_contrasts <- function(gse_name, eset) {
         )
 
 
+        loopData = reactive({
+
+            # invalidate if click 'Pair Samples'
+            input$pair
+
+            # initial load: set pairs to 1
+            if (pairs == 0) {
+                pairs <<- 1
+
+            } else {
+                rows <- input$pdata_rows_selected
+
+                # check for valid selection
+                if (length(rows) <= 1){
+                    message("Select at least two samples to pair.")
+
+                # valid selection: update pdata and increment pairs
+                } else  {
+                    pdata[rows, 'Pair'] <<- pairs
+                    pairs <<- pairs + 1
+                }
+            }
+            pdata
+        })
 
 
         # make reactive state value to keep track of ctrl vs test group
-        state <- reactiveValues(ctrl = 1, pair = 1, contrast = 0)
+        state <- reactiveValues(ctrl = 1, contrast = 0)
 
         # need pdata proxy to reselect rows of pheno data
         proxy = DT::dataTableProxy('pdata')
@@ -204,25 +229,16 @@ select_contrasts <- function(gse_name, eset) {
         #------------------- click 'Pair Samples'
 
         observeEvent(input$pair, {
-            rows  <- input$pdata_rows_selected
-
-            # check if no selection
-            if (length(rows) == 0) {
-                message("Select paired samples.")
-
-            } else {
-                pdata[rows, "Pair"] <<- state$pair
-                state$pair <- state$pair + 1
-            }
+            DT::replaceData(proxy, loopData(), resetPaging = FALSE)
         })
-
 
 
         #------------------- click 'Delete'
 
 
         observeEvent(input$delete, {
-            rows  <- input$contrasts_rows_selected
+            rows    <- input$contrasts_rows_selected
+            test.na <- is.na(contrasts[rows, 'Test'])
 
             # check if no selection
             if (length(rows) == 0) {
@@ -245,6 +261,13 @@ select_contrasts <- function(gse_name, eset) {
 
                 # update contrast state
                 state$contrast <- state$contrast + 1
+
+                if (test.na) {
+                    # put back to control group
+                    updateTextInput(session, "group",
+                                    label = "Control group name:", value = "")
+                    state$ctrl <- 1
+                }
             }
         })
 

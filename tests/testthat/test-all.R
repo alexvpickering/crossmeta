@@ -7,10 +7,9 @@ library(org.Hs.eg.db)
 # -----
 
 # 1) load_raw(overwrite = "SYMBOL") interpreted as overwrite = TRUE
-# 2) shiny 'delete contrast' on test group selection strange behaviour
 
 
-# ------------------- Setup Toy Data
+# Setup Toy Data-------------------
 
 
 hgene <- data.frame(ENTREZID    = c(469356, 455237, 451528, 470565, 468403, 100608083),
@@ -43,7 +42,7 @@ annotation(eset) <- "GPL4032"
 
 
 
-# ------------------- Fix Agil Features
+# Fix Agil Features -------------------
 
 
 test_that("fix_agil_features: eset rownames to best match for data ProbeName", {
@@ -64,7 +63,7 @@ test_that("fix_agil_features: eset rownames to best match for data ProbeName", {
 
 
 
-# ------------------- Fix Illum Features
+#  Fix Illum Features -------------------
 
 
 test_that("fix_illum_features: maps data rownames to eset rownames", {
@@ -85,7 +84,7 @@ test_that("fix_illum_features: maps data rownames to eset rownames", {
 
 
 
-# ------------------- Merge Feature Data
+# Merge Feature Data  -------------------
 
 
 test_that("merge_fdata merges on rownames, preserving data nrow and order", {
@@ -107,7 +106,7 @@ test_that("merge_fdata merges on rownames, preserving data nrow and order", {
 })
 
 
-# ------------------- Symbol Annotation
+# Symbol Annotation -------------------
 
 
 test_that("symbol_annot finds entrez in eset fData and maps to hgnc symbol", {
@@ -127,7 +126,7 @@ test_that("symbol_annot finds entrez in eset fData and maps to hgnc symbol", {
 
 
 
-# ------------------- Differential Expression
+#  Differential Expression -------------------
 
 # Setup
 
@@ -220,7 +219,7 @@ test_that("diff_expr skips GSE if modeling not possible", {
 
 
 
-# ----------------- Cleanup
+# Cleanup -----------------
 
 rm(hgene, dfdat, efdat, expr, eset, data, esets, prev, anals, contrasts)
 

@@ -12,9 +12,11 @@ diff_expr(esets, data_dir = getwd(), annot = "SYMBOL",
 
 \item{data_dir}{String specifying directory of GSE folders.}
 
-\item{annot}{String, either "ENTREZID" or "SYMBOL" for probe or gene level
-analysis respectively. For duplicated genes symbols,the feature with
-the highest interquartile range across selected samples will be kept.}
+\item{annot}{String, column name in fData common to all esets. For duplicated
+values in this column, the row with the highest interquartile range
+across selected samples will be kept. If meta-analysis will follow, appropriate
+values are "SYMBOL" (default - for gene level analysis) or, if all esets are
+from the same platform, "PROBE" (for probe level analysis).}
 
 \item{prev_anals}{Previous result of \code{diff_expr}. If Present, previous
 selections and names will be reused.}
