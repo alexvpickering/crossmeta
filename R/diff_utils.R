@@ -14,9 +14,11 @@
 #'
 #' @param esets List of annotated esets. Created by \code{load_raw}.
 #' @param data_dir String specifying directory of GSE folders.
-#' @param annot String, either "ENTREZID" or "SYMBOL" for probe or gene level
-#'   analysis respectively. For duplicated genes symbols,the feature with
-#'   the highest interquartile range across selected samples will be kept.
+#' @param annot String, column name in fData common to all esets. For duplicated
+#'   values in this column, the row with the highest interquartile range
+#'   across selected samples will be kept. If meta-analysis will follow, appropriate
+#'   values are "SYMBOL" (default - for gene level analysis) or, if all esets are
+#'   from the same platform, "PROBE" (for probe level analysis).
 #' @param prev_anals Previous result of \code{diff_expr}. If Present, previous
 #'   selections and names will be reused.
 #'
@@ -457,7 +459,7 @@ clean_y <- function(y, mod, svs) {
 #'
 #' @param gse_names Character vector specifying GSE names to be loaded.
 #' @param data_dir String specifying directory of GSE folders.
-#' @param annot Level of previous analysis (e.g. "SYMBOL" or "ENTREZID").
+#' @param annot Level of previous analysis (e.g. "SYMBOL" or "PROBE").
 #'
 #' @export
 #' @seealso \code{\link{diff_expr}}.
