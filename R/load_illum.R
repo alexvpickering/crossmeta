@@ -189,7 +189,7 @@ open_raw_illum <- function (gse_names, data_dir = getwd()) {
         data_paths <- c(data_paths, list.files(gse_dir, pattern = ".xls",
                                                full.names = TRUE))
         # open data file
-        for (j in seq_along(data_paths)) system2("xdg-open", data_paths[j])
+        for (j in seq_along(data_paths)) pander::openFileInOS(data_paths[j])
 
         # check success
         success <- tcltk::tk_select.list(choices = c("Yes", "No"),

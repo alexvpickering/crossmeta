@@ -175,6 +175,15 @@ add_contrasts <- function (eset, gse_name, prev_anal) {
 
 
     } else {
+      
+        #check version of DT
+        if (utils::packageVersion("DT") < "0.1.67") {
+          message("Package 'DT' out of date. Updating now.")
+          devtools::install_github("rstudio/DT")
+          
+          
+        }
+      
         # get contrast info from user input
         sels <- select_contrasts(gse_name, eset)
 

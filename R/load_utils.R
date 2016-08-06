@@ -17,14 +17,19 @@ get_raw <- function (gse_names, data_dir = getwd()) {
     for (gse_name in gse_names) {
 
         gse_dir <- paste(data_dir, gse_name, sep = "/")
+        work_dir  <- getwd()
+        
         # get raw data
         if (!file.exists(gse_dir)) {
             GEOquery::getGEOSuppFiles(gse_name, baseDir = data_dir)
         }
+        
         # untar
         tar_names <- list.files(gse_dir, pattern = "\\.tar")
         if (length(tar_names) > 0) {
-            utils::untar(paste(gse_dir, tar_names, sep = "/"), exdir = path.expand(gse_dir))
+            setwd(gse_dir)
+            utils::untar(tar_names)
+            setwd(work_dir)
         }
         # unzip
         paths <- list.files(gse_dir, pattern = "\\.gz",
