@@ -30,8 +30,7 @@ Imports:
     Biobase (>= 2.32.0),
     BiocGenerics (>= 0.18.0),
     BiocInstaller (>= 1.22.3),
-    DT,
-    devtools (>= 1.12.0),
+    DT (>= 0.2),
     data.table (>= 1.9.6),
     fdrtool (>= 1.2.15),
     GEOquery (>= 2.38.4),
@@ -46,7 +45,6 @@ Imports:
     stringr (>= 1.0.0),
     sva (>= 3.20.0),
     shiny (>= 0.13.2)
-Remotes: rstudio/DT
 RoxygenNote: 5.0.1
 biocViews:
     GeneExpression,

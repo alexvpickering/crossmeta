@@ -30,26 +30,26 @@ esets <- load_raw(gse_names, data_dir)
 ## ----eval = FALSE--------------------------------------------------------
 #  library(Biobase)
 #  library(AnnotationDbi)
-#  
+#
 #  # check feature data to see what columns are available
 #  head(fData(esets$GSE15069))
-#  
+#
 #  # if using RStudio
 #  # View(fData(esets$GSE15069))
-#  
+#
 #  # annotation package for appropriate species
 #  library(org.Mm.eg.db)
-#  
+#
 #  # map from accession number to entrez gene ids
 #  acnums  <- as.character(fData(esets$GSE15069)$GB_ACC)
 #  enids   <- mapIds(org.Mm.eg.db, acnums, "ENTREZID", "ACCNUM")
-#  
+#
 #  # add 'GENE_ID' column with entrez ids
 #  fData(esets$GSE15069)$GENE_ID <- enids
-#  
+#
 #  # use crossmeta to map from entrez gene ids to homologous hgnc symbol
 #  esets$GSE15069 <- symbol_annot(esets$GSE15069)
-#  
+#
 #  # to overwrite saved eset (to avoid repeating above)
 #  saveRDS(esets$GSE15069, file.path(data_dir, "GSE15069", "GSE15069_eset.rds"))
 
@@ -103,9 +103,8 @@ es <- es_meta(anals)
 ## ----eval=FALSE----------------------------------------------------------
 #  # subject is the focus of the meta-analysis (e.g. drug/disease name)
 #  contribute(anals, subject = "LY294002")
-#  
+#
 #  # Thank you!
 
 ## ------------------------------------------------------------------------
 sessionInfo()
-

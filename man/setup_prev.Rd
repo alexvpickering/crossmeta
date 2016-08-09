@@ -55,4 +55,3 @@ sel <- setup_prev(eset, contrasts = "LY-DMSO")
 # run differential expression analysis
 anal <- diff_expr(eset, data_dir, prev_anal = sel)
 }
-

@@ -66,4 +66,3 @@ anals <- diff_expr(esets[1], data_dir, prev_anals = prev)
 \code{\link{get_raw}}, \code{\link{load_raw}}, and
   \code{\link{load_diff}}.
 }
-

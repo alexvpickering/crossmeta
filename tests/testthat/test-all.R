@@ -224,4 +224,3 @@ test_that("diff_expr skips GSE if modeling not possible", {
 rm(hgene, dfdat, efdat, expr, eset, data, esets, prev, anals, contrasts)
 
 unlink("GSE1", recursive = TRUE)
-
