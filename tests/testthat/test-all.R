@@ -144,7 +144,7 @@ pData(eset)$pairs     <- NA
 
 contrasts <- limma::makeContrasts("FOO-VEH", levels = c("VEH", "FOO"))
 
-prev <- list(GSE1 = list(eset = eset,
+prev <- list(GSE1 = list(pdata = pData(eset),
                          ebayes_sv = list(contrasts = contrasts)))
 
 # run analysis on eset, using previous mimic
@@ -170,21 +170,6 @@ test_that("sva not affected by replicate rows", {
     # re-run and test
     anals2 <- diff_expr(esets, prev_anals = prev)
     expect_equal(anals, anals2)
-})
-
-test_that("diff_expr removes duplicates based on IQR", {
-
-    # duplicate each feature
-    esets[[1]] <- esets[[1]][rep(1:3, 2), ]
-
-    # add random noise to duplicates
-    set.seed(0)
-    expr <- matrix(abs(rnorm(12, 0, 0.2)), nrow = 3, ncol = 4)
-    exprs(esets[[1]])[1:3, ] <- expr
-
-    # re-run and test expressions data
-    anals2 <- diff_expr(esets, prev_anals = prev)
-    expect_equal(exprs(anals$GSE1$eset), exprs(anals2$GSE1$eset))
 })
 
 

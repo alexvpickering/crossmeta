@@ -146,7 +146,7 @@ add_es <- function(diff_exprs, cols = c("dprime", "vardprime")) {
         study <- diff_exprs[[i]]
 
         df <- study$ebayes_sv$df.residual + study$ebayes_sv$df.prior
-        classes <- Biobase::pData(study$eset)$group
+        classes <- study$pdata$group
 
         for (con in names(study$top_tables)) {
             # get group names for contrast

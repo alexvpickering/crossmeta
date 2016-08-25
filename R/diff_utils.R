@@ -130,16 +130,16 @@ diff_expr <- function (esets, data_dir = getwd(),
 match_prev_eset <- function(eset, prev_anal) {
 
     # retain previously selected samples only
-    selected_samples <- sampleNames(prev_anal$eset)
+    selected_samples <- row.names(prev_anal$pdata)
     eset <- eset[, selected_samples]
 
     # transfer previous treatment, group, and pairs to eset
-    pData(eset)$treatment <- pData(prev_anal$eset)$treatment
-    pData(eset)$group     <- pData(prev_anal$eset)$group
+    pData(eset)$treatment <- prev_anal$pdata$treatment
+    pData(eset)$group     <- prev_anal$pdata$group
     pData(eset)$pairs     <- NA
 
-    if ("pairs" %in% colnames(pData(prev_anal$eset))) {
-        pData(eset)$pairs <- pData(prev_anal$eset)$pairs
+    if ("pairs" %in% colnames(prev_anal$pdata)) {
+        pData(eset)$pairs <- prev_anal$pdata$pairs
     }
 
     return (eset)
@@ -171,7 +171,7 @@ add_contrasts <- function (eset, gse_name, prev_anal) {
 
         # get contrast info from previous analysis
         contrasts    <- colnames(prev_anal$ebayes_sv$contrasts)
-        group_levels <- unique(pData(prev_anal$eset)$group)
+        group_levels <- unique(prev_anal$pdata$group)
 
 
     } else {
@@ -383,12 +383,11 @@ diff_anal <- function(eset, exprs_sva, contrasts, group_levels,
     graphics::legend("topright", inset = c(-0.4, 0), legend = group_levels,
                      fill = unique(colours), xpd = TRUE, bty = "n", cex = 0.65)
 
-    # remove expression and feature data before storing eset (large)
-    exprs(eset) <- matrix()
-    fData(eset) <- data.frame()
+    # only store phenoData (exprs and fData large)
+    pdata <- pData(eset)
 
     # save to disk
-    diff_expr <- list(eset = eset, top_tables = top_tables, ebayes_sv = ebayes_sv)
+    diff_expr <- list(pdata = pdata, top_tables = top_tables, ebayes_sv = ebayes_sv)
     save_name <- paste(gse_name, "diff_expr", tolower(annot), sep = "_")
     save_name <- paste0(save_name, ".rds")
 
@@ -492,6 +491,14 @@ load_diff <- function(gse_names, data_dir = getwd(), annot = "SYMBOL") {
         # multiple if more than one platform per GSE)
         for (path in anal_paths) {
             anal <- readRDS(path)
+
+            # only need pdata from prev_anal (previously saved eset)
+            if ("eset" %in% names(anal)) {
+                anal$pdata <- pData(anal$eset)
+                anal$eset  <- NULL
+                saveRDS(anal, path)
+            }
+
             anal_name <- strsplit(names(anal$top_tables), "_")[[1]][1]
             anals[[anal_name]] <- anal
         }

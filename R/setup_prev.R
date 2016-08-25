@@ -56,8 +56,7 @@ setup_prev <- function(eset, contrasts) {
         stop("'group' column missing from pData(eset)")
 
     # remove expression and feature data
-    exprs(eset) <- matrix()
-    fData(eset) <- data.frame()
+    pdata <- pData(eset)
 
     # setup treatment and keep samples used in contrasts
     used <- strsplit(contrasts, "-")
@@ -65,16 +64,16 @@ setup_prev <- function(eset, contrasts) {
     test <- sapply(used, `[`, 1)
     used <- c(ctrl, test)
 
-    group <- pData(eset)$group
-    pData(eset)$treatment <- ifelse(group %in% ctrl, "ctrl", "test")
-    pData(eset) <- pData(eset)[group %in% used, ]
+    group <- pdata$group
+    pdata$treatment <- ifelse(group %in% ctrl, "ctrl", "test")
+    pdata <- pdata[group %in% used, ]
 
     # setup fake ebayes_sv
     eb <- list(contrasts = matrix(ncol=length(contrasts),
                                   dimnames=list("", contrasts)))
 
     # setup prev
-    prev <- list(list("eset" = eset, "ebayes_sv" = eb))
+    prev <- list(list("pdata" = pdata, "ebayes_sv" = eb))
     names(prev) <- gse_name
 
     return(prev)
