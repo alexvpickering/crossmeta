@@ -321,7 +321,7 @@ contribute <- function(diff_exprs, subject) {
 
     # get pdata
     pcols <- c("treatment", "group", "pairs")
-    pdata <- lapply(diff_exprs, function(x) pData(x$eset)[, pcols])
+    pdata <- lapply(diff_exprs, function(x) x$pdata[, pcols])
 
     # get contrasts
     cons  <- lapply(diff_exprs, function(x) colnames(x$ebayes_sv$contrasts))
