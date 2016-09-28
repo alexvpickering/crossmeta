@@ -140,7 +140,7 @@ select_contrasts <- function(gse_name, eset) {
                 if (length(rows) <= 1){
                     message("Select at least two samples to pair.")
 
-                # valid selection: update pdata and increment pairs
+                    # valid selection: update pdata and increment pairs
                 } else  {
                     pdata[rows, 'Pair'] <<- pairs
                     pairs <<- pairs + 1
