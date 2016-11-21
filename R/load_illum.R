@@ -62,15 +62,18 @@ load_illum <- function (gse_names, data_dir, overwrite) {
             row.names(eset) <- gsub(".", "*", row.names(eset), fixed = TRUE)
 
             # transfer data to eset
-            exprs(eset) <- data$E
-            fData(eset) <- merge_fdata(fData(eset),
-                                       data.frame(row.names = row.names(data)))
+            fData(eset) <- merge_fdata(fData(eset), data.frame(row.names = row.names(data)))
+            eset <- ExpressionSet(data$E,
+                                  phenoData = phenoData(eset),
+                                  featureData = featureData(eset),
+                                  annotation = annotation(eset))
 
             # transfer pvals from data to eset
             eset <- add_pvals(eset, data$other$Detection)
 
             # add SYMBOL annotation
-            eset <- symbol_annot(eset, gse_name)
+            tryCatch(eset <- symbol_annot(eset, gse_name),
+                     error = function(e) NULL)
 
             # save to disc
             saveRDS(eset, file.path(gse_dir, save_name))

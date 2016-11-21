@@ -65,10 +65,14 @@ load_agil_plat <- function (eset, gse_dir, gse_name) {
     row.names(data$E)     <- make.unique(data$genes$ProbeName)
 
     eset <- fix_agil_features(eset, data)
+    eset <- eset[, colnames(data)]
 
     # transfer to eset
-    exprs(eset) <- data$E
     fData(eset) <- merge_fdata(fData(eset), data$genes)
+    eset <- ExpressionSet(data$E,
+                          phenoData = phenoData(eset),
+                          featureData = featureData(eset),
+                          annotation = annotation(eset))
 
     # add SYMBOL annotation
     eset <- symbol_annot(eset, gse_name)

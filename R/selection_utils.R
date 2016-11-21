@@ -101,6 +101,7 @@ select_contrasts <- function(gse_name, eset) {
             DT::datatable(
                 contrasts,
                 options = list(
+                    scrollY = FALSE,
                     paging = FALSE,
                     searching = FALSE,
                     bInfo = 0
