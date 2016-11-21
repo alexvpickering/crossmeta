@@ -128,7 +128,7 @@ load_affy_plat <- function (eset, gse_dir, gse_name) {
     # rename samples in data
     sampleNames(data) <- stringr::str_extract(sampleNames(data), "GSM[0-9]+")
 
-     #reserve '.' for duplicate features
+    # reserve '.' for duplicate features
     row.names(eset) <- gsub(".", "*", row.names(eset), fixed = TRUE)
     row.names(data) <- gsub(".", "*", row.names(data), fixed = TRUE)
 
@@ -136,7 +136,8 @@ load_affy_plat <- function (eset, gse_dir, gse_name) {
     sample_order <- sampleNames(eset)[sampleNames(eset) %in% sampleNames(data)]
 
     eset <- eset[, sample_order]
-    exprs(eset) <- exprs(data)[, sample_order]
+    data <- data[, sample_order]
+    assayData(eset) <- assayData(data)
 
     # transfer merged fdata
     fData(eset) <- merge_fdata(fData(eset), fData(data))

@@ -376,11 +376,11 @@ diff_anal <- function(eset, exprs_sva, contrasts, group_levels,
     colours <- palette[group]
 
     # Add extra space to right of plot area
-    graphics::par(mar = c(5, 4, 2, 6))
+    graphics::par(mai = c(1, 1, 1, 1.4))
 
     # plot MDS
     limma::plotMDS(exprs_sva, pch = 19, main = gse_name, col = colours)
-    graphics::legend("topright", inset = c(-0.4, 0), legend = group_levels,
+    graphics::legend("topright", inset = c(-0.18, 0), legend = group_levels,
                      fill = unique(colours), xpd = TRUE, bty = "n", cex = 0.65)
 
     # only store phenoData (exprs and fData large)
