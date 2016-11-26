@@ -16,7 +16,8 @@
 
 load_illum <- function (gse_names, data_dir, overwrite) {
 
-    esets <- list()
+    esets  <- list()
+    errors <- c()
     for (gse_name in gse_names) {
 
         gse_dir <- file.path(data_dir, gse_name)
@@ -33,54 +34,80 @@ load_illum <- function (gse_names, data_dir, overwrite) {
 
             if (length(eset) > 1) {
                 warning("Multi-platform Illumina GSEs not supported. ", gse_name)
+                errors <- c(errors, gse_name)
                 next
             }
-            eset <- eset[[1]]
-
-            # load non-normalized txt files and normalize
-            data_paths <- list.files(gse_dir, pattern = "non.norm.*txt",
-                                     full.names = TRUE, ignore.case = TRUE)
-            data <- limma::read.ilmn(data_paths, probeid = "ID_REF")
-            data <- tryCatch (
-                limma::neqc(data),
-                error = function(cond) {
-                    data <- limma::backgroundCorrect(data, method = "normexp",
-                                                     normexp.method = "rma",
-                                                     offset = 16)
-
-                    return(limma::normalizeBetweenArrays(data, method = "quantile"))
-                })
-
-            # use raw data titles to ensure correct contrasts
-            pData(eset)$title <- colnames(data)
-            colnames(data) <- sampleNames(eset)
-
-            # fix up data feature names
-            data <- fix_illum_features(eset, data)
-
-            # reserve '.' for duplicates
-            row.names(eset) <- gsub(".", "*", row.names(eset), fixed = TRUE)
-
-            # transfer data to eset
-            fData(eset) <- merge_fdata(fData(eset), data.frame(row.names = row.names(data)))
-            eset <- ExpressionSet(data$E,
-                                  phenoData = phenoData(eset),
-                                  featureData = featureData(eset),
-                                  annotation = annotation(eset))
-
-            # transfer pvals from data to eset
-            eset <- add_pvals(eset, data$other$Detection)
-
-            # add SYMBOL annotation
-            tryCatch(eset <- symbol_annot(eset, gse_name),
-                     error = function(e) NULL)
+            eset <- tryCatch(load_illum_plat(eset[[1]], gse_name, gse_dir),
+                             error = function(e) NULL)
 
             # save to disc
-            saveRDS(eset, file.path(gse_dir, save_name))
+            if (!is.null(eset)) {
+                saveRDS(eset, file.path(gse_dir, save_name))
+            } else {
+                errors <- c(errors, gse_name)
+            }
+
         }
         esets[[gse_name]] <- eset
     }
-    return (esets)
+    eset_names <- get_eset_names(esets, gse_names)
+    esets <- unlist(esets)
+    names(esets) <- eset_names
+    return (list(esets = esets, errors = errors))
+}
+
+# -------------------
+
+# Helper utility for load_illum.
+#
+# Used by load_illum to load an eset.
+#
+# @param eset Expression set obtained by load_illum call to getGEO.
+# @param gse_name String specifying GSE name.
+# @param gse_dir String specifying path to GSE folder.
+#
+# @seealso \code{\link{load_illum}}.
+# @return Annotated eset.
+
+load_illum_plat <- function(eset, gse_name, gse_dir) {
+
+    # load non-normalized txt files and normalize
+    data_paths <- list.files(gse_dir, pattern = "non.norm.*txt",
+                             full.names = TRUE, ignore.case = TRUE)
+    data <- limma::read.ilmn(data_paths, probeid = "ID_REF")
+    data <- tryCatch (
+        limma::neqc(data),
+        error = function(cond) {
+            data <- limma::backgroundCorrect(data, method = "normexp",
+                                             normexp.method = "rma",
+                                             offset = 16)
+
+            return(limma::normalizeBetweenArrays(data, method = "quantile"))
+        })
+
+    # use raw data titles to ensure correct contrasts
+    pData(eset)$title <- colnames(data)
+    colnames(data) <- sampleNames(eset)
+
+    # fix up data feature names
+    data <- fix_illum_features(eset, data)
+
+    # reserve '.' for duplicates
+    row.names(eset) <- gsub(".", "*", row.names(eset), fixed = TRUE)
+
+    # transfer data to eset
+    fData(eset) <- merge_fdata(fData(eset), data.frame(row.names = row.names(data)))
+    eset <- ExpressionSet(data$E,
+                          phenoData = phenoData(eset),
+                          featureData = featureData(eset),
+                          annotation = annotation(eset))
+
+    # transfer pvals from data to eset
+    eset <- add_pvals(eset, data$other$Detection)
+
+    # add SYMBOL annotation
+    eset <- symbol_annot(eset, gse_name)
+    return(eset)
 }
 
 

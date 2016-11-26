@@ -13,7 +13,8 @@
 
 load_agil <- function (gse_names, data_dir, overwrite) {
 
-    esets <- list()
+    esets  <- list()
+    errors <- c()
     for (gse_name in gse_names) {
 
         gse_dir <- file.path(data_dir, gse_name)
@@ -29,10 +30,15 @@ load_agil <- function (gse_names, data_dir, overwrite) {
             eset <- GEOquery::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE)
 
             # load eset for each platform in GSE
-            eset <- lapply(eset, load_agil_plat, gse_dir, gse_name)
+            eset <- tryCatch(lapply(eset, load_agil_plat, gse_dir, gse_name),
+                             error = function(e) NULL)
 
             # save to disc
-            saveRDS(eset, file.path(gse_dir, save_name))
+            if (!is.null(eset)) {
+                saveRDS(eset, file.path(gse_dir, save_name))
+            } else {
+                errors <- c(errors, gse_name)
+            }
         }
         esets[[gse_name]] <- eset
     }
@@ -40,7 +46,7 @@ load_agil <- function (gse_names, data_dir, overwrite) {
     eset_names <- get_eset_names(esets, gse_names)
     esets <- unlist(esets)
     names(esets) <- eset_names
-    return (esets)
+    return (list(esets = esets, errors = errors))
 }
 
 

@@ -63,7 +63,6 @@ get_raw <- function (gse_names, data_dir = getwd()) {
 
 load_raw <- function(gse_names, data_dir = getwd(), overwrite = FALSE) {
 
-
     # no duplicates allowed (somehow causes mismatched names/esets)
     gse_names <- unique(gse_names)
 
@@ -71,6 +70,7 @@ load_raw <- function(gse_names, data_dir = getwd(), overwrite = FALSE) {
     agil_names  <- c()
     illum_names <- c()
 
+    errors <- c()
     for (gse_name in gse_names) {
 
         # determine platform (based on filenames)
@@ -89,22 +89,41 @@ load_raw <- function(gse_names, data_dir = getwd(), overwrite = FALSE) {
 
         } else if (length(illum) != 0) {
             illum_names <- c(illum_names, gse_name)
+        } else {
+            errors <- c(errors, gse_name)
         }
     }
 
     # load esets
-    affy_esets  <- load_affy(affy_names, data_dir, overwrite)
-    agil_esets  <- load_agil(agil_names, data_dir, overwrite)
-    illum_esets <- tryCatch (
-        load_illum(illum_names, data_dir, overwrite),
-        error = function(c){
-            c$message <- paste("Couldn't load previous Illumina GSE. Please",
-                               "see 'Checking Raw Illumina Data' in vignette.")
-            stop(c)
-        }
-    )
+    affy  <- load_affy(affy_names, data_dir, overwrite)
+    agil  <- load_agil(agil_names, data_dir, overwrite)
+    illum <- load_illum(illum_names, data_dir, overwrite)
 
-    return (c(affy_esets, agil_esets, illum_esets))
+    # no raw data found
+    if (length(errors) > 0) {
+        message(paste0("Couldn't find raw data for: ",
+                       paste(errors, collapse=", ")))
+    }
+
+    # couldn't load raw data
+    if (length(affy$errors) > 0) {
+        message(paste0("Couldn't load raw Affymetrix data for: ",
+                       paste(affy$errors, collapse=", ")))
+    }
+
+    if (length(agil$errors) > 0) {
+        message(paste0("Couldn't load raw Agilent data for: ",
+                       paste(agil$errors, collapse=", ")))
+    }
+
+    if (length(illum$errors) > 0) {
+        message(paste0("Couldn't load raw Illumina data for: ",
+                       paste(illum$errors, collapse=", "),
+                       ".\nsee 'Checking Raw Illumina Data' in vignette."))
+    }
+
+
+    return (c(affy$esets, agil$esets, illum$esets))
 }
 
 
