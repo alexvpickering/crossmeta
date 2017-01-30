@@ -309,7 +309,7 @@ iqr_duplicates <- function (eset, mod, svobj, annot = "SYMBOL") {
 
     # for rows with same annot, keep highest IQR
     data <- data.table(data)
-    data <- data[, .SD[which.max(iqrange)], by = eval(annot)]
+    data <- data[data[, .I[which.max(iqrange)], by = eval(annot)]$V1]
 
     # use row number to keep selected features
     eset <- eset[data$row, ]
