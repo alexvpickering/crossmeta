@@ -14,7 +14,7 @@
 
 # @return List of annotated esets.
 
-load_illum <- function (gse_names, data_dir, overwrite) {
+load_illum <- function (gse_names, data_dir, gpl_dir, overwrite) {
 
     esets  <- list()
     errors <- c()
@@ -30,6 +30,19 @@ load_illum <- function (gse_names, data_dir, overwrite) {
 
         } else {
             # get GSEMatrix (for pheno data)
+            eset <- GEOquery::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, getGPL = FALSE)
+
+            # check if have GPL
+            gpl_names <- paste0(sapply(eset, annotation), '.soft', collapse = "|")
+            gpl_paths <- sapply(gpl_names, function(gpl_name) {
+                list.files(gpl_dir, gpl_name, full.names = TRUE, recursive = TRUE, include.dirs = TRUE)[1]
+            })
+
+            # copy over GPL
+            if (length(gpl_paths) > 0)
+                file.copy(gpl_paths, gse_dir)
+
+            # will use local GPL or download if couldn't copy
             eset <- GEOquery::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE)
 
             if (length(eset) > 1) {
@@ -92,7 +105,7 @@ load_illum_plat <- function(eset, gse_name, gse_dir) {
     # fix up data feature names
     data <- fix_illum_features(eset, data)
 
-    # reserve '.' for duplicates
+    # reserve '.' for replicates
     row.names(eset) <- gsub(".", "*", row.names(eset), fixed = TRUE)
 
     # transfer data to eset
@@ -152,7 +165,7 @@ fix_illum_features <- function(eset, data) {
     # expand 1:many map
     data <- data[map$dfn, ]
 
-    # reserve periods in data row names to indicate duplicates
+    # reserve periods in data row names to indicate replicates
     map$efn <- gsub(".", "*", map$efn, fixed = TRUE)
     row.names(data) <- make.unique(map$efn)
 

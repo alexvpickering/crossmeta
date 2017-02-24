@@ -45,7 +45,7 @@
 es_meta <- function(diff_exprs, cutoff = 0.3) {
 
     # get dp and vardp
-    es <- get_es(diff_exprs, cutoff)
+    es <- crossmeta:::get_es(diff_exprs, cutoff)
     df <- es$filt
 
     dp  <- df[, seq(1, ncol(df), 2)]
@@ -85,11 +85,13 @@ es_meta <- function(diff_exprs, cutoff = 0.3) {
 get_es <- function(diff_exprs, cutoff = 0.3) {
 
     # add dprimes and vardprimes to top tables
-    diff_exprs <- add_es(diff_exprs)
+    diff_exprs <- crossmeta:::add_es(diff_exprs)
 
     # get top tables
     es <- lapply(diff_exprs, function(study) study$top_tables)
-    es <- unlist(es, recursive = FALSE)
+    nm <- unlist(lapply(es, names))
+    nm <- paste(c('dprime', 'vardprime'), rep(nm, each=2), sep='.')
+    es <- unlist(es, recursive = FALSE, use.names = FALSE)
 
     # get desired top table columns
     es <- lapply(es, function(top) {
@@ -99,6 +101,8 @@ get_es <- function(diff_exprs, cutoff = 0.3) {
 
     # merge dataframes
     es <- merge_dataframes(es)
+    names(es) <- nm
+    
 
     # only keep genes where more than cutoff fraction of studies have data
     filt <- apply(es, 1, function(x) sum(!is.na(x))) >= (ncol(es) * cutoff)
@@ -182,23 +186,22 @@ add_es <- function(diff_exprs, cols = c("dprime", "vardprime")) {
 # @return A merged data.frame with \code{key} set to row names.
 
 
-merge_dataframes <- function(ls, key = "SYMBOL") {
+merge_dataframes <- function(ls, keys = "SYMBOL") {
 
     # ensure non 'by' names are not duplicated
     ls = Map(function(x, i)
-        stats::setNames(x, ifelse(names(x) %in% key,
+        stats::setNames(x, ifelse(names(x) %in% keys,
                                   names(x),
                                   sprintf('%s.%d', names(x), i))),
         ls, seq_along(ls))
 
     # merge list
-    res <- Reduce(function(...) merge(..., by = key, all = TRUE), ls)
+    res <- Reduce(function(...) merge(..., by = keys, all = TRUE), ls)
 
     # format result
-    row.names(res) <- res[, key]
-    res[, key] <- NULL
+    row.names(res) <- res[, keys[1]]
+    res[, keys[1]] <- NULL
     return(res)
-    print(class(res))
 }
 
 # ---------------------
