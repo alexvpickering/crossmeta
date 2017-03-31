@@ -14,7 +14,7 @@
 
 # @return List of annotated esets.
 
-load_illum <- function (gse_names, data_dir, gpl_dir, overwrite) {
+load_illum <- function (gse_names, data_dir, gpl_dir) {
 
     esets  <- list()
     errors <- c()
@@ -22,45 +22,38 @@ load_illum <- function (gse_names, data_dir, gpl_dir, overwrite) {
 
         gse_dir <- file.path(data_dir, gse_name)
         save_name <- paste(gse_name, "eset.rds", sep = "_")
-        eset_path <- list.files(gse_dir, save_name, full.names = TRUE)
 
-        # check if saved copy
-        if (length(eset_path) != 0 & overwrite == FALSE) {
-            eset <- readRDS(eset_path)
+        # get GSEMatrix (for pheno data)
+        eset <- GEOquery::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, getGPL = FALSE)
 
-        } else {
-            # get GSEMatrix (for pheno data)
-            eset <- GEOquery::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, getGPL = FALSE)
+        # check if have GPL
+        gpl_names <- paste0(sapply(eset, annotation), '.soft', collapse = "|")
+        gpl_paths <- sapply(gpl_names, function(gpl_name) {
+            list.files(gpl_dir, gpl_name, full.names = TRUE, recursive = TRUE, include.dirs = TRUE)[1]
+        })
 
-            # check if have GPL
-            gpl_names <- paste0(sapply(eset, annotation), '.soft', collapse = "|")
-            gpl_paths <- sapply(gpl_names, function(gpl_name) {
-                list.files(gpl_dir, gpl_name, full.names = TRUE, recursive = TRUE, include.dirs = TRUE)[1]
-            })
+        # copy over GPL
+        if (length(gpl_paths) > 0)
+            file.copy(gpl_paths, gse_dir)
 
-            # copy over GPL
-            if (length(gpl_paths) > 0)
-                file.copy(gpl_paths, gse_dir)
+        # will use local GPL or download if couldn't copy
+        eset <- GEOquery::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE)
 
-            # will use local GPL or download if couldn't copy
-            eset <- GEOquery::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE)
-
-            if (length(eset) > 1) {
-                warning("Multi-platform Illumina GSEs not supported. ", gse_name)
-                errors <- c(errors, gse_name)
-                next
-            }
-            eset <- tryCatch(load_illum_plat(eset[[1]], gse_name, gse_dir),
-                             error = function(e) NULL)
-
-            # save to disc
-            if (!is.null(eset)) {
-                saveRDS(eset, file.path(gse_dir, save_name))
-            } else {
-                errors <- c(errors, gse_name)
-            }
-
+        if (length(eset) > 1) {
+            warning("Multi-platform Illumina GSEs not supported. ", gse_name)
+            errors <- c(errors, gse_name)
+            next
         }
+        eset <- tryCatch(load_illum_plat(eset[[1]], gse_name, gse_dir),
+                         error = function(e) NULL)
+
+        # save to disc
+        if (!is.null(eset)) {
+            saveRDS(eset, file.path(gse_dir, save_name))
+        } else {
+            errors <- c(errors, gse_name)
+        }
+
         esets[[gse_name]] <- eset
     }
     eset_names <- get_eset_names(esets, gse_names)
@@ -101,6 +94,9 @@ load_illum_plat <- function(eset, gse_name, gse_dir) {
     # use raw data titles to ensure correct contrasts
     pData(eset)$title <- colnames(data)
     colnames(data) <- sampleNames(eset)
+
+    # add illum colname to warn about pData
+    pData(eset)$illum <- NA
 
     # fix up data feature names
     data <- fix_illum_features(eset, data)

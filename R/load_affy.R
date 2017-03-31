@@ -37,7 +37,7 @@ cel_dates <- function(cel_paths) {
 # @seealso \code{\link{get_raw}} to obtain raw data.
 # @return List of annotated esets (one for each unique GSE/GPL platform).
 
-load_affy <- function (gse_names, data_dir, gpl_dir, overwrite) {
+load_affy <- function (gse_names, data_dir, gpl_dir) {
 
     esets  <- list()
     errors <- c()
@@ -45,52 +45,47 @@ load_affy <- function (gse_names, data_dir, gpl_dir, overwrite) {
 
         gse_dir <- file.path(data_dir, gse_name)
         save_name <- paste(gse_name, "eset.rds", sep = "_")
-        eset_path <- list.files(gse_dir, save_name, full.names = TRUE)
 
-        # check if saved copy
-        if (length(eset_path) !=  0 & overwrite ==  FALSE) {
-            eset <- readRDS(eset_path)
+        # get GSEMatrix (for pheno data)
+        eset <- GEOquery::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, getGPL = FALSE)
 
+        # check if have GPL
+        gpl_names <- paste0(sapply(eset, annotation), '.soft')
+        gpl_paths <- sapply(gpl_names, function(gpl_name) {
+            list.files(gpl_dir, gpl_name, full.names = TRUE, recursive = TRUE, include.dirs = TRUE)[1]
+        })
+
+        # copy over GPL
+        if (length(gpl_paths) > 0)
+            file.copy(gpl_paths, gse_dir)
+
+        # will use local GPL or download if couldn't copy
+        eset <- GEOquery::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE)
+
+        # name esets
+        if (length(eset) > 1) {
+            names(eset) <- paste(gse_name, sapply(eset, annotation), sep='.')
         } else {
-            # get GSEMatrix (for pheno data)
-            eset <- GEOquery::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, getGPL = FALSE)
-
-            # check if have GPL
-            gpl_names <- paste0(sapply(eset, annotation), '.soft')
-            gpl_paths <- sapply(gpl_names, function(gpl_name) {
-                list.files(gpl_dir, gpl_name, full.names = TRUE, recursive = TRUE, include.dirs = TRUE)[1]
-            })
-
-            # copy over GPL
-            if (length(gpl_paths) > 0)
-                file.copy(gpl_paths, gse_dir)
-
-            # will use local GPL or download if couldn't copy
-            eset <- GEOquery::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE)
-
-            # name esets
-            if (length(eset) > 1) {
-                names(eset) <- paste(gse_name, sapply(eset, annotation), sep='.')
-            } else {
-                names(eset) <- gse_name
-            }
-
-            # load eset for each platform in GSE
-            eset <- lapply(eset, function(eset.gpl) {
-                tryCatch(load_affy_plat(eset.gpl, gse_dir, gse_name),
-                         error = function(e) NA)
-            })
-
-
-            # save to disc
-            if (!all(is.na(eset)))
-                saveRDS(eset[!is.na(eset)], file.path(gse_dir, save_name))
-
-            if (anyNA(eset))
-                errors <- c(errors, names(eset[!is.na(eset)]))
-
+            names(eset) <- gse_name
         }
-        esets[[gse_name]] <- eset
+
+        # load eset for each platform in GSE
+        eset <- lapply(eset, function(eset.gpl) {
+            tryCatch(load_affy_plat(eset.gpl, gse_dir, gse_name),
+                     error = function(e) NA)
+        })
+
+
+        # save to disc
+        if (!all(is.na(eset)))
+            saveRDS(eset[!is.na(eset)], file.path(gse_dir, save_name))
+
+        if (anyNA(eset))
+            errors <- c(errors, names(eset[is.na(eset)]))
+
+
+        if (!all(is.na(eset)))
+            esets[[gse_name]] <- eset[!is.na(eset)]
     }
     eset_names <- get_eset_names(esets, gse_names)
     esets <- unlist(esets)

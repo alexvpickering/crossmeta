@@ -64,7 +64,7 @@ get_raw <- function (gse_names, data_dir = getwd()) {
 
 load_raw <- function(gse_names, data_dir = getwd(), gpl_dir = '..', overwrite = FALSE) {
 
-    # no duplicates allowed (somehow causes mismatched names/esets)
+    # no duplicates allowed (causes mismatched names/esets)
     gse_names <- unique(gse_names)
 
     affy_names  <- c()
@@ -72,11 +72,20 @@ load_raw <- function(gse_names, data_dir = getwd(), gpl_dir = '..', overwrite = 
     illum_names <- c()
 
     errors <- c()
+    saved <- list()
     for (gse_name in gse_names) {
 
-        # determine platform (based on filenames)
-        gse_dir <- paste(data_dir, gse_name, sep = "/")
+        gse_dir   <- paste(data_dir, gse_name, sep = "/")
+        save_name <- paste(gse_name, "eset.rds", sep = "_")
+        eset_path <- list.files(gse_dir, save_name, full.names = TRUE)
 
+        # check if saved copy
+        if (length(eset_path) > 0 & overwrite == FALSE) {
+            saved[[gse_name]] <- readRDS(eset_path)
+            next()
+        }
+
+        # determine platform (based on filenames)
         affy  <- list.files(gse_dir, ".CEL$", ignore.case = TRUE)
         agil  <- list.files(gse_dir, "^GSM.*txt$", ignore.case = TRUE)
         illum <- list.files(gse_dir, "non.norm.*txt$", ignore.case = TRUE)
@@ -95,10 +104,16 @@ load_raw <- function(gse_names, data_dir = getwd(), gpl_dir = '..', overwrite = 
         }
     }
 
-    # load esets
-    affy  <- load_affy(affy_names, data_dir, gpl_dir, overwrite)
-    agil  <- load_agil(agil_names, data_dir, gpl_dir, overwrite)
-    illum <- load_illum(illum_names, data_dir, gpl_dir, overwrite)
+    # fix up saved names
+    eset_names <- get_eset_names(saved, names(saved))
+    saved <- unlist(saved)
+    names(saved) <- eset_names
+
+    # load non-saved esets
+    affy  <- load_affy(affy_names, data_dir, gpl_dir)
+    agil  <- load_agil(agil_names, data_dir, gpl_dir)
+    illum <- load_illum(illum_names, data_dir, gpl_dir)
+
 
     # no raw data found
     if (length(errors) > 0) {
@@ -124,7 +139,7 @@ load_raw <- function(gse_names, data_dir = getwd(), gpl_dir = '..', overwrite = 
     }
 
 
-    return (c(affy$esets, agil$esets, illum$esets))
+    return (c(saved, affy$esets, agil$esets, illum$esets))
 }
 
 

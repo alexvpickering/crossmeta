@@ -42,10 +42,73 @@
 #' # perform meta-analysis
 #' es <- es_meta(anals)
 
-es_meta <- function(diff_exprs, cutoff = 0.3) {
+es_meta <- function(diff_exprs, cutoff = 0.3, by_source = FALSE) {
+
+    if (by_source) {
+        anals_src <- setup_src(diff_exprs, "top_tables")
+        es <- lapply(anals_src, es_meta_src, cutoff)
+
+
+    } else {
+        es <- list(all = es_meta_src(diff_exprs, cutoff))
+    }
+
+    return(es)
+}
+
+setup_src <- function(anals, table = c("top_tables", "padog_tables")) {
+
+    anals_srcs <- list()
+
+    # contrast sources
+    con_src <- unlist(unname(sapply(anals, `[[`, 'sources')))
+
+    # get added pairs
+    added_prs <- lapply(anals, function(anal) anal$pairs)
+    added_prs <- unique(unlist(added_prs, recursive = FALSE, use.names = FALSE))
+
+    # get non-pair sources
+    is_prs <- con_src %in% unlist(added_prs)
+    added_src <- sapply(unique(con_src[!is_prs]), list, USE.NAMES = FALSE)
+
+
+    # get anals by source
+    for (src in c(added_prs, added_src)) {
+
+        src_name <- paste(src, collapse = ', ')
+
+        anals_srcs[[src_name]] <- lapply(anals, function(anal) {
+            is_src <- con_src[names(anal[[table]])] %in% src
+
+            if (any(is_src)) {
+                anal[[table]] <- anal[[table]][is_src]
+                anal
+            }
+            else NULL
+        })
+    }
+
+    # remove NULL entries
+    anals_srcs <- lapply(anals_srcs, function(anals_src) anals_src[!sapply(anals_src, is.null)])
+
+    return(anals_srcs)
+}
+
+
+es_meta_src <- function(diff_exprs, cutoff) {
 
     # get dp and vardp
-    es <- crossmeta:::get_es(diff_exprs, cutoff)
+    es <- get_es(diff_exprs, cutoff)
+
+    # if just one contrast, use its values
+    if (ncol(es$filt) == 2) {
+        es$filt$mu  <- es$filt[[1]]
+        es$filt$var <- es$filt[[2]]
+        es$filt$fdr <- diff_exprs[[1]]$top_tables[[1]]$adj.P.Val
+
+        return(es)
+    }
+
     df <- es$filt
 
     dp  <- df[, seq(1, ncol(df), 2)]
@@ -85,7 +148,7 @@ es_meta <- function(diff_exprs, cutoff = 0.3) {
 get_es <- function(diff_exprs, cutoff = 0.3) {
 
     # add dprimes and vardprimes to top tables
-    diff_exprs <- crossmeta:::add_es(diff_exprs)
+    diff_exprs <- add_es(diff_exprs)
 
     # get top tables
     es <- lapply(diff_exprs, function(study) study$top_tables)
@@ -102,7 +165,7 @@ get_es <- function(diff_exprs, cutoff = 0.3) {
     # merge dataframes
     es <- merge_dataframes(es)
     names(es) <- nm
-    
+
 
     # only keep genes where more than cutoff fraction of studies have data
     filt <- apply(es, 1, function(x) sum(!is.na(x))) >= (ncol(es) * cutoff)

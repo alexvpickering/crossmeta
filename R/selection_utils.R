@@ -13,7 +13,7 @@
 # @return Named list with a numeric vector. Name is typed group name,
 #    numeric vector is selected rows.
 
-select_contrasts <- function(gse_name, eset) {
+select_contrasts <- function(gse_name, eset, data_dir = getwd()) {
 
     # ------------------- Setup
 
@@ -26,6 +26,11 @@ select_contrasts <- function(gse_name, eset) {
                         Title = pData(eset)$title,
                         Pair = NA,
                         row.names = 1:ncol(eset))
+
+    # remove accession numbers if Illumina
+    if ('illum' %in% colnames(pData(eset)))
+        pdata$Accession <- NULL
+
 
     contrasts <- data.frame(Control = character(0),
                             Test = character(0), stringsAsFactors = FALSE)
@@ -58,7 +63,7 @@ select_contrasts <- function(gse_name, eset) {
                                              br(),
                                              selectInput(
                                                  "prev",
-                                                 br(),
+                                                 "Previous selections:",
                                                  choices = c("", names(previous)),
                                                  width = "200px"
                                              )
@@ -209,21 +214,27 @@ select_contrasts <- function(gse_name, eset) {
 
 
             } else {
-                # add test group data to previous and contrasts
-                if (!group %in% names(previous))
-                    previous <<- c(previous, group_data)
-                contrasts[nrow(contrasts), "Test"] <<- group
 
-                # update inputs
-                updateTextInput(session, "group",
-                                label = "Control group name:", value = "")
-                updateSelectInput(session, "prev",
-                                  choices = c("", names(previous)))
-                DT::selectRows(proxy, NULL)
+                if (group == contrasts[nrow(contrasts), "Control"]) {
+                    message("Group name in use for control group.")
 
-                #update states
-                state$ctrl <- 1
-                state$contrast <- state$contrast + 1
+                } else {
+                    # add test group data to previous and contrasts
+                    if (!group %in% names(previous))
+                        previous <<- c(previous, group_data)
+                    contrasts[nrow(contrasts), "Test"] <<- group
+
+                    # update inputs
+                    updateTextInput(session, "group",
+                                    label = "Control group name:", value = "")
+                    updateSelectInput(session, "prev",
+                                      choices = c("", names(previous)))
+                    DT::selectRows(proxy, NULL)
+
+                    #update states
+                    state$ctrl <- 1
+                    state$contrast <- state$contrast + 1
+                }
             }
         })
 
@@ -317,3 +328,116 @@ select_contrasts <- function(gse_name, eset) {
 
     runGadget(shinyApp(ui, server), viewer = paneViewer())
 }
+
+#' Add sample source information for meta-analysis.
+#'
+#' @import shiny miniUI
+#'
+#' @param diff_exprs Result of previous call to \code{diff_expr}.
+#'
+#' @return Same as \code{\link{diff_expr}} with added slots for each GSE in list:
+#'   \item{sources}{Named vector specifying selected sample source for each contrast.
+#'      Vector names identify the contrast.}
+#'   \item{pairs}{List of character vectors specifying selected sample sources
+#'      that should be analysed together for meta-analysis.}
+
+
+#' @export
+#'
+#' @examples
+#' blah <- c()
+add_sources <- function(diff_exprs, data_dir = getwd()) {
+
+    # get source info for each contrast
+    srclist <- list('GSE' = character(0),
+                    'Contrast' = character(0),
+                    'Supplied' = character(0),
+                    'Source'   = character(0))
+
+    # pairs info
+    added_prs <- lapply(diff_exprs, function(anal) anal$pairs)
+    added_prs <- unique(unlist(added_prs, recursive = FALSE, use.names = FALSE))
+
+    # setup inital source list
+    for (i in seq_along(diff_exprs)) {
+
+        gse_name  <- names(diff_exprs[i])
+        supld_src <- c()
+        anal      <- diff_exprs[[i]]
+        pdata     <- anal$pdata
+
+        # get contrast names
+        contrasts <- colnames(anal$ebayes_sv$contrasts)
+
+        # find tissue/cell type column
+        samplecol <- as.character(t(pdata[1, ]))
+        is_src    <- grepl("tissue:|cell type:", samplecol)
+
+        # user added sources
+        added_src <- unname(anal$source)
+        if (is.null(added_src))
+            added_src <- rep(NA, length(contrasts))
+
+        # get submitter supplied sources
+        # if available and not Illumina (can only guarantee pdata$title)
+        if (sum(is_src) == 1 & !'illum' %in% colnames(pdata)) {
+            for (con in contrasts) {
+                # contrast levels
+                groups <- c(gsub('^.+?-', '', con),
+                            gsub('-.+?$', '', con))
+
+                # supplied sources
+                con_src <- unique(as.character(pdata[pdata$group %in% groups, is_src]))
+                con_src <- gsub("tissue: |cell type: ", "", con_src)
+                con_src <- paste(con_src, collapse = ', ')
+
+                supld_src <- c(supld_src, con_src)
+
+            }
+        } else {
+            supld_src <- rep("N/A", length(contrasts))
+        }
+
+        # add info to srclist
+        srclist$GSE <- c(srclist$GSE, rep(gse_name, length(contrasts)))
+        srclist$Contrast <- c(srclist$Contrast, contrasts)
+        srclist$Supplied <- c(srclist$Supplied, supld_src)
+        srclist$Source   <- c(srclist$Source,   added_src)
+    }
+
+    # get sources/pairs info from user
+    srcdf  <- as.data.frame(srclist, stringsAsFactors = FALSE)
+    selres <- select_sources(srcdf, added_prs, sources)
+
+    srcdf     <- selres$srcdf
+    added_prs <- selres$added_prs
+
+    # add to diff_exprs
+    for (i in seq_along(diff_exprs)) {
+
+        # get sources
+        gse_name <- names(diff_exprs[i])
+        gse_rows <- srcdf$GSE == gse_name
+
+        anal_srcs <- srcdf$Source[gse_rows]
+        names(anal_srcs) <- paste(gse_name, srcdf$Contrast[gse_rows], sep='_')
+
+        # check if sources have any paired
+        have_prd <- sapply(added_prs, function(pairs) any(anal_srcs %in% pairs))
+
+        # add info to diff_exprs
+        diff_exprs[[i]]$sources <- anal_srcs
+        diff_exprs[[i]]$pairs   <- added_prs[have_prd]
+
+        # save diff_exprs
+        gse_folder <- strsplit(gse_name, "\\.")[[1]][1]  # name can be "GSE.GPL"
+        gse_dir <- paste(data_dir, gse_folder, sep = "/")
+
+        save_name <- paste(gse_name, "diff_expr", tolower(diff_exprs[[i]]$annot), sep = "_")
+        save_name <- paste0(save_name, ".rds")
+
+        saveRDS(diff_exprs[[i]], file = paste(gse_dir, save_name, sep = "/"))
+    }
+    return(diff_exprs)
+}
+

@@ -23,14 +23,15 @@ selections and names will be reused.}
 }
 \value{
 List of lists (one per GSE), each containing:
-  \item{eset}{Expression set without expression or feature data.
-     \code{Treatment} ('ctl' or 'test') and \code{group} columns have been
-     added to the \code{pData} slot. Only selected samples kept.}
+  \item{pdata}{data.frame with phenotype data for selected samples.
+     Columns \code{treatment} ('ctrl' or 'test'), \code{group}, and \code{pairs} have been
+     added based on user selections.}
   \item{top_tables}{List with results of \code{\link{topTable}} call (one per
      contrast). These results account for the effects of nuissance variables
      discovered by surrogate variable analysis.}
   \item{ebayes_sv}{Results of call to \code{\link{eBayes}} with surrogate
      variables included in the model matrix.}
+  \item{annot}{Value of \code{annot} variable.}
 }
 \description{
 User selects contrasts, then surrogate variable analysis (sva) and
@@ -66,4 +67,3 @@ anals <- diff_expr(esets[1], data_dir, prev_anals = prev)
 \code{\link{get_raw}}, \code{\link{load_raw}}, and
   \code{\link{load_diff}}.
 }
-

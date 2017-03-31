@@ -4,7 +4,7 @@
 \alias{es_meta}
 \title{Effect size combination meta anaylsis.}
 \usage{
-es_meta(diff_exprs, cutoff = 0.3)
+es_meta(diff_exprs, cutoff = 0.3, by_source = FALSE)
 }
 \arguments{
 \item{diff_exprs}{Result of previous call to \code{diff_expr}.}
@@ -53,4 +53,3 @@ es <- es_meta(anals)
 \code{\link[GeneMeta]{zScores}}, \code{\link[metaMA]{effectsize}},
    \code{\link{fdrtool}}.
 }
-

@@ -29,4 +29,3 @@ prev <- load_diff(gse_names, data_dir)
 \seealso{
 \code{\link{diff_expr}}.
 }
-

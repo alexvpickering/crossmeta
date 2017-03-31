@@ -39,4 +39,3 @@ anals <- load_diff(gse_names, data_dir)
 # contribute results of meta-analysis
 # contribute(anals, subject = "LY294002")
 }
-
