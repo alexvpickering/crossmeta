@@ -2,13 +2,13 @@
 % Please edit documentation in R/diff_utils.R
 \name{diff_expr}
 \alias{diff_expr}
-\title{Differential expression of esets.}
+\title{Differential expression analysis of esets.}
 \usage{
 diff_expr(esets, data_dir = getwd(), annot = "SYMBOL",
   prev_anals = list(NULL))
 }
 \arguments{
-\item{esets}{List of annotated esets. Created by \code{load_raw}.}
+\item{esets}{List of annotated esets. Created by \code{\link{load_raw}}.}
 
 \item{data_dir}{String specifying directory of GSE folders.}
 
@@ -18,30 +18,48 @@ across selected samples will be kept. If meta-analysis will follow, appropriate
 values are "SYMBOL" (default - for gene level analysis) or, if all esets are
 from the same platform, "PROBE" (for probe level analysis).}
 
-\item{prev_anals}{Previous result of \code{diff_expr}. If Present, previous
-selections and names will be reused.}
+\item{prev_anals}{Previous result of \code{\link{diff_expr}}, which can
+ be reloaded using \code{\link{load_diff}}. If present, previous
+selections, names, and pairs will be reused.}
 }
 \value{
-List of lists (one per GSE), each containing:
-  \item{eset}{Expression set without expression or feature data.
-     \code{Treatment} ('ctl' or 'test') and \code{group} columns have been
-     added to the \code{pData} slot. Only selected samples kept.}
-  \item{top_tables}{List with results of \code{\link{topTable}} call (one per
+List of named lists, one for each GSE. Each named list contains:
+  \item{pdata}{data.frame with phenotype data for selected samples.
+     Columns \code{treatment} ('ctrl' or 'test'), \code{group}, and \code{pairs} are
+     added based on user selections.}
+  \item{top_tables}{List with results of \code{\link[limma]{topTable}} call (one per
      contrast). These results account for the effects of nuissance variables
      discovered by surrogate variable analysis.}
-  \item{ebayes_sv}{Results of call to \code{\link{eBayes}} with surrogate
+  \item{ebayes_sv}{Results of call to \code{\link[limma]{eBayes}} with surrogate
      variables included in the model matrix.}
+  \item{annot}{Value of \code{annot} variable.}
 }
 \description{
-User selects contrasts, then surrogate variable analysis (sva) and
-differential expression analysis (limma) is performed.
+After selecting control and test samples for each contrast, surrogate variable
+analysis (\code{\link[sva]{sva}}) and differential expression analysis is performed.
 }
 \details{
+The \strong{Samples} tab is used to select control and test samples for
+each contrast. To do so: select rows for control samples, type a group name
+in the \emph{Control group name} text input box and click the \emph{Add Group}
+button. Repeat for test samples. While adding additional contrasts, a previous
+control group can be quickly reselected from the \emph{Previous selections}
+dropdown box. After control and test samples have been added for all contrasts
+that you wish to include, click the \emph{Done} button. Repeat for all GSEs.
+
+Paired samples (e.g. the same subject before and after treatment) can be
+specified by selecting sample rows to pair and then clicking \emph{Pair Samples}.
+The author does not usually specify paired samples and instead allows surrogate
+variable analysis to discover these inter-sample relationships from the data itself.
+
+The \strong{Contrasts} tab is used to view and delete contrasts that have
+already been added.
+
 For each GSE, analysis results are saved in the corresponding GSE
-folder (in \code{data_dir}) that was created by \code{get_raw}. If analysis
-needs to be repeated, previous results can be reloaded with \code{load_diff}
+folder in \code{data_dir} that was created by \code{\link{get_raw}}. If analyses
+needs to be repeated, previous results can be reloaded with \code{\link{load_diff}}
 and supplied to the \code{prev_anals} parameter. In this case, previous
-selections/names will be reused.
+selections, names, and pairs will be reused.
 }
 \examples{
 library(lydata)
@@ -60,9 +78,5 @@ esets <- load_raw(gse_names[1], data_dir)
 
 # re-run analysis on first eset
 prev <- load_diff(gse_names[1], data_dir)
-anals <- diff_expr(esets[1], data_dir, prev_anals = prev)
-}
-\seealso{
-\code{\link{get_raw}}, \code{\link{load_raw}}, and
-  \code{\link{load_diff}}.
+# anals <- diff_expr(esets[1], data_dir, prev_anals = prev)
 }

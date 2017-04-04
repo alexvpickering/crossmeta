@@ -40,4 +40,3 @@ eset <- symbol_annot(eset)
 \seealso{
 \code{\link{load_raw}}.
 }
-

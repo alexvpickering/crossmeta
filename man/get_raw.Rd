@@ -24,4 +24,3 @@ get_raw("GSE41845")
 \seealso{
 \code{\link{load_raw}}.
 }
-

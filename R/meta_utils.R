@@ -1,20 +1,26 @@
-#' Effect size combination meta anaylsis.
+#' Effect size combination meta analysis.
 #'
-#' Builds on GeneMeta implementation by allowing for genes that were not
-#' measured in all studies.
+#' Performs effect-size meta-analyses across all studies and seperately for
+#' each tissue source.
 #'
-#' In addition to allowing for genes that were not measured in all studies, this
-#' method uses moderated unbiased effect sizes calculated by \code{metaMA} and
-#' determines false discovery rates using \code{fdrtool}.
 #'
-#' @param diff_exprs Result of previous call to \code{diff_expr}.
+#' Builds on \code{\link[GeneMeta]{zScores}} function from GeneMeta by allowing for genes
+#' that were not measured in all studies. This implementation also uses moderated unbiased
+#' effect sizes calculated by \code{\link[metaMA]{effectsize}} from metaMA and determines
+#' false discovery rates using \code{\link[fdrtool]{fdrtool}}.
+#'
+#' @param diff_exprs Previous result of \code{\link{diff_expr}}, which can
+#'    be reloaded using \code{\link{load_diff}}.
 #' @param cutoff Minimum fraction of contrasts that must have measured each gene.
 #'    Between 0 and 1.
+#' @param by_source Should seperate meta-analyses be performed for each tissue
+#'    source added with \code{\link{add_sources}}?
 #'
-#' @return A list with two named data.frames. The first ('filt') has all the
-#'    columns below for genes present in cutoff or more fraction of contrasts.
-#'    The second ('raw') has only \code{dprime} and \code{vardprime} columns but
-#'    for all genes (NAs for genes not measured by a given contrast).
+#' @return A list of named lists, one for each tissue source. Each list contains
+#'    two named data.frames. The first, \code{filt}, has all the columns below for genes
+#'    present in cutoff or more fraction of contrasts. The second, \code{raw}, has only
+#'    \code{dprime} and \code{vardprime} columns, but for all genes (NAs for genes
+#'    not measured by a given contrast).
 #'    \item{dprime}{Unbiased effect sizes (one column per contrast).}
 #'    \item{vardprime}{Variances of unbiased effect sizes (one column per contrast).}
 #'    \item{mu}{Overall mean effect sizes.}
@@ -23,8 +29,6 @@
 #'    \item{fdr}{False discovery rates calculated by \code{fdrtool}.}
 #'
 #' @export
-#' @seealso \code{\link[GeneMeta]{zScores}}, \code{\link[metaMA]{effectsize}},
-#'    \code{\link{fdrtool}}.
 #'
 #' @examples
 #'
@@ -39,39 +43,117 @@
 #' # load previous analysis
 #' anals <- load_diff(gse_names, data_dir)
 #'
+#' # add tissue sources to perform seperate meta-analyses for each source (optional)
+#' # anals <- add_sources(anals, data_dir)
+#'
 #' # perform meta-analysis
-#' es <- es_meta(anals)
+#' es <- es_meta(anals, by_source = TRUE)
 
-es_meta <- function(diff_exprs, cutoff = 0.3) {
+es_meta <- function(diff_exprs, cutoff = 0.3, by_source = FALSE) {
 
-    # get dp and vardp
-    es <- get_es(diff_exprs, cutoff)
-    df <- es$filt
 
-    dp  <- df[, seq(1, ncol(df), 2)]
-    var <- df[, seq(2, ncol(df), 2)]
+    # used for analysis per diff_exprs
+    es_meta_src <- function(diff_exprs, cutoff) {
 
-    # get Cochran Q statistic
-    Q <- f.Q(dp, var)
+        # get dp and vardp
+        es <- get_es(diff_exprs, cutoff)
 
-    # get tau (between study variance)
-    tau <- tau2.DL(Q,
-                   num.studies = apply(var, 1, function(x) sum(!is.na(x))),
-                   my.weights  = 1 / var)
+        # if just one contrast, use its values
+        if (ncol(es$filt) == 2) {
+            es$filt$mu  <- es$filt[[1]]
+            es$filt$var <- es$filt[[2]]
+            es$filt$fdr <- diff_exprs[[1]]$top_tables[[1]]$adj.P.Val
 
-    # add tau to vardp then calculate mean effect sizes and variance
-    var <- var + tau
-    df$mu  <- mu.tau2(dp, var)
-    df$var <- var.tau2(var)
+            return(es)
+        }
 
-    # get z-score and fdr
-    df$z   <- df$mu/sqrt(df$var)
-    df$fdr <- fdrtool::fdrtool(df$z, plot = FALSE, verbose = FALSE)$qval
+        df <- es$filt
 
-    es$filt <- df[order(df$fdr), ]
+        dp  <- df[, seq(1, ncol(df), 2)]
+        var <- df[, seq(2, ncol(df), 2)]
+
+        # get Cochran Q statistic
+        Q <- f.Q(dp, var)
+
+        # get tau (between study variance)
+        tau <- tau2.DL(Q,
+                       num.studies = apply(var, 1, function(x) sum(!is.na(x))),
+                       my.weights  = 1 / var)
+
+        # add tau to vardp then calculate mean effect sizes and variance
+        var <- var + tau
+        df$mu  <- mu.tau2(dp, var)
+        df$var <- var.tau2(var)
+
+        # get z-score and fdr
+        df$z   <- df$mu/sqrt(df$var)
+        df$fdr <- fdrtool::fdrtool(df$z, plot = FALSE, verbose = FALSE)$qval
+
+        es$filt <- df[order(df$fdr), ]
+
+        return(es)
+    }
+
+
+    if (by_source) {
+        # check for sources
+        null_sources <- sapply(diff_exprs, function(anal) is.null(anal$sources))
+        if (any(null_sources))
+            stop("Sources missing from diff_exprs. To add, use add_sources.")
+
+        anals_src <- list(all = diff_exprs)
+        anals_src <- c(anals_src, setup_src(diff_exprs, "top_tables"))
+
+        es <- lapply(anals_src, es_meta_src, cutoff)
+
+
+    } else {
+        es <- list(all = es_meta_src(diff_exprs, cutoff))
+    }
 
     return(es)
 }
+
+
+# used by es_meta and path_meta to group top/padog tables by source
+setup_src <- function(anals, ttype = c("top_tables", "padog_tables")) {
+
+    anals_srcs <- list()
+
+    # contrast sources
+    con_src <- unlist(sapply(unname(anals), `[[`, 'sources'))
+
+    # get added pairs
+    added_prs <- lapply(anals, function(anal) anal$pairs)
+    added_prs <- unique(unlist(added_prs, recursive = FALSE, use.names = FALSE))
+
+    # get non-pair sources
+    is_prs <- con_src %in% unlist(added_prs)
+    added_src <- sapply(unique(con_src[!is_prs]), list, USE.NAMES = FALSE)
+
+
+    # get anals by source
+    for (src in c(added_prs, added_src)) {
+
+        src_name <- paste(src, collapse = ', ')
+
+        anals_srcs[[src_name]] <- lapply(anals, function(anal) {
+            is_src <- con_src[names(anal[[ttype]])] %in% src
+
+            if (any(is_src)) {
+                anal[[ttype]] <- anal[[ttype]][is_src]
+                anal
+            }
+            else NULL
+        })
+    }
+
+    # remove NULL entries
+    anals_srcs <- lapply(anals_srcs, function(anals_src) anals_src[!sapply(anals_src, is.null)])
+
+    return(anals_srcs)
+}
+
 
 
 # ---------------------
@@ -89,7 +171,9 @@ get_es <- function(diff_exprs, cutoff = 0.3) {
 
     # get top tables
     es <- lapply(diff_exprs, function(study) study$top_tables)
-    es <- unlist(es, recursive = FALSE)
+    nm <- unlist(lapply(es, names))
+    nm <- paste(c('dprime', 'vardprime'), rep(nm, each=2), sep='.')
+    es <- unlist(es, recursive = FALSE, use.names = FALSE)
 
     # get desired top table columns
     es <- lapply(es, function(top) {
@@ -99,6 +183,8 @@ get_es <- function(diff_exprs, cutoff = 0.3) {
 
     # merge dataframes
     es <- merge_dataframes(es)
+    names(es) <- nm
+
 
     # only keep genes where more than cutoff fraction of studies have data
     filt <- apply(es, 1, function(x) sum(!is.na(x))) >= (ncol(es) * cutoff)
@@ -182,23 +268,22 @@ add_es <- function(diff_exprs, cols = c("dprime", "vardprime")) {
 # @return A merged data.frame with \code{key} set to row names.
 
 
-merge_dataframes <- function(ls, key = "SYMBOL") {
+merge_dataframes <- function(ls, keys = "SYMBOL") {
 
     # ensure non 'by' names are not duplicated
     ls = Map(function(x, i)
-        stats::setNames(x, ifelse(names(x) %in% key,
+        stats::setNames(x, ifelse(names(x) %in% keys,
                                   names(x),
                                   sprintf('%s.%d', names(x), i))),
         ls, seq_along(ls))
 
     # merge list
-    res <- Reduce(function(...) merge(..., by = key, all = TRUE), ls)
+    res <- Reduce(function(...) merge(..., by = keys, all = TRUE), ls)
 
     # format result
-    row.names(res) <- res[, key]
-    res[, key] <- NULL
+    row.names(res) <- res[, keys[1]]
+    res[, keys[1]] <- NULL
     return(res)
-    print(class(res))
 }
 
 # ---------------------
@@ -323,16 +408,23 @@ contribute <- function(diff_exprs, subject) {
     pcols <- c("treatment", "group", "pairs")
     pdata <- lapply(diff_exprs, function(x) x$pdata[, pcols])
 
+    # get sources and pairs
+    sources <- lapply(diff_exprs, `[[`, 'sources')
+    pairs   <- lapply(diff_exprs, `[[`, 'pairs')
+
     # get contrasts
     cons  <- lapply(diff_exprs, function(x) colnames(x$ebayes_sv$contrasts))
 
     # get effect size values
-    es <- es_meta(diff_exprs)
-    mu <- es$filt$mu
-    names(mu) <- row.names(es$filt)
+    es <- es_meta(diff_exprs, by_source = TRUE)
+    mu <- lapply(es, function(es_src) {
+        src_mu <- es_src$filt[, 'mu']
+        names(src_mu) <- row.names(es_src$filt)
+        src_mu
+    })
 
     # put it all together
-    meta_info <- list(pdata = pdata, contrasts = cons, effectsize = mu)
+    meta_info <- list(pdata = pdata, contrasts = cons, sources = sources, pairs = pairs, effectsize = mu)
 
     # upload to dropbox
     tstamp    <- format(Sys.time(), "%Y%m%d_%H%M%S_")

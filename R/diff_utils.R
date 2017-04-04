@@ -1,40 +1,56 @@
-#' Differential expression of esets.
+#' Differential expression analysis of esets.
 #'
-#' User selects contrasts, then surrogate variable analysis (sva) and
-#' differential expression analysis (limma) is performed.
+#' After selecting control and test samples for each contrast, surrogate variable
+#' analysis (\code{\link[sva]{sva}}) and differential expression analysis is performed.
+#'
+#' The \strong{Samples} tab is used to select control and test samples for
+#' each contrast. To do so: select rows for control samples, type a group name
+#' in the \emph{Control group name} text input box and click the \emph{Add Group}
+#' button. Repeat for test samples. While adding additional contrasts, a previous
+#' control group can be quickly reselected from the \emph{Previous selections}
+#' dropdown box. After control and test samples have been added for all contrasts
+#' that you wish to include, click the \emph{Done} button. Repeat for all GSEs.
+#'
+#' Paired samples (e.g. the same subject before and after treatment) can be
+#' specified by selecting sample rows to pair and then clicking \emph{Pair Samples}.
+#' The author does not usually specify paired samples and instead allows surrogate
+#' variable analysis to discover these inter-sample relationships from the data itself.
+#'
+#' The \strong{Contrasts} tab is used to view and delete contrasts that have
+#' already been added.
 #'
 #' For each GSE, analysis results are saved in the corresponding GSE
-#' folder (in \code{data_dir}) that was created by \code{get_raw}. If analysis
-#' needs to be repeated, previous results can be reloaded with \code{load_diff}
+#' folder in \code{data_dir} that was created by \code{\link{get_raw}}. If analyses
+#' needs to be repeated, previous results can be reloaded with \code{\link{load_diff}}
 #' and supplied to the \code{prev_anals} parameter. In this case, previous
-#' selections/names will be reused.
+#' selections, names, and pairs will be reused.
 #'
 #' @import Biobase shiny miniUI
 #' @importFrom BiocGenerics annotation
 #'
-#' @param esets List of annotated esets. Created by \code{load_raw}.
+#' @param esets List of annotated esets. Created by \code{\link{load_raw}}.
 #' @param data_dir String specifying directory of GSE folders.
 #' @param annot String, column name in fData common to all esets. For duplicated
 #'   values in this column, the row with the highest interquartile range
 #'   across selected samples will be kept. If meta-analysis will follow, appropriate
 #'   values are "SYMBOL" (default - for gene level analysis) or, if all esets are
 #'   from the same platform, "PROBE" (for probe level analysis).
-#' @param prev_anals Previous result of \code{diff_expr}. If Present, previous
-#'   selections and names will be reused.
+#' @param prev_anals Previous result of \code{\link{diff_expr}}, which can
+#'    be reloaded using \code{\link{load_diff}}. If present, previous
+#'   selections, names, and pairs will be reused.
 #'
 #' @export
-#' @seealso \code{\link{get_raw}}, \code{\link{load_raw}}, and
-#'   \code{\link{load_diff}}.
 #'
-#' @return List of lists (one per GSE), each containing:
-#'   \item{eset}{Expression set without expression or feature data.
-#'      \code{Treatment} ('ctl' or 'test') and \code{group} columns have been
-#'      added to the \code{pData} slot. Only selected samples kept.}
-#'   \item{top_tables}{List with results of \code{\link{topTable}} call (one per
+#' @return List of named lists, one for each GSE. Each named list contains:
+#'   \item{pdata}{data.frame with phenotype data for selected samples.
+#'      Columns \code{treatment} ('ctrl' or 'test'), \code{group}, and \code{pairs} are
+#'      added based on user selections.}
+#'   \item{top_tables}{List with results of \code{\link[limma]{topTable}} call (one per
 #'      contrast). These results account for the effects of nuissance variables
 #'      discovered by surrogate variable analysis.}
-#'   \item{ebayes_sv}{Results of call to \code{\link{eBayes}} with surrogate
+#'   \item{ebayes_sv}{Results of call to \code{\link[limma]{eBayes}} with surrogate
 #'      variables included in the model matrix.}
+#'   \item{annot}{Value of \code{annot} variable.}
 #'
 #' @examples
 #' library(lydata)
@@ -53,7 +69,7 @@
 #'
 #' # re-run analysis on first eset
 #' prev <- load_diff(gse_names[1], data_dir)
-#' anals <- diff_expr(esets[1], data_dir, prev_anals = prev)
+#' # anals <- diff_expr(esets[1], data_dir, prev_anals = prev)
 
 
 diff_expr <- function (esets, data_dir = getwd(),
@@ -88,7 +104,7 @@ diff_expr <- function (esets, data_dir = getwd(),
 
         # remove rows with duplicated/NA annot (SYMBOL or ENTREZID)
         dups <- tryCatch (
-            {iqr_duplicates(cons$eset, setup$mod, setup$svobj, annot)},
+            {iqr_replicates(cons$eset, setup$mod, setup$svobj, annot)},
 
             error = function(c) {
                 message(gse_name, ": couldn't fit model - skipping GSE.",
@@ -110,7 +126,6 @@ diff_expr <- function (esets, data_dir = getwd(),
     }
     return (anals)
 }
-
 
 
 # ---------------------
@@ -162,6 +177,7 @@ match_prev_eset <- function(eset, prev_anal) {
 #    \item{eset}{Expression set with selected samples only.}
 #    \item{contrasts}{Character vector of contrast names.}
 #    \item{levels}{Character vector of group variable names.
+
 
 add_contrasts <- function (eset, gse_name, prev_anal) {
 
@@ -234,7 +250,10 @@ add_contrasts <- function (eset, gse_name, prev_anal) {
 # @return List with model matrix(mod), model matrix with surrogate
 #         variables(modsv), and result of \code{sva} function.
 
-diff_setup <- function(eset, group_levels, gse_name){
+diff_setup <- function(eset, group_levels, gse_name, svanal = TRUE){
+
+    # incase svanal FALSE
+    svobj <- list("sv" = NULL)
 
     # make full and null model matrix
     group <- factor(pData(eset)$group, levels = group_levels)
@@ -249,17 +268,18 @@ diff_setup <- function(eset, group_levels, gse_name){
     }
     colnames(mod)[1:length(group_levels)] <- group_levels
 
+    if (svanal) {
+        # surrogate variable analysis
+        # remove duplicated rows (from 1:many PROBE:SYMBOL) as affect sva
+        expr <- unique(data.table(exprs(eset)))
+        svobj <- tryCatch (
+            {utils::capture.output(svobj <- sva::sva(as.matrix(expr), mod, mod0)); svobj},
 
-    # surrogate variable analysis
-    # remove duplicated rows (from 1:many PROBE:SYMBOL) as affect sva
-    expr <- unique(data.table(exprs(eset)))
-    svobj <- tryCatch (
-        {utils::capture.output(svobj <- sva::sva(as.matrix(expr), mod, mod0)); svobj},
-
-        error = function(cond) {
-            message(gse_name, ": sva failed - continuing without.")
-            return(list("sv" = NULL))
-        })
+            error = function(cond) {
+                message(gse_name, ": sva failed - continuing without.")
+                return(list("sv" = NULL))
+            })
+    }
 
     if (is.null(svobj$sv) || svobj$n.sv ==  0) {
         svobj$sv <- NULL
@@ -276,7 +296,7 @@ diff_setup <- function(eset, group_levels, gse_name){
 
 
 
-# Removes features with duplicated annotation.
+# Removes features with replicated annotation.
 #
 # For rows with duplicated annot, highested IQR retained.
 #
@@ -284,19 +304,25 @@ diff_setup <- function(eset, group_levels, gse_name){
 # @inheritParams diff_setup
 # @param mod Model matrix without surrogate variables. generated by \code{diff_setup}.
 # @param svobj Result from \code{sva} function called during \code{diff_setup}.
+# @param annot feature to use to remove replicates.
+# @param rm.dup remove duplicates (same measure, multiple ids)?
 #
 # @return List with:
 #    \item{eset}{Expression set with unique features at probe or gene level.}
 #    \item{exprs_sva}{Expression data from eset with effect of surrogate
 #       variable removed.}
 
-iqr_duplicates <- function (eset, mod, svobj, annot = "SYMBOL") {
+iqr_replicates <- function (eset, mod = NULL, svobj = NULL, annot = "SYMBOL", rm.dup = FALSE) {
 
     # for R CMD check
     iqrange = SYMBOL = NULL
 
-    # get eset with surrogate variables modeled out
-    exprs_sva <- clean_y(exprs(eset), mod, svobj$sv)
+    if (length(svobj) > 0) {
+        # get eset with surrogate variables modeled out
+        exprs_sva <- clean_y(exprs(eset), mod, svobj$sv)
+    } else {
+        exprs_sva <- exprs(eset)
+    }
 
     # add inter-quartile ranges, row, and feature data to exprs data
     data <- as.data.frame(exprs_sva)
@@ -309,7 +335,7 @@ iqr_duplicates <- function (eset, mod, svobj, annot = "SYMBOL") {
 
     # for rows with same annot, keep highest IQR
     data <- data.table(data)
-    data <- data[, .SD[which.max(iqrange)], by = eval(annot)]
+    data <- data[data[, .I[which.max(iqrange)], by = eval(annot)]$V1]
 
     # use row number to keep selected features
     eset <- eset[data$row, ]
@@ -318,6 +344,12 @@ iqr_duplicates <- function (eset, mod, svobj, annot = "SYMBOL") {
     # use annot for feature names
     featureNames(eset) <- fData(eset)[, annot]
     row.names(exprs_sva)   <- fData(eset)[, annot]
+
+    if (rm.dup) {
+        not.dup <- !duplicated(exprs_sva)
+        eset <- eset[not.dup, ]
+        exprs_sva <- exprs_sva[not.dup, ]
+    }
 
     return (list(eset = eset, exprs_sva = exprs_sva))
 }
@@ -333,10 +365,10 @@ iqr_duplicates <- function (eset, mod, svobj, annot = "SYMBOL") {
 # variables discovered by \code{diff_setup}. Also prints MDS plot and saves
 # results.
 #
-# @param eset Annotated eset created by \code{load_raw}. Duplicate features and
-#   non-selected samples removed by \code{iqr_duplicates}.
+# @param eset Annotated eset created by \code{load_raw}. Replicate features and
+#   non-selected samples removed by \code{iqr_replicates}.
 # @param exprs_sva Expression data with surrogate variables removed. Created by
-#    \code{iqr_duplicates}
+#    \code{iqr_replicates}
 # @param contrasts Character vector generated by \code{add_contrasts}.
 # @param group_levels Character vector of group names generated by
 #    \code{add_contrasts}.
@@ -387,7 +419,7 @@ diff_anal <- function(eset, exprs_sva, contrasts, group_levels,
     pdata <- pData(eset)
 
     # save to disk
-    diff_expr <- list(pdata = pdata, top_tables = top_tables, ebayes_sv = ebayes_sv)
+    diff_expr <- list(pdata = pdata, top_tables = top_tables, ebayes_sv = ebayes_sv, annot = annot)
     save_name <- paste(gse_name, "diff_expr", tolower(annot), sep = "_")
     save_name <- paste0(save_name, ".rds")
 
@@ -405,7 +437,7 @@ diff_anal <- function(eset, exprs_sva, contrasts, group_levels,
 #
 # @param eset Annotated eset created by \code{load_raw}. Non-selected samples
 #    and duplicate features removed by \code{add_contrasts} and
-#    \code{iqr_duplicates}.
+#    \code{iqr_replicates}.
 # @param contrasts Character vector of contrast names generated by
 #    \code{add_contrasts}.
 # @param mod Model matrix generated by \code{diff_setup}. With
@@ -452,22 +484,21 @@ clean_y <- function(y, mod, svs) {
 
 
 
-#' Load previous differential expression analysis.
+#' Load previous differential expression analyses.
 #'
-#' Previous runs of \code{diff_expr} are loaded.
+#' Loads previous differential expression analyses.
 #'
 #' @param gse_names Character vector specifying GSE names to be loaded.
 #' @param data_dir String specifying directory of GSE folders.
 #' @param annot Level of previous analysis (e.g. "SYMBOL" or "PROBE").
 #'
 #' @export
-#' @seealso \code{\link{diff_expr}}.
-#' @return Result of previous call to \code{diff_expr}.
+#' @return Result of previous call to \code{\link{diff_expr}}.
 #' @examples
 #' library(lydata)
 #'
 #' data_dir <- system.file("extdata", package = "lydata")
-#' gse_names<- c("GSE9601", "GSE34817")
+#' gse_names <- c("GSE9601", "GSE34817")
 #' prev <- load_diff(gse_names, data_dir)
 
 load_diff <- function(gse_names, data_dir = getwd(), annot = "SYMBOL") {

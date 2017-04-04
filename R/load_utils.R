@@ -25,14 +25,14 @@ get_raw <- function (gse_names, data_dir = getwd()) {
         }
 
         # untar
-        tar_names <- list.files(gse_dir, pattern = "\\.tar")
+        tar_names <- list.files(gse_dir, pattern = "\\.tar$")
         if (length(tar_names) > 0) {
             setwd(gse_dir)
             utils::untar(tar_names)
             setwd(work_dir)
         }
         # unzip
-        paths <- list.files(gse_dir, pattern = "\\.gz",
+        paths <- list.files(gse_dir, pattern = "\\.gz$",
                             full.names = TRUE, ignore.case = TRUE)
         sapply(paths, GEOquery::gunzip, overwrite = TRUE)
     }
@@ -42,16 +42,15 @@ get_raw <- function (gse_names, data_dir = getwd()) {
 
 #' Load and annotate raw data downloaded from GEO.
 #'
-#' Loads and annotates raw data previously downloaded with \code{get_raw}.
+#' Loads and annotates raw data previously downloaded with \code{\link{get_raw}}.
 #' Supported platforms include Affymetrix, Agilent, and Illumina.
 #'
 #' @import data.table
 #'
 #' @param gse_names Character vector of GSE names.
 #' @param data_dir  String specifying directory with GSE folders.
-#' @param overwrite Do you want to overwrite saved esets?
-#'
-#' @seealso \code{\link{get_raw}} to obtain raw data.
+#' @param gpl_dir   String specifying parent directory to search for previously downloaded GPL.soft files.
+#' @param overwrite Do you want to overwrite saved esets from previous \code{load_raw}?
 #'
 #' @return List of annotated esets.
 #' @export
@@ -61,9 +60,9 @@ get_raw <- function (gse_names, data_dir = getwd()) {
 #' eset <- load_raw("GSE9601", data_dir = data_dir)
 
 
-load_raw <- function(gse_names, data_dir = getwd(), overwrite = FALSE) {
+load_raw <- function(gse_names, data_dir = getwd(), gpl_dir = '..', overwrite = FALSE) {
 
-    # no duplicates allowed (somehow causes mismatched names/esets)
+    # no duplicates allowed (causes mismatched names/esets)
     gse_names <- unique(gse_names)
 
     affy_names  <- c()
@@ -71,11 +70,20 @@ load_raw <- function(gse_names, data_dir = getwd(), overwrite = FALSE) {
     illum_names <- c()
 
     errors <- c()
+    saved <- list()
     for (gse_name in gse_names) {
 
-        # determine platform (based on filenames)
-        gse_dir <- paste(data_dir, gse_name, sep = "/")
+        gse_dir   <- paste(data_dir, gse_name, sep = "/")
+        save_name <- paste(gse_name, "eset.rds", sep = "_")
+        eset_path <- list.files(gse_dir, save_name, full.names = TRUE)
 
+        # check if saved copy
+        if (length(eset_path) > 0 & overwrite == FALSE) {
+            saved[[gse_name]] <- readRDS(eset_path)
+            next()
+        }
+
+        # determine platform (based on filenames)
         affy  <- list.files(gse_dir, ".CEL$", ignore.case = TRUE)
         agil  <- list.files(gse_dir, "^GSM.*txt$", ignore.case = TRUE)
         illum <- list.files(gse_dir, "non.norm.*txt$", ignore.case = TRUE)
@@ -94,10 +102,16 @@ load_raw <- function(gse_names, data_dir = getwd(), overwrite = FALSE) {
         }
     }
 
-    # load esets
-    affy  <- load_affy(affy_names, data_dir, overwrite)
-    agil  <- load_agil(agil_names, data_dir, overwrite)
-    illum <- load_illum(illum_names, data_dir, overwrite)
+    # fix up saved names
+    eset_names <- get_eset_names(saved, names(saved))
+    saved <- unlist(saved)
+    names(saved) <- eset_names
+
+    # load non-saved esets
+    affy  <- load_affy(affy_names, data_dir, gpl_dir)
+    agil  <- load_agil(agil_names, data_dir, gpl_dir)
+    illum <- load_illum(illum_names, data_dir, gpl_dir)
+
 
     # no raw data found
     if (length(errors) > 0) {
@@ -123,7 +137,7 @@ load_raw <- function(gse_names, data_dir = getwd(), overwrite = FALSE) {
     }
 
 
-    return (c(affy$esets, agil$esets, illum$esets))
+    return (c(saved, affy$esets, agil$esets, illum$esets))
 }
 
 
@@ -283,7 +297,7 @@ symbol_annot <- function (eset, gse_name = "") {
     # --------------------- Add 'PROBE' and 'SYMBOL' to Feature Data
 
     # PROBE is feature names
-    # added '.' to identify duplicates (remove)
+    # added '.' to identify replicates (remove)
     PROBE <- sapply(strsplit(featureNames(eset), "\\."), `[[`, 1)
 
     # replaced '.' with '*' in features (reverse)
@@ -329,7 +343,7 @@ entrez_map <- function(eset) {
     if (!biocpack_name %in% c("", ".db")) {
         biocpack <- get_biocpack(biocpack_name)
 
-        # added '.' to identify duplicates (remove)
+        # added '.' to identify replicates (remove)
         ID <- sapply(strsplit(featureNames(eset), "\\."), `[[`, 1)
 
         # replaced '.' with '*' in features (reverse)

@@ -31,4 +31,3 @@ data_dir <- system.file("extdata", package = "lydata")
 # open raw data files with default text editor
 # open_raw_illum(illum_names)
 }
-

@@ -2,7 +2,7 @@
 % Please edit documentation in R/diff_utils.R
 \name{load_diff}
 \alias{load_diff}
-\title{Load previous differential expression analysis.}
+\title{Load previous differential expression analyses.}
 \usage{
 load_diff(gse_names, data_dir = getwd(), annot = "SYMBOL")
 }
@@ -14,18 +14,15 @@ load_diff(gse_names, data_dir = getwd(), annot = "SYMBOL")
 \item{annot}{Level of previous analysis (e.g. "SYMBOL" or "PROBE").}
 }
 \value{
-Result of previous call to \code{diff_expr}.
+Result of previous call to \code{\link{diff_expr}}.
 }
 \description{
-Previous runs of \code{diff_expr} are loaded.
+Loads previous differential expression analyses.
 }
 \examples{
 library(lydata)
 
 data_dir <- system.file("extdata", package = "lydata")
-gse_names<- c("GSE9601", "GSE34817")
+gse_names <- c("GSE9601", "GSE34817")
 prev <- load_diff(gse_names, data_dir)
-}
-\seealso{
-\code{\link{diff_expr}}.
 }

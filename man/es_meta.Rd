@@ -2,21 +2,26 @@
 % Please edit documentation in R/meta_utils.R
 \name{es_meta}
 \alias{es_meta}
-\title{Effect size combination meta anaylsis.}
+\title{Effect size combination meta analysis.}
 \usage{
-es_meta(diff_exprs, cutoff = 0.3)
+es_meta(diff_exprs, cutoff = 0.3, by_source = FALSE)
 }
 \arguments{
-\item{diff_exprs}{Result of previous call to \code{diff_expr}.}
+\item{diff_exprs}{Previous result of \code{\link{diff_expr}}, which can
+be reloaded using \code{\link{load_diff}}.}
 
 \item{cutoff}{Minimum fraction of contrasts that must have measured each gene.
 Between 0 and 1.}
+
+\item{by_source}{Should seperate meta-analyses be performed for each tissue
+source added with \code{\link{add_sources}}?}
 }
 \value{
-A list with two named data.frames. The first ('filt') has all the
-   columns below for genes present in cutoff or more fraction of contrasts.
-   The second ('raw') has only \code{dprime} and \code{vardprime} columns but
-   for all genes (NAs for genes not measured by a given contrast).
+A list of named lists, one for each tissue source. Each list contains
+   two named data.frames. The first, \code{filt}, has all the columns below for genes
+   present in cutoff or more fraction of contrasts. The second, \code{raw}, has only
+   \code{dprime} and \code{vardprime} columns, but for all genes (NAs for genes
+   not measured by a given contrast).
    \item{dprime}{Unbiased effect sizes (one column per contrast).}
    \item{vardprime}{Variances of unbiased effect sizes (one column per contrast).}
    \item{mu}{Overall mean effect sizes.}
@@ -25,13 +30,14 @@ A list with two named data.frames. The first ('filt') has all the
    \item{fdr}{False discovery rates calculated by \code{fdrtool}.}
 }
 \description{
-Builds on GeneMeta implementation by allowing for genes that were not
-measured in all studies.
+Performs effect-size meta-analyses across all studies and seperately for
+each tissue source.
 }
 \details{
-In addition to allowing for genes that were not measured in all studies, this
-method uses moderated unbiased effect sizes calculated by \code{metaMA} and
-determines false discovery rates using \code{fdrtool}.
+Builds on \code{\link[GeneMeta]{zScores}} function from GeneMeta by allowing for genes
+that were not measured in all studies. This implementation also uses moderated unbiased
+effect sizes calculated by \code{\link[metaMA]{effectsize}} from metaMA and determines
+false discovery rates using \code{\link[fdrtool]{fdrtool}}.
 }
 \examples{
 
@@ -46,11 +52,9 @@ gse_names  <- c("GSE9601", "GSE15069", "GSE50841", "GSE34817", "GSE29689")
 # load previous analysis
 anals <- load_diff(gse_names, data_dir)
 
-# perform meta-analysis
-es <- es_meta(anals)
-}
-\seealso{
-\code{\link[GeneMeta]{zScores}}, \code{\link[metaMA]{effectsize}},
-   \code{\link{fdrtool}}.
-}
+# add tissue sources to perform seperate meta-analyses for each source (optional)
+# anals <- add_sources(anals, data_dir)
 
+# perform meta-analysis
+es <- es_meta(anals, by_source = TRUE)
+}

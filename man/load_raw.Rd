@@ -4,20 +4,22 @@
 \alias{load_raw}
 \title{Load and annotate raw data downloaded from GEO.}
 \usage{
-load_raw(gse_names, data_dir = getwd(), overwrite = FALSE)
+load_raw(gse_names, data_dir = getwd(), gpl_dir = "..", overwrite = FALSE)
 }
 \arguments{
 \item{gse_names}{Character vector of GSE names.}
 
 \item{data_dir}{String specifying directory with GSE folders.}
 
-\item{overwrite}{Do you want to overwrite saved esets?}
+\item{gpl_dir}{String specifying parent directory to search for previously downloaded GPL.soft files.}
+
+\item{overwrite}{Do you want to overwrite saved esets from previous \code{load_raw}?}
 }
 \value{
 List of annotated esets.
 }
 \description{
-Loads and annotates raw data previously downloaded with \code{get_raw}.
+Loads and annotates raw data previously downloaded with \code{\link{get_raw}}.
 Supported platforms include Affymetrix, Agilent, and Illumina.
 }
 \examples{
@@ -25,7 +27,3 @@ library(lydata)
 data_dir <- system.file("extdata", package = "lydata")
 eset <- load_raw("GSE9601", data_dir = data_dir)
 }
-\seealso{
-\code{\link{get_raw}} to obtain raw data.
-}
-
