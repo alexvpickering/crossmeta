@@ -7,20 +7,34 @@
 diff_path(esets, prev_anals, data_dir = getwd())
 }
 \arguments{
-\item{esets}{List of annotated esets. Created by \code{load_raw}.}
+\item{esets}{List of annotated esets. Created by \code{\link{load_raw}}.}
 
-\item{prev_anals}{Previous result of \code{diff_expr}.}
+\item{prev_anals}{Previous result of \code{\link{diff_expr}}, which can
+be reloaded using \code{\link{load_diff}}.}
 
-\item{data_dir}{String specifying directory of GSE folders. Defaul is working directory.}
+\item{data_dir}{String specifying directory for GSE folders.}
 }
 \value{
-List of data.frames containing PADOG pathway analysis results for each contrast.
+List of named lists, one for each GSE. Each named list contains:
+   \item{padog_tables}{data.frames containing \code{\link[PADOG]{padog}}
+      pathway analysis results for each contrast.}
+
+   If \code{\link{add_sources}} is used first:
+   \item{sources}{Named vector specifying selected sample source for each contrast.
+      Vector names identify the contrast.}
+   \item{pairs}{List of character vectors indicating tissue sources that should be
+      treated as the same source for subsequent pathway meta-analysis.}
 }
 \description{
 Performs PADOG pathway analysis using KEGG database (downloaded Feb 2017).
 }
 \details{
-Only contrasts with more than 2 samples per group can be analysed by PADOG.
+If you wish to perform source-specific pathway meta-analyses,
+\code{\link{add_sources}} must be used before \code{diff_paths}.
+
+For each GSE, analysis results are saved in the corresponding GSE
+folder in \code{data_dir} that was created by \code{\link{get_raw}}. PADOG outperforms
+other pathway analysis algorithms at prioritizing expected pathways (see references).
 }
 \examples{
 
@@ -38,9 +52,18 @@ esets <- load_raw(gse_names, data_dir)
 # load previous differential expression analysis
 anals <- load_diff(gse_names, data_dir)
 
+# add tissue sources to perform seperate meta-analyses for each source (recommended)
+# anals <- add_sources(anals)
+
 # perform pathway analysis for each contrast
 # path_anals <- diff_path(esets, anals, data_dir)
 }
-\seealso{
-\code{\link[PADOG]{padog}} for details on PADOG pathway analysis.
+\references{
+Tarca AL, Bhatti G, Romero R. A Comparison of Gene Set Analysis Methods
+   in Terms of Sensitivity, Prioritization and Specificity. Chen L, ed. PLoS ONE.
+   2013;8(11):e79217. doi:10.1371/journal.pone.0079217.
+
+   Dong X, Hao Y, Wang X, Tian W. LEGO: a novel method for gene set over-representation
+   analysis by incorporating network-based gene weights. Scientific Reports.
+   2016;6:18871. doi:10.1038/srep18871.
 }

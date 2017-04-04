@@ -42,7 +42,7 @@ get_raw <- function (gse_names, data_dir = getwd()) {
 
 #' Load and annotate raw data downloaded from GEO.
 #'
-#' Loads and annotates raw data previously downloaded with \code{get_raw}.
+#' Loads and annotates raw data previously downloaded with \code{\link{get_raw}}.
 #' Supported platforms include Affymetrix, Agilent, and Illumina.
 #'
 #' @import data.table
@@ -50,9 +50,7 @@ get_raw <- function (gse_names, data_dir = getwd()) {
 #' @param gse_names Character vector of GSE names.
 #' @param data_dir  String specifying directory with GSE folders.
 #' @param gpl_dir   String specifying parent directory to search for previously downloaded GPL.soft files.
-#' @param overwrite Do you want to overwrite saved esets?
-#'
-#' @seealso \code{\link{get_raw}} to obtain raw data.
+#' @param overwrite Do you want to overwrite saved esets from previous \code{load_raw}?
 #'
 #' @return List of annotated esets.
 #' @export

@@ -20,8 +20,9 @@ List containing necessary information for \code{prev_anal} parameter
    of \code{\link{diff_expr}}.
 }
 \description{
-Function useful when number of samples makes manual (GUI) selection  error
-prone and time-consuming. Particularly useful for large clinical data sets.
+Function is useful when number of samples makes manual selection with
+\code{\link{diff_expr}}  error prone and time-consuming. This is often true
+for large clinical data sets.
 }
 \examples{
 
@@ -53,5 +54,5 @@ pData(eset$GSE34817)$group <- group
 sel <- setup_prev(eset, contrasts = "LY-DMSO")
 
 # run differential expression analysis
-anal <- diff_expr(eset, data_dir, prev_anal = sel)
+# anal <- diff_expr(eset, data_dir, prev_anal = sel)
 }

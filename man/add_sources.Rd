@@ -7,18 +7,45 @@
 add_sources(diff_exprs, data_dir = getwd())
 }
 \arguments{
-\item{diff_exprs}{Result of previous call to \code{diff_expr}.}
+\item{diff_exprs}{Previous result of \code{\link{diff_expr}}, which can
+be reloaded using \code{\link{load_diff}}.}
+
+\item{data_dir}{String specifying directory of GSE folders.}
 }
 \value{
-Same as \code{\link{diff_expr}} with added slots for each GSE in list:
-  \item{sources}{Named vector specifying selected sample source for each contrast.
-     Vector names identify the contrast.}
-  \item{pairs}{List of character vectors specifying selected sample sources
-     that should be analysed together for meta-analysis.}
+Same as \code{\link{diff_expr}} with added slots for each GSE in \code{diff_exprs}:
+   \item{sources}{Named vector specifying selected sample source for each contrast.
+      Vector names identify the contrast.}
+   \item{pairs}{List of character vectors indicating tissue sources that should be
+      treated as the same source for subsequent effect-size and pathway meta-analyses.}
 }
 \description{
-Add sample source information for meta-analysis.
+User selects a tissue source for each contrast and indicates any sources that
+should be paired. This step is required if you would like to perform source-specific
+effect-size/pathway meta-analyses.
+}
+\details{
+The \strong{Sources} tab is used to add a source for each contrast. To do so: click the
+relevant contrast rows, search for a source in the \emph{Sample source} dropdown box,
+and then click the \emph{Add} button.
+
+The \strong{Pairs} tab is used to indicate sources that should be paired
+(treated as the same source for subsequent effect-size and pathway meta-analyses). To do
+so: select at least two sources from the \emph{Paired sources} dropdown box,
+and then click the \emph{Add} button.
+
+For each GSE, analysis results with added sources/pairs are saved in the corresponding GSE
+folder (in \code{data_dir}) that was created by \code{\link{get_raw}}.
 }
 \examples{
-blah <- c()
+library(lydata)
+
+# load result of previous call to diff_expr:
+data_dir  <- system.file("extdata", package = "lydata")
+gse_names <- c("GSE9601", "GSE34817")
+anals     <- load_diff(gse_names, data_dir)
+
+# run shiny GUI to add tissue sources
+# anals <- add_sources(anals, data_dir)
+
 }

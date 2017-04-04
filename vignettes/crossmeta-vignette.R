@@ -88,68 +88,44 @@ pData(eset$GSE34817)$group <- group
 sel <- setup_prev(eset, contrasts = "LY-DMSO")
 
 # run differential expression analysis
-anal <- diff_expr(eset, data_dir, prev_anal = sel)
+# anal <- diff_expr(eset, data_dir, prev_anal = sel)
+
+## ----eval=FALSE----------------------------------------------------------
+#  # run GUI to add tissue sources
+#  anals <- add_sources(anals, data_dir)
+#  
+#  # for usage details
+#  ?add_sources
 
 ## ---- message=FALSE, results='hide'--------------------------------------
 # re-load previous analyses if need to
 anals <- load_diff(gse_names, data_dir)
 
-# perform meta analysis
-es <- es_meta(anals)
+# perform meta analyses by tissue source
+es_res <- es_meta(anals, by_source = TRUE)
 
 # for explanation of values
 # ?es_meta
 
-## ---- message=FALSE, results='hide'--------------------------------------
-library(ccmap)
-library(ccdata)
-data(cmap_es)
+## ----eval=FALSE----------------------------------------------------------
+#  # pathway analysis for each contrast
+#  path_anals <- diff_path(esets, anals, data_dir)
+#  
+#  # pathway meta analysis by tissue source
+#  path_res <- path_meta(path_anals, by_source = TRUE)
+#  
 
-# get meta-analysis effect size values
-dprimes <- get_dprimes(es)
-
-# query using entire transcriptional profile
-top_drugs <- query_drugs(dprimes$meta, cmap_es)
-
-# drug with greatest transcriptional similarity
-topd <- names(top_drugs)[1]
+## ----eval=FALSE----------------------------------------------------------
+#  explore_paths(es_res, path_res)
+#  
+#  # for usage details
+#  ?explore_paths
 
 ## ----eval=FALSE----------------------------------------------------------
 #  # subject is the focus of the meta-analysis (e.g. drug/disease name)
 #  contribute(anals, subject = "LY294002")
 #  
 #  # Thank you!
-
-## ---- message=FALSE, results='hide'--------------------------------------
-# perform pathway analysis for each contrast
-# path_anals <- diff_path(esets, anals, data_dir)
-
-# load previous pathway analyses
-path_anals <- load_path(gse_names, data_dir)
-
-## ---- message=FALSE, results='hide'--------------------------------------
-# perform pathway meta analysis 
-# (default ncores and nperm will be faster and give more reliable fdr/p-values)
-path_res <- path_meta(path_anals, ncores = 1, nperm = 100)
-
-# highest ranking pathway
-path <- row.names(path_res)[1]
-
-## ---- message=FALSE, results='hide'--------------------------------------
-# plot transcript expression values and summary error bars for pathway
-# plot_path(path, es, cmap_es)
-
-# drug with most similar transcriptional profile for top pathway
-
-# query using only transcripts for genes in path
-top_drugsp <- query_drugs(dprimes$meta, cmap_es, path=path)
-
-# drug with most similar transcriptional profile for top pathway (milrinone)
-topdp <- names(top_drugsp)[1] 
-
-# plot meta-analysis of pathway alongside top overall drug and top drug for pathway
-plot_path(path, es, cmap_es, c(topd, topdp))
-
-## ------------------------------------------------------------------------
-sessionInfo()
+#  
+#  sessionInfo()
 

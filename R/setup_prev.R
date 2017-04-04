@@ -1,7 +1,8 @@
 #' Setup selections when many samples.
 #'
-#' Function useful when number of samples makes manual (GUI) selection  error
-#' prone and time-consuming. Particularly useful for large clinical data sets.
+#' Function is useful when number of samples makes manual selection with
+#' \code{\link{diff_expr}}  error prone and time-consuming. This is often true
+#' for large clinical data sets.
 #'
 #' @param eset List containing one expression set with pData 'group' and 'pairs'
 #'    (optional) columns. Name of \code{eset} should be the GSE name.
@@ -44,7 +45,7 @@
 #' sel <- setup_prev(eset, contrasts = "LY-DMSO")
 #'
 #' # run differential expression analysis
-#' anal <- diff_expr(eset, data_dir, prev_anal = sel)
+#' # anal <- diff_expr(eset, data_dir, prev_anal = sel)
 
 setup_prev <- function(eset, contrasts) {
 

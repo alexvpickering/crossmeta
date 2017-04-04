@@ -12,7 +12,7 @@ load_path(gse_names, data_dir = getwd())
 \item{data_dir}{String specifying directory for GSE folders.}
 }
 \value{
-Result of previous call to \code{diff_path}.
+Result of previous call to \code{\link{diff_path}}.
 }
 \description{
 Load previous pathway analyses.

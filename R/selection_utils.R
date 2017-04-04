@@ -329,23 +329,53 @@ select_contrasts <- function(gse_name, eset, data_dir = getwd()) {
     runGadget(shinyApp(ui, server), viewer = paneViewer())
 }
 
+
+# ---------------
+
 #' Add sample source information for meta-analysis.
+#'
+#' User selects a tissue source for each contrast and indicates any sources that
+#' should be paired. This step is required if you would like to perform source-specific
+#' effect-size/pathway meta-analyses.
+#'
+#'
+#' The \strong{Sources} tab is used to add a source for each contrast. To do so: click the
+#' relevant contrast rows, search for a source in the \emph{Sample source} dropdown box,
+#' and then click the \emph{Add} button.
+#'
+#' The \strong{Pairs} tab is used to indicate sources that should be paired
+#' (treated as the same source for subsequent effect-size and pathway meta-analyses). To do
+#' so: select at least two sources from the \emph{Paired sources} dropdown box,
+#' and then click the \emph{Add} button.
+#'
+#' For each GSE, analysis results with added sources/pairs are saved in the corresponding GSE
+#' folder (in \code{data_dir}) that was created by \code{\link{get_raw}}.
 #'
 #' @import shiny miniUI
 #'
-#' @param diff_exprs Result of previous call to \code{diff_expr}.
+#' @param diff_exprs Previous result of \code{\link{diff_expr}}, which can
+#'    be reloaded using \code{\link{load_diff}}.
+#' @param data_dir String specifying directory of GSE folders.
 #'
-#' @return Same as \code{\link{diff_expr}} with added slots for each GSE in list:
-#'   \item{sources}{Named vector specifying selected sample source for each contrast.
-#'      Vector names identify the contrast.}
-#'   \item{pairs}{List of character vectors specifying selected sample sources
-#'      that should be analysed together for meta-analysis.}
-
-
+#' @return Same as \code{\link{diff_expr}} with added slots for each GSE in \code{diff_exprs}:
+#'    \item{sources}{Named vector specifying selected sample source for each contrast.
+#'       Vector names identify the contrast.}
+#'    \item{pairs}{List of character vectors indicating tissue sources that should be
+#'       treated as the same source for subsequent effect-size and pathway meta-analyses.}
+#'
 #' @export
 #'
 #' @examples
-#' blah <- c()
+#' library(lydata)
+#'
+#' # load result of previous call to diff_expr:
+#' data_dir  <- system.file("extdata", package = "lydata")
+#' gse_names <- c("GSE9601", "GSE34817")
+#' anals     <- load_diff(gse_names, data_dir)
+#'
+#' # run shiny GUI to add tissue sources
+#' # anals <- add_sources(anals, data_dir)
+#'
 add_sources <- function(diff_exprs, data_dir = getwd()) {
 
     # get source info for each contrast
@@ -407,7 +437,7 @@ add_sources <- function(diff_exprs, data_dir = getwd()) {
 
     # get sources/pairs info from user
     srcdf  <- as.data.frame(srclist, stringsAsFactors = FALSE)
-    selres <- select_sources(srcdf, added_prs, sources)
+    selres <- select_sources(srcdf, added_prs)
 
     srcdf     <- selres$srcdf
     added_prs <- selres$added_prs
@@ -441,3 +471,267 @@ add_sources <- function(diff_exprs, data_dir = getwd()) {
     return(diff_exprs)
 }
 
+
+
+# Shiny GUI used by add_sources
+#
+# @param srcdf
+# @param added_prs
+#
+# @return
+#
+# @examples
+select_sources <- function(srcdf, added_prs) {
+
+    # ------------------- Setup
+
+    # setup
+    added_src <- setdiff(srcdf$Source, NA)
+
+    prsht  <- paste0(nrow(srcdf) * 21.32, 'px')
+    srcht  <- paste0(nrow(srcdf) * 42.63, 'px')
+
+    if (is.null(added_prs)) {
+        prsdf  <- data.frame(Pairs = character(0), stringsAsFactors = FALSE)
+
+    } else {
+        prsvec <- sapply(added_prs, paste, collapse = ', ')
+        prsdf  <- data.frame(Pairs = prsvec, stringsAsFactors = FALSE)
+    }
+
+
+    # link for GSE
+    orig_names <- srcdf$GSE
+    gse_names  <- sapply(strsplit(srcdf$GSE, ".", fixed = TRUE), `[`, 1)
+    srcdf$GSE  <- paste0('<a href="https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=',
+                         gse_names, '">', gse_names, '</a>')
+
+
+
+    # ------------------- user interface
+
+
+    ui <- miniPage(
+        # title bar
+        gadgetTitleBar("Select Sources"),
+        miniTabstripPanel(
+            miniTabPanel("Sources", icon = icon("table"),
+                         miniContentPanel(
+                             fillCol(flex = NA,
+                                     fillRow(flex = c(NA, .025, NA, NA),
+                                             selectizeInput(
+                                                 "source",
+                                                 label = "Sample source:",
+                                                 choices = c("", sources),
+                                                 options = list(create = TRUE),
+                                                 width = "300px"
+                                             ),
+                                             tags$style(type='text/css', ".selectize-dropdown-content {max-height: 500px; }")
+                                     ),
+                                     hr(),
+                                     DT::dataTableOutput("srcdf", height = "100%")
+                             )
+                         ),
+                         miniButtonBlock(
+                             actionButton("add_source", "Add"),
+                             actionButton("del_source", "Delete")
+                         )
+
+            ),
+
+            miniTabPanel("Pairs", icon = icon("list-ol"),
+                         miniContentPanel(
+                             fillCol(flex = NA,
+                                     fillRow(flex = c(NA, .025, NA, NA),
+                                             selectizeInput(
+                                                 "paired",
+                                                 label = "Paired sources:",
+                                                 multiple = TRUE,
+                                                 choices = added_src,
+                                                 width = "300px"
+                                             )
+                                     ),
+                                     hr(),
+                                     DT::dataTableOutput("prsdf", height = prsht)
+                             )
+                         ),
+                         miniButtonBlock(
+                             actionButton("add_pair", "Add"),
+                             actionButton("del_pair", "Delete")
+                         )
+            )
+        )
+    )
+
+
+
+    # ------------------------- server
+
+
+    server <- function(input, output, session) {
+
+
+        output$prsdf <- DT::renderDataTable({
+
+            DT::datatable(
+                prsdf,
+                # rownames = FALSE,
+                options = list(
+                    scrollY = FALSE,
+                    paging = FALSE,
+                    searching = FALSE,
+                    bInfo = 0
+                )
+            )
+        })
+
+
+        # show source data
+        output$srcdf <- DT::renderDataTable({
+
+            DT::datatable(
+                srcdf,
+                # rownames = FALSE,
+                options = list(
+                    scrollY = FALSE,
+                    paging = FALSE,
+                    bInfo = 0
+                ),
+                escape = FALSE # need for HTML links
+            )
+        })
+
+
+        src_proxy = DT::dataTableProxy('srcdf')
+        prs_proxy = DT::dataTableProxy('prsdf')
+
+
+        # clicked 'Add Source'
+        observeEvent(input$add_source, {
+
+            rows  <- input$srcdf_rows_selected
+            nrow  <- length(row)
+            src   <- input$source
+
+
+            if (is.null(rows) & src != "") {
+                message('Select contrast(s) to add source.')
+
+            } else if (!is.null(rows) & src == "") {
+                message('Select a sample source.')
+
+            } else if (!is.null(rows) & src != "") {
+                srcdf[rows, 'Source'] <<- input$source
+                DT::replaceData(src_proxy, srcdf, resetPaging = FALSE)
+
+                # update added sources
+                added_src <<- setdiff(srcdf$Source, NA)
+                updateSelectizeInput(session, 'paired', choices = added_src)
+                updateSelectizeInput(session, 'source', selected = "")
+            }
+
+        })
+
+        # clicked 'Delete Source'
+        observeEvent(input$del_source, {
+
+            rows  <- input$srcdf_rows_selected
+
+            if (length(row) == 0) {
+                message('Select contrast(s) to delete source.')
+
+            } else {
+                srcdf[rows, 'Source'] <<- NA
+                DT::replaceData(src_proxy, srcdf, resetPaging = FALSE)
+
+                # update added sources
+                added_src <<- setdiff(srcdf$Source, NA)
+                updateSelectizeInput(session, 'paired', choices = added_src)
+            }
+
+        })
+
+        # clicked 'Add Pair'
+        observeEvent(input$add_pair, {
+
+            prd  <- input$paired
+
+            if (length(prd) < 2) {
+                message('Select two or more sources to pair.')
+
+            } else {
+
+                # first pairing
+                if (length(added_prs) == 0) {
+                    added_prs[[length(added_prs)+1]] <<- prd
+
+                } else {
+
+                    # determine if previously paired contain just paired sources
+                    have_prd <- sapply(added_prs, function(added_pr) any(prd %in% added_pr))
+
+                    # merge if any
+                    if (any(have_prd)) {
+                        mrg_prd <- unique(c(prd, unlist(added_prs[have_prd])))
+                        added_prs[have_prd] <<- NULL
+                        added_prs[[length(added_prs)+1]] <<- mrg_prd
+
+                    } else {
+                        # add new otherwise
+                        added_prs[[length(added_prs)+1]] <<- prd
+                    }
+                }
+
+                # update pairs data.frame
+                prsvec <- sapply(added_prs, paste, collapse = ', ')
+                prsdf <<- data.frame(Pairs = prsvec, stringsAsFactors = FALSE)
+
+                DT::replaceData(prs_proxy, prsdf)
+
+                # unselect paired
+                updateSelectizeInput(session, 'paired', selected = "")
+            }
+        })
+
+
+        # clicked 'Delete Pair'
+        observeEvent(input$del_pair, {
+
+
+            rows  <- input$prsdf_rows_selected
+
+            if (length(rows) == 0) {
+                message('Select row(s) to delete pairs.')
+
+            } else {
+                added_prs[[rows]] <<- NULL
+
+                # update pairs data.frame
+                if (length(added_prs) == 0) {
+                    prsdf <<- data.frame(Pairs = character(0), stringsAsFactors = FALSE)
+
+                } else {
+                    prsvec <- sapply(added_prs, paste, collapse = ', ')
+                    prsdf <<- data.frame(Pairs = prsvec, stringsAsFactors = FALSE)
+
+                }
+
+                DT::replaceData(prs_proxy, prsdf,  resetPaging = FALSE)
+            }
+        })
+
+
+        # clicked 'Done'
+        observeEvent(input$done, {
+            if (anyNA(srcdf$Source)) {
+                message("Contrast(s) without source.")
+
+            }  else {
+                srcdf$GSE <- orig_names
+                stopApp(list(srcdf = srcdf, added_prs = added_prs))
+            }
+        })
+    }
+
+    runGadget(shinyApp(ui, server), viewer = paneViewer())
+}

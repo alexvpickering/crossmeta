@@ -2,25 +2,33 @@
 % Please edit documentation in R/path_utils.R
 \name{path_meta}
 \alias{path_meta}
-\title{Fisher's p-value combination meta analysis of PADOG pathway analyses.}
+\title{Pathway p-value meta analysis.}
 \usage{
 path_meta(path_anals, ncores = parallel::detectCores(), nperm = ncores *
   10000, by_source = FALSE)
 }
 \arguments{
-\item{path_anals}{Result of previous call to \code{diff_path} or \code{load_path}.}
+\item{path_anals}{Previous result of \code{\link{diff_path}}, which can
+be reloaded using \code{\link{load_path}}.}
 
 \item{ncores}{Number of cores to use. Default is all available.}
 
 \item{nperm}{Number of permutation to perform to calculate p-values.}
+
+\item{by_source}{Should seperate meta-analyses be performed for each tissue
+source added with \code{\link{add_sources}}?}
 }
 \value{
-Matrix with PADOG p-values for each contrast and permutation p- and fdr-values for meta analysis.
+A list of matrices, one for each tissue source. Each matrix contains
+   a column of PADOG p-values for each contrast and permutation p- and fdr-values
+   for the meta analysis.
 }
 \description{
-\code{\link[metap]{sumlog}} is used to perform meta-analysis of \code{\link[PADOG]{padog}} p-values.
+Uses Fisher's method to combine p-values from PADOG pathway analyses.
+}
+\details{
 Permutation p-values are determined by shuffling pathway names associated with PADOG p-values prior
-to meta-analysis. Permutation p-values are adjusted using the Benjamini & Hochberg method to  obtain
+to meta-analysis. Permutation p-values are then adjusted using the Benjamini & Hochberg method to  obtain
 false discovery rates.
 }
 \examples{
@@ -39,4 +47,7 @@ path_anals <- load_path(gse_names, data_dir)
 # perform pathway meta analysis
 path_res <- path_meta(path_anals, ncores = 1, nperm = 100)
 
+}
+\seealso{
+\code{\link[metap]{sumlog}}, \code{\link[PADOG]{padog}}.
 }
