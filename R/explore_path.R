@@ -72,9 +72,10 @@ explore_paths <- function(es_res, path_res, type = c('both', 'mimic', 'reverse')
     gslist = gs.names = NULL
     utils::data("gslist", "gs.names", package = "crossmeta", envir = environment())
 
+    i <- 1
+
     # visibility
-    restart <- TRUE
-    start   <- TRUE
+    restart <- FALSE
     vis1 <- FALSE
     vis2 <- FALSE
 
@@ -164,90 +165,183 @@ explore_paths <- function(es_res, path_res, type = c('both', 'mimic', 'reverse')
     server <- function(input, output, session) {
 
 
+        # update source
         observeEvent(input$source, {
 
-            src   <- input$source
-            path  <- input$path
-            drug2 <- input$drug2
+            # cat(i, ': source changing\n')
+            # i <<- i + 1
 
-            # update global top drugs
-            paths        <<- row.names(path_res[[src]])
-            names(paths) <<- paste0(paths, ' (', format(signif(path_res[[src]][, 'fdr'], 2), scientific = TRUE), ')')
-            top_drugs    <<- fullpath(dprimes[[src]]$meta, cmap_es, paths[1], type[1])
+            # reset drug visibility
+            restart <<- TRUE
 
-            # update selections
+            new_src   <- input$source
+            old_path  <- input$path
+            old_drug2 <- input$drug2
+
+            # update top drugs for new source
+            paths        <<- row.names(path_res[[new_src]])
+            names(paths) <<- paste0(paths, ' (', format(signif(path_res[[new_src]][, 'fdr'], 2), scientific = TRUE), ')')
+            top_drugs    <<- fullpath(dprimes[[new_src]]$meta, cmap_es, paths[1], type[1])
+
+            # don't re-update top drugs
+            state$source <<- TRUE
+
+            # update path selection (updates drug selections as well)
             updateSelectInput(session, 'path',  choices = paths, selected = paths[1])
 
-            # if path doesn't change with source, need to update drugs and reset visibility
-            if (path == paths[1]) {
-                restart <<- TRUE
+            # if path doesn't change with source
+            if (old_path == paths[1]) {
+
+                # cat(i, ': no path change (source)\n')
+                # i <<- i + 1
+
+                # need to update drugs
                 updateSelectInput(session, 'drug1', choices = top_drugs$full, selected = top_drugs$full[1])
                 updateSelectInput(session, 'drug2', choices = top_drugs$path, selected = top_drugs$path[1])
 
-                # if drug2 doesn't change, need to update restart
-                if (drug2 == top_drugs$path[1])
+                # reset source
+                # cat(i, ': resetting source state (source)\n')
+                # i <<- i + 1
+
+                state$source <<- FALSE
+
+                # if drug2 doesn't change
+                if (old_drug2 == top_drugs$path[1]) {
+
+                    # reset visibility
                     restart <<- FALSE
+                    vis1 <<- FALSE
+                    vis2 <<- FALSE
 
-                vis1 <<- FALSE
-                vis2 <<- FALSE
+                    # trigger plot update
+                    state$update <<- !state$update
+
+                    # cat(i, ': no drug2 change (source)\n')
+                    # i <<- i + 1
+
+                }
             }
-        })
+        }, ignoreInit = TRUE)
 
+
+
+
+        # update path
         observeEvent(input$path, {
 
-            src   <- input$source
-            drug2 <- input$drug2
+            # cat(i, ': path change\n')
+            # i <<- i + 1
+
+            # reset drug visibility
             restart <<- TRUE
 
-            # update global top drugs
-            top_drugs <<- fullpath(dprimes[[src]]$meta, cmap_es, input$path, type[1], top_drugs$all_full)
+            old_src   <- input$source
+            old_drug2 <- input$drug2
 
-            # update selections
+            # if source changed, already updated top path drugs
+            if (!state$source) {
+                # cat(i, ': updating top path drugs\n')
+                # i <<- i + 1
+
+                top_drugs <<- fullpath(dprimes[[old_src]]$meta, cmap_es, input$path, type[1], top_drugs$all_full)
+
+            } else {
+                # cat(i, ': resetting source state (path)\n')
+                # i <<- i + 1
+
+                # reset source
+                state$source <<- FALSE
+            }
+
+            # update drug selections
             updateSelectInput(session, 'drug1', choices = top_drugs$full, selected = top_drugs$full[1])
             updateSelectInput(session, 'drug2', choices = top_drugs$path, selected = top_drugs$path[1])
 
-            # if drug2 doesn't change, need to update restart
-            if (drug2 == top_drugs$path[1] & !start)
+
+            # if drug2 doesn't change
+            if (old_drug2 == top_drugs$path[1]) {
+
+                # reset visibility
                 restart <<- FALSE
-            start <<- FALSE
+                vis1 <<- FALSE
+                vis2 <<- FALSE
 
-            vis1 <<- FALSE
-            vis2 <<- FALSE
-        })
+                # trigger plot update
+                state$update <<- !state$update
 
+                # cat(i, ': no drug2 change (path)\n')
+                # i <<- i + 1
+            }
+
+        }, ignoreInit = TRUE)
+
+
+
+
+        # drug 1 changed
         observeEvent(input$drug1, {
 
             if (!restart) {
+                # cat(i, ': drug1 change (not restart)\n')
+                # i <<- i + 1
+
                 vis1  <<- TRUE
                 vis2  <<- FALSE
 
                 if (input$drug1 == input$drug2)
                     vis2 <<- TRUE
-            }
-        })
 
+                # trigger plot update
+                state$update <<- !state$update
+
+            } else {
+
+                # cat(i, ': drug1 change (restart)\n')
+                # i <<- i + 1
+            }
+        }, ignoreInit = TRUE)
+
+
+
+
+        # drug 2 changed
         observeEvent(input$drug2, {
 
             if (restart) {
+                # cat(i, ': drug2 change (restart)\n')
+                # i <<- i + 1
+
+                # reset visibility
                 restart <<- FALSE
+                vis1 <<- FALSE
+                vis2 <<- FALSE
 
             } else {
+                # cat(i, ': drug2 change (not restart)\n')
+                # i <<- i + 1
+
                 vis1 <<- FALSE
                 vis2 <<- TRUE
-
 
                 if (input$drug1 == input$drug2)
                     vis1 <<- TRUE
             }
-        })
+
+            # trigger plot update
+            state$update <<- !state$update
+
+        }, ignoreInit = TRUE)
 
 
+        state <- reactiveValues(update = FALSE, source = FALSE)
 
 
-        #add reactive data information. Dataset = built in diamonds data
-        dataset <- reactive({
-            src <- input$source
-            get_dfs(input$path, es_res[[src]], cmap_es, c(input$drug1, input$drug2), gslist, gs.names)
+        dataset <- eventReactive(state$update, {
+
+            # cat(i, ': updating dataset\n\n')
+            # i <<- 1
+
+            get_dfs(input$path, es_res[[input$source]], cmap_es, c(input$drug1, input$drug2), gslist, gs.names)
         })
 
 
@@ -256,22 +350,20 @@ explore_paths <- function(es_res, path_res, type = c('both', 'mimic', 'reverse')
             dfs <- dataset()
 
             drugs <- levels(dfs$drug_df$drug)
-            drug_ids <- seq_along(unique(drugs))+1
-            sumry_id <- max(drug_ids)+1
-
+            drug_ids <- seq_along(unique(drugs))+2
 
             g <-  ggplot(data = dfs$sumry_df,
                                   aes_string(x = 'gene', y = 'mus')) +
                 geom_point(aes_string('gene', 'dprime', alpha = 'sdinv'),
                                     dfs$query_df, shape=1, colour = '#666666', na.rm=TRUE) +
-                geom_point(aes_string(x = 'gene',  y = 'dprime', colour = 'drug'),
-                                    dfs$drug_df, na.rm=TRUE) +
                 geom_errorbar(aes_string(ymin = 'low', ymax = 'high'),
-                                       colour = 'black', width = 0.7) +
+                                       colour = 'black', width = 1.3) +
+                geom_point(aes_string(x = 'gene',  y = 'dprime', colour = 'drug'),
+                           dfs$drug_df, na.rm=TRUE) +
                 ylab("Dprime") +
                 xlab("") +
                 geom_hline(yintercept = 0, colour = '#999999') +
-                scale_color_manual(values = c("#E41A1C", "#377EB8")) +
+                scale_color_manual(values = c("#E41A1C", "#6BAED6")) +
                 scale_y_continuous(breaks = function(ylims) floor(ylims[1]):ceiling(ylims[2])) +
                 theme_bw() +
                 theme(axis.text.x = element_text(angle = 45, vjust=0.5),
@@ -325,7 +417,7 @@ explore_paths <- function(es_res, path_res, type = c('both', 'mimic', 'reverse')
             sumry_mus   <- paste0('Mu: ', round(dfs$sumry_df$mus, 1))
             sumry_sds   <- paste0('SD: ', round(dfs$sumry_df$high - dfs$sumry_df$mus, 2))
 
-            pl$x$data[[sumry_id]]$text <- paste(sumry_genes, sumry_mus, sumry_sds, sep = '<br>')
+            pl$x$data[[2]]$text <- paste(sumry_genes, sumry_mus, sumry_sds, sep = '<br>')
 
             pl$x$layout$legend <- list(orientation = 'h', x=0, y=100)
 
@@ -358,6 +450,7 @@ get_dfs <- function(path, es_res, cmap_es, drugs, gslist, gs.names) {
     names(mus) <- path_sym
     mus <- mus[order(abs(mus), decreasing = TRUE)]
     path_sym <- names(mus)
+
 
     if (!is.null(drugs)) {
         # path symbols also must be in cmap_es
