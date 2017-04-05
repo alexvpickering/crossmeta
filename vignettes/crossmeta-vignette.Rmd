@@ -140,7 +140,7 @@ annotation will fail. To proceed, I reccommend that you add entrez ids and then
 use `crossmeta` to map these to hgnc symbols. As an example, if annotation had
 failed for GSE15069:
 
-```{r eval=FALSE}
+```{r, eval=FALSE}
 library(Biobase)
 library(AnnotationDbi)
 
@@ -174,8 +174,8 @@ saveRDS(esets$GSE15069, file.path(data_dir, "GSE15069", "GSE15069_eset.rds"))
 After loading and annotating the data, you may proceed with differential
 expression analysis:
 
-```{r}
-# anals <- diff_expr(esets, data_dir)
+```{r, eval=FALSE}
+anals <- diff_expr(esets, data_dir)
 ```
 
 You will be prompted to type group names and select samples for each control and
@@ -251,12 +251,12 @@ seperately for each tissue source. To do so, first add tissue sources and
 specify any sources that should be paired (treated as the same source for 
 subsequent meta-analyses).
 
-```{r eval=FALSE}
+```{r}
 # run GUI to add tissue sources
-anals <- add_sources(prev, data_dir)
+# anals <- add_sources(prev, data_dir)
 
 # for usage details
-?add_sources
+# ?add_sources
 ```
 
 -----------------
@@ -293,19 +293,21 @@ are reused for pathway analyses. As such, `diff_expr` and `add_sources`
 must be used before pathway analysis for each contrast and subsequent
 meta-analysis.
 
-```{r eval=FALSE}
+```{r}
 # re-load previous differential expression analyses
 anals <- load_diff(gse_names, data_dir)
 
 # add tissue sources if haven't already
-anals <- add_sources(anals, data_dir)
+# anals <- add_sources(anals, data_dir)
 
 # pathway analysis for each contrast
-path_anals <- diff_path(esets, anals, data_dir)
+# path_anals <- diff_path(esets, anals, data_dir)
+
+# reload previous pathway analyses
+path_anals <- load_path(gse_names, data_dir)
 
 # pathway meta analysis by tissue source
-path_res <- path_meta(path_anals, by_source = TRUE)
-
+path_res <- path_meta(path_anals, ncores = 1, nperm = 5, by_source = TRUE)
 ```
 
 Pathway analyses are performed using [PADOG](http://bioconductor.org/packages/release/bioc/html/PADOG.html), which outperforms other methods at prioritizing expected pathways ([ref1](http://journals.plos.org/plosone/article?id=10.1371/journal.pone.0079217#pone-0079217-g002), [ref2](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4707541/figure/f5/)). Pathway p-values from PADOG analyses are combined using Fisher's method.
@@ -322,22 +324,23 @@ The function `explore_paths` interfaces with [ccmap](https://bioconductor.org/pa
 to find drug candidates and graphically explore the results of the pathway meta-analyses.
 
 
-```{r eval=FALSE}
-explore_paths(es_res, path_res)
+```{r}
+# explore_paths(es_res, path_res)
 
 # for usage details
-?explore_paths
+# ?explore_paths
 ```
 
 If `crossmeta` is usefull to you, please contribute your signature! Your
 contribution will be used to build a public database of microarray meta-analyses.
 To contribute:
 
-```{r eval=FALSE}
+```{r, eval=FALSE}
 # subject is the focus of the meta-analysis (e.g. drug/disease name)
 contribute(anals, subject = "LY294002")
 
 # Thank you!
-
+```
+```{r}
 sessionInfo()
 ```
