@@ -98,13 +98,17 @@ es_meta <- function(diff_exprs, cutoff = 0.3, by_source = FALSE) {
     if (by_source) {
         # check for sources
         null_sources <- sapply(diff_exprs, function(anal) is.null(anal$sources))
-        if (any(null_sources))
-            stop("Sources missing from diff_exprs. To add, use add_sources.")
 
-        anals_src <- list(all = diff_exprs)
-        anals_src <- c(anals_src, setup_src(diff_exprs, "top_tables"))
+        if (any(null_sources)) {
+            message("Sources missing from diff_exprs (to add, use add_sources).\nContinuing with by_source = FALSE.")
+            es <- list(all = es_meta_src(diff_exprs, cutoff))
 
-        es <- lapply(anals_src, es_meta_src, cutoff)
+        } else {
+            anals_src <- list(all = diff_exprs)
+            anals_src <- c(anals_src, setup_src(diff_exprs, "top_tables"))
+
+            es <- lapply(anals_src, es_meta_src, cutoff)
+        }
 
 
     } else {

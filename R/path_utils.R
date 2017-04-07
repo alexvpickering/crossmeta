@@ -579,14 +579,16 @@ path_meta <- function(path_anals, ncores = parallel::detectCores(), nperm = ncor
 
         # check for sources
         null_sources <- sapply(path_anals, function(anal) is.null(anal$sources))
-        if (any(null_sources))
-            stop("Sources missing from path_anals. To add, use add_sources then re-run diff_path.")
+        if (any(null_sources)) {
+            message("Sources missing from path_anals (to add, use add_sources then re-run diff_path).\nContinuing with by_source = FALSE.")
+            path_res <- list(all = path_meta_src(path_anals, 'all', ncores, nperm))
 
-
-        anals_src <- list(all = path_anals)
-        anals_src <- c(anals_src, setup_src(path_anals, "padog_tables"))
-        path_res <- mapply(path_meta_src, anals_src, names(anals_src),
-                           MoreArgs = list(ncores = ncores, nperm = nperm))
+        } else {
+            anals_src <- list(all = path_anals)
+            anals_src <- c(anals_src, setup_src(path_anals, "padog_tables"))
+            path_res <- mapply(path_meta_src, anals_src, names(anals_src),
+                               MoreArgs = list(ncores = ncores, nperm = nperm))
+        }
 
     } else {
         path_res <- list(all = path_meta_src(path_anals, 'all', ncores, nperm))

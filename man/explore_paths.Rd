@@ -4,12 +4,16 @@
 \alias{explore_paths}
 \title{Explore pathway meta analyses.}
 \usage{
-explore_paths(es_res, path_res, type = c("both", "mimic", "reverse"))
+explore_paths(es_res, path_res, drug_info = NULL, type = c("both", "mimic",
+  "reverse"))
 }
 \arguments{
 \item{es_res}{Result of call to \code{\link{es_meta}}.}
 
 \item{path_res}{Result of call to \code{\link{path_meta}}.}
+
+\item{drug_info}{Matrix of differential expression values for drugs (rows are genes, columns are drugs).
+If NULL (default), \code{\link[ccdata]{cmap_es}} is used.}
 
 \item{type}{Desired direction of drug action on query signature (see details).}
 }
