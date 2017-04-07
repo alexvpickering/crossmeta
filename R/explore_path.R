@@ -32,6 +32,8 @@
 #'
 #' @param es_res Result of call to \code{\link{es_meta}}.
 #' @param path_res Result of call to \code{\link{path_meta}}.
+#' @param drug_info Matrix of differential expression values for drugs (rows are genes, columns are drugs).
+#'    If NULL (default), \code{\link[ccdata]{cmap_es}} is used.
 #' @param type Desired direction of drug action on query signature (see details).
 #'
 #' @return None
@@ -62,11 +64,15 @@
 #' # explore pathway meta-analyses
 #' # explore_paths(es_res, path_res)
 #'
-explore_paths <- function(es_res, path_res, type = c('both', 'mimic', 'reverse')) {
+explore_paths <- function(es_res, path_res, drug_info = NULL, type = c('both', 'mimic', 'reverse')) {
     # global binding to pass CHK
-    cmap_es = NULL
+    cmap_es = drug_info = NULL
 
-    utils::data('cmap_es', package = "ccdata", envir = environment())
+    if (is.null(drug_info)) {
+        utils::data('cmap_es', package = "ccdata", envir = environment())
+        drug_info <- cmap_es
+        rm(cmap_es)
+    }
 
     # bindings to pass check
     gslist = gs.names = NULL
@@ -80,14 +86,14 @@ explore_paths <- function(es_res, path_res, type = c('both', 'mimic', 'reverse')
     vis2 <- FALSE
 
     # get top drugs for full signature and pathway genes only
-    fullpath <- function(query_genes, cmap_es, path, type, all_full = NULL) {
+    fullpath <- function(query_genes, drug_info, path, type, all_full = NULL) {
 
         # all drugs (full signature)
         if (is.null(all_full))
-            all_full <- ccmap::query_drugs(query_genes, cmap_es)
+            all_full <- ccmap::query_drugs(query_genes, drug_info)
 
         # all drugs (pathway genes only)
-        all_path <- ccmap::query_drugs(query_genes, cmap_es, path = path)
+        all_path <- ccmap::query_drugs(query_genes, drug_info, path = path)
 
         # limit to top 50
         if (type == 'mimic')   {
@@ -125,7 +131,7 @@ explore_paths <- function(es_res, path_res, type = c('both', 'mimic', 'reverse')
     sources      <- names(es_res)
     paths        <- row.names(path_res[[1]])
     names(paths) <- paste0(paths, ' (', format(signif(path_res[[1]][, 'fdr'], 2), scientific = TRUE), ')')
-    top_drugs    <- fullpath(dprimes[[1]]$meta, cmap_es, paths[1], type[1])
+    top_drugs    <- fullpath(dprimes[[1]]$meta, drug_info, paths[1], type[1])
 
 
     ui <- shinyUI(fluidPage(
@@ -181,7 +187,7 @@ explore_paths <- function(es_res, path_res, type = c('both', 'mimic', 'reverse')
             # update top drugs for new source
             paths        <<- row.names(path_res[[new_src]])
             names(paths) <<- paste0(paths, ' (', format(signif(path_res[[new_src]][, 'fdr'], 2), scientific = TRUE), ')')
-            top_drugs    <<- fullpath(dprimes[[new_src]]$meta, cmap_es, paths[1], type[1])
+            top_drugs    <<- fullpath(dprimes[[new_src]]$meta, drug_info, paths[1], type[1])
 
             # don't re-update top drugs
             state$source <<- TRUE
@@ -243,7 +249,7 @@ explore_paths <- function(es_res, path_res, type = c('both', 'mimic', 'reverse')
                 # cat(i, ': updating top path drugs\n')
                 # i <<- i + 1
 
-                top_drugs <<- fullpath(dprimes[[old_src]]$meta, cmap_es, input$path, type[1], top_drugs$all_full)
+                top_drugs <<- fullpath(dprimes[[old_src]]$meta, drug_info, input$path, type[1], top_drugs$all_full)
 
             } else {
                 # cat(i, ': resetting source state (path)\n')
@@ -341,7 +347,7 @@ explore_paths <- function(es_res, path_res, type = c('both', 'mimic', 'reverse')
             # cat(i, ': updating dataset\n\n')
             # i <<- 1
 
-            get_dfs(input$path, es_res[[input$source]], cmap_es, c(input$drug1, input$drug2), gslist, gs.names)
+            get_dfs(input$path, es_res[[input$source]], drug_info, c(input$drug1, input$drug2), gslist, gs.names)
         })
 
 
@@ -429,7 +435,7 @@ explore_paths <- function(es_res, path_res, type = c('both', 'mimic', 'reverse')
 
 
 # used by explore_paths
-get_dfs <- function(path, es_res, cmap_es, drugs, gslist, gs.names) {
+get_dfs <- function(path, es_res, drug_info, drugs, gslist, gs.names) {
 
     drugs <- unique(drugs)
 
@@ -453,11 +459,11 @@ get_dfs <- function(path, es_res, cmap_es, drugs, gslist, gs.names) {
 
 
     if (!is.null(drugs)) {
-        # path symbols also must be in cmap_es
-        path_sym <- path_sym[path_sym %in% row.names(cmap_es)]
+        # path symbols also must be in drug_info
+        path_sym <- path_sym[path_sym %in% row.names(drug_info)]
         nsym <- length(path_sym)
 
-        drug_df <- reshape::melt(cmap_es[path_sym, drugs, drop = FALSE])
+        drug_df <- reshape::melt(drug_info[path_sym, drugs, drop = FALSE])
         colnames(drug_df) <- c('gene', 'drug', 'dprime')
         drug_df$drug <- factor(drug_df$drug, levels = drugs)
     } else {
