@@ -28,5 +28,5 @@ data_dir <- system.file("extdata", package = "lydata")
 gse_names  <- c("GSE9601", "GSE15069", "GSE50841", "GSE34817", "GSE29689")
 
 # load previous pathway analyses
-path_anals <- load_path(gse_names, data_dir)
+# path_anals <- load_path(gse_names, data_dir)
 }
