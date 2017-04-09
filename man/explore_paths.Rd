@@ -64,10 +64,10 @@ es_anals <- load_diff(gse_names, data_dir)
 es_res <- es_meta(es_anals, by_source = TRUE)
 
 # load result of previous call to diff_path:
-path_anals <- load_path(gse_names, data_dir)
+# path_anals <- load_path(gse_names, data_dir)
 
 # perform pathway meta-analyses for each tissue source
-path_res <- path_meta(path_anals, ncores = 1, nperm = 100, by_source = TRUE)
+# path_res <- path_meta(path_anals, ncores = 1, nperm = 100, by_source = TRUE)
 
 # explore pathway meta-analyses
 # explore_paths(es_res, path_res)

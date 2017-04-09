@@ -251,12 +251,12 @@ seperately for each tissue source. To do so, first add tissue sources and
 specify any sources that should be paired (treated as the same source for 
 subsequent meta-analyses).
 
-```{r}
+```{r, message=FALSE, results='hide'}
 # run GUI to add tissue sources
 # anals <- add_sources(prev, data_dir)
 
 # for usage details
-# ?add_sources
+?add_sources
 ```
 
 -----------------
@@ -276,7 +276,7 @@ anals <- load_diff(gse_names, data_dir)
 es_res <- es_meta(anals, by_source = TRUE)
 
 # for explanation of values
-# ?es_meta
+?es_meta
 ```
 
 The meta-analysis method was adapted from `GeneMeta`. Differences include the
@@ -304,10 +304,10 @@ anals <- load_diff(gse_names, data_dir)
 # path_anals <- diff_path(esets, anals, data_dir)
 
 # reload previous pathway analyses
-path_anals <- load_path(gse_names, data_dir)
+# path_anals <- load_path(gse_names, data_dir)
 
 # pathway meta analysis by tissue source
-path_res <- path_meta(path_anals, ncores = 1, nperm = 5, by_source = TRUE)
+# path_res <- path_meta(path_anals, ncores = 1, nperm = 5, by_source = TRUE)
 ```
 
 Pathway analyses are performed using [PADOG](http://bioconductor.org/packages/release/bioc/html/PADOG.html), which outperforms other methods at prioritizing expected pathways ([ref1](http://journals.plos.org/plosone/article?id=10.1371/journal.pone.0079217#pone-0079217-g002), [ref2](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4707541/figure/f5/)). Pathway p-values from PADOG analyses are combined using Fisher's method.
@@ -324,11 +324,11 @@ The function `explore_paths` interfaces with [ccmap](https://bioconductor.org/pa
 to find drug candidates and graphically explore the results of the pathway meta-analyses.
 
 
-```{r}
+```{r, message=FALSE, results='hide'}
 # explore_paths(es_res, path_res)
 
 # for usage details
-# ?explore_paths
+?explore_paths
 ```
 
 If `crossmeta` is usefull to you, please contribute your signature! Your
