@@ -61,7 +61,7 @@ illum_names <- c("GSE50841", "GSE34817", "GSE29689")
 It is difficult to automate loading raw Illumina data files because they lack a 
 standardized format. `crossmeta` will attempt to fix the headers of raw Illumina
 data files so that they can be loaded. If `crossmeta` fails, you will have to edit the
-headers of the raw Illumina data files yourself.
+headers of the raw Illumina data files yourself or omit the offending studies.
 
 To edit raw Illumina data headers, I recommend that you download and set Sublime Text 
 2 as your default text editor. It has very nice regular expression capabilities.
@@ -82,8 +82,6 @@ Also ensure that column names have the following format:
 * __Expression values__: _AVG_Signal-sample_name_
 * __Detection p-values__: _Detection-sample_name_
 
-If the above corrections are not possible (e.g. because there are no detection p-values),
-you may have to proceed without certain GSEs that cannot be corrected.
 
 To open these files one at a time with your default text editor:
 
