@@ -60,15 +60,10 @@
 #' # path_anals <- diff_path(esets, anals, data_dir)
 
 diff_path <- function(esets, prev_anals, data_dir = getwd()) {
-    # bindings to pass check
-    gslist = gs.names = NULL
 
     prev_anals <- prev_anals[names(prev_anals) %in% names(esets)]
     esets      <- esets[names(prev_anals)]
     anals      <- list()
-
-    # load KEGG data
-    utils::data("gslist", "gs.names", package = "crossmeta", envir = environment())
 
     for (i in seq_along(esets)) {
 
@@ -116,7 +111,7 @@ diff_path <- function(esets, prev_anals, data_dir = getwd()) {
             anal_name <- paste(gse_name, con, sep='_')
 
             # run padog
-            pts[[anal_name]] <- padog(esetm, group, paired, block, gslist, gs.names = gs.names,
+            pts[[anal_name]] <- padog(esetm, group, paired, block, crossmeta::gslist, gs.names = crossmeta::gs.names,
                                       parallel = TRUE, ncr = parallel::detectCores(), verbose = FALSE)
 
         }
