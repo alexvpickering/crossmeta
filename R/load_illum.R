@@ -77,9 +77,16 @@ load_illum <- function (gse_names, data_dir, gpl_dir) {
 
 load_illum_plat <- function(eset, gse_name, gse_dir) {
 
-    # load non-normalized txt files and normalize
-    data_paths <- list.files(gse_dir, pattern = "non.norm.*txt",
+    # load header fixed if available
+    data_paths <- list.files(gse_dir, pattern = "_fixed\\.txt$",
                              full.names = TRUE, ignore.case = TRUE)
+
+    # otherwise load non-normalized txt files and normalize
+    if (!length(data_paths))
+        data_paths <- list.files(gse_dir, pattern = "non.norm.*txt$|raw.*txt$|nonorm.*txt$",
+                                 full.names = TRUE, ignore.case = TRUE)
+
+
     data <- limma::read.ilmn(data_paths, probeid = "ID_REF")
     data <- tryCatch (
         limma::neqc(data),
@@ -150,20 +157,22 @@ fix_illum_features <- function(eset, data) {
     cols <- colnames(fData(eset))
 
     matches <- sapply(cols, function(col) {
-        sum(df$dfn %in% fData(eset)[, col])
+        sum(df$dfn %in% fData(eset)[, col]) / dim(eset)[[1]]
     })
 
-    ef$best <- fData(eset)[, names(which.max(matches))]
+    if (max(matches) > 0.5) {
+        ef$best <- fData(eset)[, names(which.max(matches))]
 
-    # get map from data features -> best eset match -> eset features
-    map <- merge(df, ef, by.x = "dfn", by.y = "best", sort = FALSE)
+        # get map from data features -> best eset match -> eset features
+        map <- merge(df, ef, by.x = "dfn", by.y = "best", sort = FALSE)
 
-    # expand 1:many map
-    data <- data[map$dfn, ]
+        # expand 1:many map
+        data <- data[map$dfn, ]
 
-    # reserve periods in data row names to indicate replicates
-    map$efn <- gsub(".", "*", map$efn, fixed = TRUE)
-    row.names(data) <- make.unique(map$efn)
+        # reserve periods in data row names to indicate replicates
+        map$efn <- gsub(".", "*", map$efn, fixed = TRUE)
+        row.names(data) <- make.unique(map$efn)
+    }
 
     return(data)
 }
@@ -239,3 +248,5 @@ open_raw_illum <- function (gse_names, data_dir = getwd()) {
     }
     return(out_names)
 }
+
+

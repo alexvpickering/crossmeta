@@ -86,7 +86,7 @@ load_raw <- function(gse_names, data_dir = getwd(), gpl_dir = '..', overwrite = 
         # determine platform (based on filenames)
         affy  <- list.files(gse_dir, ".CEL$", ignore.case = TRUE)
         agil  <- list.files(gse_dir, "^GSM.*txt$", ignore.case = TRUE)
-        illum <- list.files(gse_dir, "non.norm.*txt$", ignore.case = TRUE)
+        illum <- list.files(gse_dir, "non.norm.*txt$|raw.*txt$|nonorm.*txt$", ignore.case = TRUE)
 
         # add to appropriate names vector
         if (length(affy) != 0) {
@@ -131,14 +131,35 @@ load_raw <- function(gse_names, data_dir = getwd(), gpl_dir = '..', overwrite = 
     }
 
     if (length(illum$errors) > 0) {
-        message(paste0("Couldn't load raw Illumina data for: ",
-                       paste(illum$errors, collapse=", "),
-                       ".\nsee 'Checking Raw Illumina Data' in vignette."))
+
+        # try to fix headers
+        fixed   <- fix_illum_headers(illum$errors, data_dir)
+        unfixed <- setdiff(illum$errors, fixed)
+
+        # try to load fixed
+        if (!is.null(fixed)) {
+            illum_fixed <- load_illum(fixed, data_dir, gpl_dir)
+
+            if (!is.null(illum_fixed$esets))
+                cat('\nFixed headers for Illumina data:', paste(names(illum_fixed$esets), collapse=", "), '\n')
+
+            illum$esets <- c(illum$esets, illum_fixed$esets)
+            unfixed     <- c(unfixed, illum_fixed$errors)
+        }
+
+        # message any unfixed
+        if (length(unfixed) > 0) {
+
+            message(paste0("Couldn't load raw Illumina data for: ",
+                           paste(unfixed, collapse=", "),
+                           ".\nsee 'Checking Raw Illumina Data' in vignette."))
+        }
     }
 
 
     return (c(saved, affy$esets, agil$esets, illum$esets))
 }
+
 
 
 # Merge feature data from eset and raw data.

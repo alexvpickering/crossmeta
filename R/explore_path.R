@@ -26,9 +26,7 @@
 #' are approriately updated.
 #'
 #'
-#' @import ggplot2
 #' @import plotly
-#' @import ccdata
 #'
 #' @param es_res Result of call to \code{\link{es_meta}}.
 #' @param path_res Result of call to \code{\link{path_meta}}.
@@ -41,7 +39,6 @@
 #'
 #' @examples
 #' library(lydata)
-#' library(ccdata)
 #'
 #' data_dir  <- system.file("extdata", package = "lydata")
 #' gse_names  <- c("GSE9601", "GSE15069", "GSE50841", "GSE34817", "GSE29689")
@@ -73,10 +70,6 @@ explore_paths <- function(es_res, path_res, drug_info = NULL, type = c('both', '
         drug_info <- cmap_es
         rm(cmap_es)
     }
-
-    # bindings to pass check
-    gslist = gs.names = NULL
-    utils::data("gslist", "gs.names", package = "crossmeta", envir = environment())
 
     i <- 1
 
@@ -347,7 +340,7 @@ explore_paths <- function(es_res, path_res, drug_info = NULL, type = c('both', '
             # cat(i, ': updating dataset\n\n')
             # i <<- 1
 
-            get_dfs(input$path, es_res[[input$source]], drug_info, c(input$drug1, input$drug2), gslist, gs.names)
+            get_dfs(input$path, es_res[[input$source]], drug_info, c(input$drug1, input$drug2), crossmeta::gslist, crossmeta::gs.names)
         })
 
 
@@ -358,22 +351,22 @@ explore_paths <- function(es_res, path_res, drug_info = NULL, type = c('both', '
             drugs <- levels(dfs$drug_df$drug)
             drug_ids <- seq_along(unique(drugs))+2
 
-            g <-  ggplot(data = dfs$sumry_df,
-                                  aes_string(x = 'gene', y = 'mus')) +
-                geom_point(aes_string('gene', 'dprime', alpha = 'sdinv'),
+            g <-  ggplot2::ggplot(data = dfs$sumry_df,
+                                  ggplot2::aes_string(x = 'gene', y = 'mus')) +
+                ggplot2::geom_point(ggplot2::aes_string('gene', 'dprime', alpha = 'sdinv'),
                                     dfs$query_df, shape=1, colour = '#666666', na.rm=TRUE) +
-                geom_errorbar(aes_string(ymin = 'low', ymax = 'high'),
+                ggplot2::geom_errorbar(ggplot2::aes_string(ymin = 'low', ymax = 'high'),
                                        colour = 'black', width = 1.3) +
-                geom_point(aes_string(x = 'gene',  y = 'dprime', colour = 'drug'),
+                ggplot2::geom_point(ggplot2::aes_string(x = 'gene',  y = 'dprime', colour = 'drug'),
                            dfs$drug_df, na.rm=TRUE) +
-                ylab("Dprime") +
-                xlab("") +
-                geom_hline(yintercept = 0, colour = '#999999') +
-                scale_color_manual(values = c("#E41A1C", "#6BAED6")) +
-                scale_y_continuous(breaks = function(ylims) floor(ylims[1]):ceiling(ylims[2])) +
-                theme_bw() +
-                theme(axis.text.x = element_text(angle = 45, vjust=0.5),
-                               legend.title = element_blank())
+                ggplot2::ylab("Dprime") +
+                ggplot2::xlab("") +
+                ggplot2::geom_hline(yintercept = 0, colour = '#999999') +
+                ggplot2::scale_color_manual(values = c("#E41A1C", "#6BAED6")) +
+                ggplot2::scale_y_continuous(breaks = function(ylims) floor(ylims[1]):ceiling(ylims[2])) +
+                ggplot2::theme_bw() +
+                ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, vjust=0.5),
+                               legend.title = ggplot2::element_blank())
 
 
             pl <- plotly_build(g)

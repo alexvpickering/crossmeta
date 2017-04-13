@@ -49,7 +49,6 @@ are approriately updated.
 }
 \examples{
 library(lydata)
-library(ccdata)
 
 data_dir  <- system.file("extdata", package = "lydata")
 gse_names  <- c("GSE9601", "GSE15069", "GSE50841", "GSE34817", "GSE29689")
