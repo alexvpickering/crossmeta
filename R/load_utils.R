@@ -150,6 +150,13 @@ load_raw <- function(gse_names, data_dir = getwd(), gpl_dir = '..', overwrite = 
         # message any unfixed
         if (length(unfixed) > 0) {
 
+            # remove previous fix attempt
+            for (gse_name in unfixed) {
+                gse_dir <- file.path(data_dir, gse_name)
+                prev    <- list.files(gse_dir, "_fixed\\.txt$", full.names = TRUE, ignore.case = TRUE)
+                unlink(prev)
+            }
+
             message(paste0("Couldn't load raw Illumina data for: ",
                            paste(unfixed, collapse=", "),
                            ".\nsee 'Checking Raw Illumina Data' in vignette."))
