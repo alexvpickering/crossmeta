@@ -108,10 +108,34 @@ fix_illum_headers <- function(gse_names, data_dir) {
 
             # Pattern 1 issue? ----
 
-            pat <- "\\(*.p.Value\\)*"
+            pat <- ".\\(p.Value\\)"
 
             if (grepl(pat, rawf[hline], TRUE)) {
                 # cat('pat1\n')
+                rawf[hline] <- gsub(pat, "-Detection", rawf[hline], TRUE)
+                writeLines(rawf, fpath)
+
+                pat <- ".\\(AVERAGE.Signal\\)"
+
+                if (grepl(pat, rawf[hline], TRUE)) {
+                    # cat('pat1\n')
+                    rawf[hline] <- gsub(pat, "-AVG_Signal", rawf[hline], TRUE)
+                    writeLines(rawf, fpath)
+
+                    # check if fixed
+                    if (can_load(fpath)) {
+                        fixed <- c(fixed, gse_name)
+                        next()
+                    }
+                }
+            }
+
+            # Pattern 2 issue? ----
+
+            pat <- ".p.Value"
+
+            if (grepl(pat, rawf[hline], TRUE)) {
+                # cat('pat2\n')
                 rawf[hline] <- gsub(pat, "-Detection", rawf[hline], TRUE)
                 writeLines(rawf, fpath)
 
@@ -122,9 +146,7 @@ fix_illum_headers <- function(gse_names, data_dir) {
                 }
             }
 
-            # Pattern 2 issue? ----
-
-            pat <- "\\(*.AVERAGE.Signal\\)*"
+            pat <- ".AVERAGE.Signal"
 
             if (grepl(pat, rawf[hline], TRUE)) {
                 # cat('pat2\n')

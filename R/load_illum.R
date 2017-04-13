@@ -87,16 +87,21 @@ load_illum_plat <- function(eset, gse_name, gse_dir) {
                                  full.names = TRUE, ignore.case = TRUE)
 
 
+    # don't correct if already log transformed
     data <- limma::read.ilmn(data_paths, probeid = "ID_REF")
-    data <- tryCatch (
-        limma::neqc(data),
-        error = function(cond) {
-            data <- limma::backgroundCorrect(data, method = "normexp",
-                                             normexp.method = "rma",
-                                             offset = 16)
+    logd <- max(data$E) > 1000
 
-            return(limma::normalizeBetweenArrays(data, method = "quantile"))
-        })
+    if (!logd) {
+        data <- tryCatch (
+            limma::neqc(data),
+            error = function(cond) {
+                data <- limma::backgroundCorrect(data, method = "normexp",
+                                                 normexp.method = "rma",
+                                                 offset = 16)
+
+                return(limma::normalizeBetweenArrays(data, method = "quantile"))
+            })
+    }
 
     # use raw data titles to ensure correct contrasts
     pData(eset)$title <- colnames(data)
