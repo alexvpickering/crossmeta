@@ -89,7 +89,7 @@ load_illum_plat <- function(eset, gse_name, gse_dir) {
 
     # don't correct if already log transformed
     data <- limma::read.ilmn(data_paths, probeid = "ID_REF")
-    logd <- max(data$E) > 1000
+    logd <- max(data$E, na.rm = TRUE) < 1000
 
     if (!logd) {
         data <- tryCatch (
@@ -103,15 +103,28 @@ load_illum_plat <- function(eset, gse_name, gse_dir) {
             })
     }
 
-    # use raw data titles to ensure correct contrasts
-    pData(eset)$title <- colnames(data)
-    colnames(data) <- sampleNames(eset)
-
-    # add illum colname to warn about pData
-    pData(eset)$illum <- NA
-
     # fix up data feature names
     data <- fix_illum_features(eset, data)
+
+    # determine best sample matches
+    match_res <- match_samples(eset, data)
+    data <- match_res$data
+    warn <- match_res$warn
+
+    # keep gse matrix and raw data title
+    pData(eset)$title.gsemat <- pData(eset)$title
+    pData(eset)$title.raw    <- colnames(data)
+
+
+    if (warn) {
+        # use raw data titles to ensure correct contrasts
+        pData(eset)$title <- colnames(data)
+
+        # add illum colname to warn about pData
+        pData(eset)$illum <- NA
+    }
+    colnames(data) <- sampleNames(eset)
+
 
     # reserve '.' for replicates
     row.names(eset) <- gsub(".", "*", row.names(eset), fixed = TRUE)
@@ -133,6 +146,117 @@ load_illum_plat <- function(eset, gse_name, gse_dir) {
 
 
 # -------------------
+
+match_samples <- function(eset, data) {
+
+    # check if colnames match
+    if (all(colnames(eset) %in% colnames(data))) {
+        cat('Illumina samples matched by column names.\n')
+        return(list(data = data[, colnames(eset)], warn = FALSE))
+    }
+
+    # check if any pheno data columns match
+    ismatch <- sapply(pData(eset), function(col) {
+        all(tolower(colnames(data)) %in% gsub('.+?[;:] ', '', tolower(col)))
+        })
+
+    if (any(ismatch)) {
+        eset_order <- as.character(pData(eset)[[which(ismatch)[1]]])
+        col_order  <- match(tolower(colnames(data)), gsub('.+?: ', '', tolower(eset_order)))
+
+        cat('Illumina samples matched by pData column.\n')
+        return(list(data = data[, col_order], warn = FALSE))
+    }
+
+    # make sure eset is log2 transformed
+    logd <- max(exprs(eset), na.rm = TRUE) < 1000
+    if (!logd) {
+        exprs(eset) <- log2(exprs(eset) + abs(min(exprs(eset))) + 16)
+    }
+
+    # determine most similar data sample for each sample in eset
+    qres <- list()
+
+    for (i in 1:ncol(eset)) {
+
+        # query sample
+        qsamp <- exprs(eset)[, i]
+        qres[[colnames(eset)[i]]] <- ccmap::query_drugs(qsamp, data$E, sorted = FALSE, ngenes = nrow(eset))
+
+    }
+    # eset sample to most similar data sample
+    qres <- as.data.frame(qres)
+    best <- sapply(qres, which.max)
+
+    if (length(best) == length(unique(best))) {
+        cat('Illumina samples matched by similarity.\n')
+        return(list(data = data[, best], warn = FALSE))
+
+    } else {
+        # cat('checking non-first query results.\n')
+        # look for misses in non-first query results
+        dups   <- unique(best[duplicated(best)])
+        misses <- setdiff(1:nrow(qres), unique(best))
+
+        # cat('Duplicated:', paste0(row.names(qres)[dups], collapse = ', '), '\n')
+        # cat('Missing:', paste0(row.names(qres)[misses], collapse = ', '), '\n\n')
+
+        n <- nrow(qres)
+
+        for (dup in dups) {
+
+            # cat('Checking duplicate:', row.names(qres)[dup], '\n')
+
+            # query results for duplicate
+            i <- 1
+            qres_dup  <- qres[, best == dup]
+
+            while (dup %in% dups & i < n) {
+
+                # cat('Checking rank:', i+1, '\n')
+                ibest_dup <- sapply(qres_dup, function(col) which(col == sort(col, partial=n-i)[n-i]))
+
+                # for each miss
+                for (miss in misses) {
+
+                    # cat('Checking if', row.names(qres)[miss], 'is in rank', i+1, 'exactly once.\n')
+
+                    # check if one ibest is miss
+                    imiss <- ibest_dup == miss
+
+                    if (sum(imiss) == 1){
+
+                        # cat('yes it is!\n')
+
+                        # if so, replace best with ibest
+                        ibest_repl <- ibest_dup[imiss]
+                        best[names(ibest_repl)] <- ibest_repl
+
+                        # also update duplicates and misses
+                        dups   <- best[duplicated(best)]
+                        misses <- setdiff(1:nrow(qres), unique(best))
+
+                        # if no more misses, break
+                        if (!length(misses)) {
+                            # cat('no more missing!\n')
+                            break()
+                        }
+                    }
+                }
+                i <- i + 1
+            }
+        }
+
+        if (!length(dups)) {
+            cat('Illumina samples matched by similarity using non-first ranks.\n')
+            return(list(data = data[, best], warn = TRUE))
+        } else {
+            cat('Illumina samples not matched.\n')
+            return(list(data = data, warn = TRUE))
+        }
+    }
+}
+
 
 
 # Convert Illumina data features to eset features.

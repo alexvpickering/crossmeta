@@ -340,7 +340,7 @@ explore_paths <- function(es_res, path_res, drug_info = NULL, type = c('both', '
             # cat(i, ': updating dataset\n\n')
             # i <<- 1
 
-            get_dfs(input$path, es_res[[input$source]], drug_info, c(input$drug1, input$drug2), crossmeta::gslist, crossmeta::gs.names)
+            get_dfs(input$path, es_res[[input$source]], drug_info, c(input$drug1, input$drug2), gslist, gs.names)
         })
 
 

@@ -193,11 +193,11 @@ view and delete current contrasts in the `Contrasts` tab.
 If you need to look up experimental details for the study (e.g. group membership)
 Click the `GEO` button in the top left corner.
 
-**For Illumina samples**, Only titles are supplied to select groups as the
-accession numbers may be incorrect. The supplied titles are the headers from 
-the raw data and may differ from those on GEO. As such, you may need to look in 
-the individual sample records on GEO to identify which sample belongs to which
-group (not always possible).
+**For Illumina samples**, If only titles are shown (no accessions), then
+samples from raw Illumina data could not be matched confidently to samples from the
+processed Illumina data. In this case, the sample titles are from 
+the raw data and you may need to look in the individual sample records on GEO
+to identify which sample belongs to which group (not always possible).
 
 If you need to re-run the above analysis, you can avoid having to reselect 
 samples and rename groups:
