@@ -10,5 +10,4 @@ vignettes/*.R
 
 #directories
 literature/
-data/
 inst/doc
