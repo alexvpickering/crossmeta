@@ -302,9 +302,16 @@ symbol_annot <- function (eset, gse_name = "") {
 
     if (exist_homologues) {
 
-        # where no homology, use original entrez id (useful if human platform):
-        filt <- is.na(map$ENTREZID_HS)
-        map[filt, "ENTREZID_HS"] <- map$ENTREZID[filt]
+        # get organism name
+        org_col <- grep('organism', colnames(pData(eset)))
+        org     <- unique(as.character(pData(eset)[, org_col]))
+
+        # If human, use original entrez id (useful if human platform):
+        if (org == 'Homo sapiens') {
+            filt <- is.na(map$ENTREZID_HS)
+            map[filt, "ENTREZID_HS"] <- map$ENTREZID[filt]
+        }
+
 
         # expand one-to-many mappings
         eset <- eset[map$PROBEID, ]

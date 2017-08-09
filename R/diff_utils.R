@@ -75,6 +75,14 @@
 diff_expr <- function (esets, data_dir = getwd(),
                        annot = "SYMBOL", prev_anals = list(NULL)) {
 
+    # within organism symbol
+    if (annot == 'SPECIES') {
+
+        # set annot to Org_SYMBOL of first eset
+        eset <- esets[[1]]
+        annot <- grep('_SYMBOL$', colnames(fData(eset)), value = TRUE)
+    }
+
     # check for annot column
     chk <- sapply(esets, function(x) annot %in% colnames(fData(x)))
 
