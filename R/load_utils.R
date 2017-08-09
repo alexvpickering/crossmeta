@@ -21,14 +21,15 @@ get_raw <- function (gse_names, data_dir = getwd()) {
 
         # get raw data
         if (!file.exists(gse_dir)) {
-            GEOquery::getGEOSuppFiles(gse_name, baseDir = data_dir)
+            crossmeta:::getGEOSuppFiles(gse_name, baseDir = data_dir)
         }
 
         # untar
         tar_names <- list.files(gse_dir, pattern = "\\.tar$")
         if (length(tar_names) > 0) {
             setwd(gse_dir)
-            utils::untar(tar_names)
+            tryCatch(utils::untar(tar_names),
+                     error = function(e) setwd(work_dir))
             setwd(work_dir)
         }
         # unzip
@@ -186,8 +187,8 @@ load_raw <- function(gse_names, data_dir = getwd(), gpl_dir = '..', overwrite = 
 merge_fdata <- function(efdat, dfdat) {
 
     # merge feature data from raw data and eset
-    efdat$rn <- sapply(strsplit(row.names(efdat), "\\."), `[[`, 1)
-    dfdat$rn <- sapply(strsplit(row.names(dfdat), "\\."), `[[`, 1)
+    efdat$rn <- as.character(sapply(strsplit(row.names(efdat), "\\."), `[[`, 1))
+    dfdat$rn <- as.character(sapply(strsplit(row.names(dfdat), "\\."), `[[`, 1))
 
     dt1 <- data.table(efdat, key = "rn")
     dt2 <- data.table(dfdat, key = "rn")
@@ -291,57 +292,95 @@ symbol_annot <- function (eset, gse_name = "") {
     # get map from features to entrez ids
     map <- entrez_map(eset)
 
+    # get map from entrez ids to species gene name
+    map <- gene_map(eset, map)
+
     # get map from entrez ids to homologous human entrez ids
     map <- merge(map, homologene, by = "ENTREZID", all.x = TRUE, sort = FALSE)
 
-    # where no homology, use original entrez id (useful if human platform):
-    filt <- is.na(map$ENTREZID_HS)
-    map[filt, "ENTREZID_HS"] <- map$ENTREZID[filt]
+    exist_homologues <- sum(!is.na(map$ENTREZID_HS)) != 0
 
-    # expand one-to-many mappings
-    eset <- eset[map$PROBEID, ]
+    if (exist_homologues) {
 
-    # --------------------- Map Human Entrez ID to Gene Symbol
+        # where no homology, use original entrez id (useful if human platform):
+        filt <- is.na(map$ENTREZID_HS)
+        map[filt, "ENTREZID_HS"] <- map$ENTREZID[filt]
 
-    hs <- get_biocpack("org.Hs.eg.db")
+        # expand one-to-many mappings
+        eset <- eset[map$PROBEID, ]
 
-    SYMBOL <- tryCatch (
-        {
-            suppressMessages(
-                SYMBOL <- AnnotationDbi::select(hs, as.character(map$ENTREZID_HS),
-                                                "SYMBOL", "ENTREZID")$SYMBOL)
-        },
-        error = function(c) {
-            if (grepl("valid keys", c$message)) {
-                message("Annotation failed.")
-                c$message <- paste0(gse_name, ": Annotation failed. Please see ",
-                                    "'Loading and Annotating Data' in vignette")
-                warning(c)
-                return(NULL)
+        # --------------------- Map Human Entrez ID to Gene Symbol
+
+        hs <- get_biocpack("org.Hs.eg.db")
+
+        SYMBOL <- tryCatch (
+            {
+                suppressMessages(
+                    SYMBOL <- AnnotationDbi::select(hs, as.character(map$ENTREZID_HS),
+                                                    "SYMBOL", "ENTREZID")$SYMBOL)
+            },
+            error = function(c) {
+                if (grepl("valid keys", c$message)) {
+                    message("Annotation failed.")
+                    c$message <- paste0(gse_name, ": Annotation failed. Please see ",
+                                        "'Loading and Annotating Data' in vignette")
+                    warning(c)
+                    return(NULL)
+                }
             }
+        )
+
+        # --------------------- Add 'PROBE', 'Org_SYMBOL' and 'SYMBOL' to Feature Data
+
+        # PROBE is feature names
+        # added '.' to identify replicates (remove)
+        PROBE <- sapply(strsplit(featureNames(eset), "\\."), `[[`, 1)
+
+        # replaced '.' with '*' in features (reverse)
+        PROBE <- gsub("*", ".", PROBE, fixed = TRUE)
+
+        # add PROBE to fData and use for unique row names
+        fData(eset)$PROBE <- PROBE
+        row.names(eset) <- make.unique(PROBE)
+
+        # add Org_SYMBOL to fData
+        org_col <- colnames(map)[grep('_SYMBOL$', colnames(map))]
+        if (length(org_col)) fData(eset)[[org_col]] <- map[[org_col]]
+
+        if (!is.null(SYMBOL)) {
+            # add uppercase gene symbols to fData
+            fData(eset)$SYMBOL <- toupper(SYMBOL)
+
+            # add entrez ids to fData
+            fData(eset)$ENTREZID    <- map$ENTREZID
+            fData(eset)$ENTREZID_HS <- map$ENTREZID_HS
         }
-    )
 
-    # --------------------- Add 'PROBE' and 'SYMBOL' to Feature Data
+    } else {
 
-    # PROBE is feature names
-    # added '.' to identify replicates (remove)
-    PROBE <- sapply(strsplit(featureNames(eset), "\\."), `[[`, 1)
+        # expand one-to-many mappings
+        eset <- eset[map$PROBEID, ]
 
-    # replaced '.' with '*' in features (reverse)
-    PROBE <- gsub("*", ".", PROBE, fixed = TRUE)
+        # --------------------- Add 'PROBE' and 'SYMBOL' to Feature Data
 
-    # add PROBE to fData and use for unique row names
-    fData(eset)$PROBE <- PROBE
-    row.names(eset) <- make.unique(PROBE)
+        # PROBE is feature names
+        # added '.' to identify replicates (remove)
+        PROBE <- sapply(strsplit(featureNames(eset), "\\."), `[[`, 1)
 
-    if (!is.null(SYMBOL)) {
-        # add uppercase gene symbols to fData
-        fData(eset)$SYMBOL <- toupper(SYMBOL)
+        # replaced '.' with '*' in features (reverse)
+        PROBE <- gsub("*", ".", PROBE, fixed = TRUE)
+
+        # add PROBE to fData and use for unique row names
+        fData(eset)$PROBE <- PROBE
+        row.names(eset) <- make.unique(PROBE)
 
         # add entrez ids to fData
-        fData(eset)$ENTREZID    <- map$ENTREZID
-        fData(eset)$ENTREZID_HS <- map$ENTREZID_HS
+        fData(eset)$ENTREZID <- map$ENTREZID
+
+        # add Org_SYMBOL to fData
+        org_col <- colnames(map)[grep('_SYMBOL$', colnames(map))]
+        if (length(org_col)) fData(eset)[[org_col]] <- map[[org_col]]
+
     }
     return (eset)
 }
@@ -408,6 +447,31 @@ entrez_map <- function(eset) {
 }
 
 
+gene_map <- function(eset, map) {
+
+    # get organism name
+    org_col <- grep('organism', colnames(pData(eset)))
+    org     <- unique(as.character(pData(eset)[, org_col]))
+
+    if (!org %in% names(org_pkg)) return(map)
+
+    # get organism package
+    pkg_name <- org_pkg[[org]]
+    pkg      <- get_biocpack(pkg_name)
+
+    # organism shorthand
+    org_short <- gsub('^org[.](.+?)[.].+?db$', '\\1', pkg_name)
+
+    # map from entrezid to organism gene name
+    gene_map <- suppressMessages(AnnotationDbi::select(pkg, unique(map$ENTREZID), 'SYMBOL', 'ENTREZID'))
+    colnames(gene_map) <- c('ENTREZID', paste0(org_short, '_SYMBOL'))
+
+    # merge with original map
+    gene_map <- merge(gene_map, map, by='ENTREZID', all.x = TRUE)
+
+    return(gene_map)
+}
+
 # ------------------------
 
 
@@ -440,4 +504,128 @@ get_eset_names <- function(esets, gse_names) {
         eset_names <- c(eset_names, gse_name)
     }
     return(eset_names)
+}
+
+
+
+# GEOquery functions ----
+
+getGEO <- function(GEO=NULL,
+                   filename=NULL,
+                   destdir=tempdir(),
+                   GSElimits=NULL,GSEMatrix=TRUE,
+                   AnnotGPL=FALSE,
+                   getGPL=TRUE) {
+    con <- NULL
+    if(!is.null(GSElimits)) {
+        if(length(GSElimits)!=2) {
+            stop('GSElimits should be an integer vector of length 2, like (1,10) to include GSMs 1 through 10')
+        }
+    }
+    if(is.null(GEO) & is.null(filename)) {
+        stop("You must supply either a filename of a GEO file or a GEO accession")
+    }
+    if(is.null(filename)) {
+        GEO <- toupper(GEO)
+        geotype <- toupper(substr(GEO,1,3))
+        if(GSEMatrix & geotype=='GSE') {
+            return(getAndParseGSEMatrices(GEO,destdir,AnnotGPL=AnnotGPL,getGPL=getGPL))
+        }
+        filename <- GEOquery::getGEOfile(GEO,destdir=destdir,AnnotGPL=AnnotGPL)
+    }
+    ret <- GEOquery:::parseGEO(filename,GSElimits,destdir,AnnotGPL=AnnotGPL,getGPL=getGPL)
+    return(ret)
+}
+
+
+getAndParseGSEMatrices <- function(GEO,destdir,AnnotGPL,getGPL=TRUE) {
+    GEO <- toupper(GEO)
+    ## This stuff functions to get the listing of available files
+    ## for a given GSE given that there may be many GSEMatrix
+    ## files for a given GSE.
+    stub = gsub('\\d{1,3}$','nnn',GEO,perl=TRUE)
+    gdsurl <- 'https://ftp.ncbi.nlm.nih.gov/geo/series/%s/%s/matrix/'
+    b = crossmeta:::getDirListing(sprintf(gdsurl,stub,GEO))
+    message(sprintf('Found %d file(s)',length(b)))
+    ret <- list()
+    ## Loop over the files, returning a list, one element
+    ## for each file
+    for(i in 1:length(b)) {
+        message(b[i])
+        destfile=file.path(destdir,b[i])
+        if(file.exists(destfile)) {
+            message(sprintf('Using locally cached version: %s',destfile))
+        } else {
+            download.file(sprintf('https://ftp.ncbi.nlm.nih.gov/geo/series/%s/%s/matrix/%s',
+                                  stub,GEO,b[i]),destfile=destfile,mode='wb',
+                          method=getOption('download.file.method.GEOquery'))
+        }
+        ret[[b[i]]] <- GEOquery:::parseGSEMatrix(destfile,destdir=destdir,AnnotGPL=AnnotGPL,getGPL=getGPL)$eset
+    }
+    return(ret)
+}
+
+
+getGEOSuppFiles <- function(GEO,makeDirectory=TRUE,baseDir=getwd()) {
+    geotype <- toupper(substr(GEO,1,3))
+    storedir <- baseDir
+    fileinfo <- list()
+    stub = gsub('\\d{1,3}$','nnn',GEO,perl=TRUE)
+    if(geotype=='GSM') {
+        url <- sprintf("https://ftp.ncbi.nlm.nih.gov/geo/samples/%s/%s/suppl/",stub,GEO)
+    }
+    if(geotype=='GSE') {
+        url <- sprintf("https://ftp.ncbi.nlm.nih.gov/geo/series/%s/%s/suppl/",stub,GEO)
+    }
+    if(geotype=='GPL') {
+        url <- sprintf("https://ftp.ncbi.nlm.nih.gov/geo/platform/%s/%s/suppl/",stub,GEO)
+    }
+    fnames <- try(crossmeta:::getDirListing(url),silent=TRUE)
+    if(inherits(fnames,'try-error')) {
+        message('No supplemental files found.')
+        message('Check URL manually if in doubt')
+        message(url)
+        return(NULL)
+    }
+    if(makeDirectory) {
+        suppressWarnings(dir.create(storedir <- file.path(baseDir,GEO)))
+    }
+    for(i in fnames) {
+        download.file(paste(file.path(url,i),'tool=geoquery',sep="?"),
+                      destfile=file.path(storedir,i),
+                      mode='wb',
+                      method=getOption('download.file.method.GEOquery'))
+        fileinfo[[file.path(storedir,i)]] <- file.info(file.path(storedir,i))
+    }
+    invisible(do.call(rbind,fileinfo))
+}
+
+getDirListing <- function(url) {
+    message(url)
+    # Takes a URL and returns a character vector of filenames
+    a <- RCurl::getURL(url)
+    ## Renaud Gaujoux reported problems behind firewall
+    ## where the ftp index was converted to html content
+    ## The IF statement here is his fix--harmless for the rest
+    ## of us.
+    if( grepl("<HTML", a, ignore.case=T) ){ # process HTML content
+        doc <- XML::htmlParse(a)
+        links <- XML::xpathSApply(doc, "//a/@href")
+        XML::free(doc)
+
+        # make sure link doesn't end with '/'
+        links <- links[!grepl('/$', links)]
+        gpls  <- stringr::str_extract(links, 'GPL\\d+')
+
+        if (!all(is.na(gpls))) links <- links[gpls %in% row.names(gpl_bioc)]
+
+        b <- as.matrix(links)
+        message('OK')
+    } else { # standard processing of txt content
+        tmpcon <- textConnection(a, "r")
+        b <- read.table(tmpcon)
+        close(tmpcon)
+    }
+    b <- as.character(b[,ncol(b)])
+    return(b)
 }

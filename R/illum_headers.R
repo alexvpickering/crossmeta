@@ -53,8 +53,13 @@ fix_illum_headers <- function(gse_names, data_dir) {
 
             hline <- tryCatch(get_hline(path, col1), error = function(e) NULL)
 
-            if (is.null(hline))
+            if (!is.null(hline)) {
+                idref <- FALSE
+
+            } else {
+                idref <- TRUE
                 hline <- tryCatch(get_hline(path, col2), error = function(e) NULL)
+            }
 
             if (is.null(hline))
                 hline <- tryCatch(get_hline(path, col3), error = function(e) NULL)
@@ -69,29 +74,16 @@ fix_illum_headers <- function(gse_names, data_dir) {
             fpath <- gsub(".txt", "_fixed.txt", path, fixed = TRUE)
 
 
-            # Target ID issue? ----
+            # ID_REF issue? ----
 
-            pat <- "\\bTARGET_ID\\b|\\bTargetID\\b"
+            if (idref) {
 
-            if (grepl(pat, rawf[hline], TRUE)) {
-                # cat('target\n')
-                rawf[hline] <- gsub(pat, "ID_REF", rawf[hline], TRUE)
-                writeLines(rawf, fpath)
 
-                # check if fixed
-                if (can_load(fpath)) {
-                    fixed <- c(fixed, gse_name)
-                    next()
-                }
+                pat <- "\\bTARGET_ID\\b|\\bTargetID\\b"
 
-            } else {
-
-                # Probe ID issue?
-                pat1 <- "\\bPROBE_ID\\b|\\bProbeID\\b"
-
-                if (grepl(pat1, rawf[hline], TRUE)) {
-                    # cat('pat1\n')
-                    rawf[hline] <- gsub(pat1, "ID_REF", rawf[hline], TRUE)
+                if (grepl(pat, rawf[hline], TRUE)) {
+                    # cat('target\n')
+                    rawf[hline] <- gsub(pat, "ID_REF", rawf[hline], TRUE)
                     writeLines(rawf, fpath)
 
                     # check if fixed
@@ -99,10 +91,27 @@ fix_illum_headers <- function(gse_names, data_dir) {
                         fixed <- c(fixed, gse_name)
                         next()
                     }
+
+                } else {
+
+                    # Probe ID issue?
+                    pat1 <- "\\bPROBE_ID\\b|\\bProbeID\\b"
+
+                    if (grepl(pat1, rawf[hline], TRUE)) {
+                        # cat('pat1\n')
+                        rawf[hline] <- gsub(pat1, "ID_REF", rawf[hline], TRUE)
+                        writeLines(rawf, fpath)
+
+                        # check if fixed
+                        if (can_load(fpath)) {
+                            fixed <- c(fixed, gse_name)
+                            next()
+                        }
+                    }
                 }
             }
 
-            # not REF_ID issue if here
+            # not ID_REF issue if here
             # not header issue if can load original
             if (can_load(path)) next()
 

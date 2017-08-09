@@ -23,8 +23,22 @@ load_illum <- function (gse_names, data_dir, gpl_dir) {
         gse_dir <- file.path(data_dir, gse_name)
         save_name <- paste(gse_name, "eset.rds", sep = "_")
 
+
         # get GSEMatrix (for pheno data)
-        eset <- GEOquery::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, getGPL = FALSE)
+        dl_methods <- c('auto', 'libcurl', 'wget', 'curl')
+        eset <- NULL
+
+        for (method in dl_methods) {
+            options('download.file.method.GEOquery' = method)
+
+            eset <- tryCatch(getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, getGPL = FALSE),
+                             error = function(e) return(NULL))
+
+            if (inherits(eset, 'list')) break()
+            Sys.sleep(5)
+            if (method == 'curl') stop("Couldn't get GSEMatrix for: ", gse_names[1])
+        }
+
 
         # check if have GPL
         gpl_names <- paste0(sapply(eset, annotation), '.soft', collapse = "|")
@@ -37,7 +51,7 @@ load_illum <- function (gse_names, data_dir, gpl_dir) {
             file.copy(gpl_paths, gse_dir)
 
         # will use local GPL or download if couldn't copy
-        eset <- GEOquery::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE)
+        eset <- getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE)
 
         if (length(eset) > 1) {
             warning("Multi-platform Illumina GSEs not supported. ", gse_name)
@@ -171,7 +185,7 @@ match_samples <- function(eset, data) {
     # make sure eset is log2 transformed
     logd <- max(exprs(eset), na.rm = TRUE) < 1000
     if (!logd) {
-        exprs(eset) <- log2(exprs(eset) + abs(min(exprs(eset))) + 16)
+        exprs(eset) <- log2(exprs(eset) + abs(min(exprs(eset), na.rm = TRUE)) + 16)
     }
 
     # determine most similar data sample for each sample in eset

@@ -20,8 +20,20 @@ load_agil <- function (gse_names, data_dir, gpl_dir) {
         gse_dir <- file.path(data_dir, gse_name)
         save_name <- paste(gse_name, "eset.rds", sep = "_")
 
-        # get GSEMatrix (for pheno/feature data)
-        eset <- GEOquery::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, getGPL = FALSE)
+        # get GSEMatrix (for pheno data)
+        dl_methods <- c('auto', 'libcurl', 'wget', 'curl')
+        eset <- NULL
+
+        for (method in dl_methods) {
+            options('download.file.method.GEOquery' = method)
+
+            eset <- tryCatch(getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, getGPL = FALSE),
+                             error = function(e) return(NULL))
+
+            if (inherits(eset, 'list')) break()
+            Sys.sleep(5)
+            if (method == 'curl') stop("Couldn't get GSEMatrix for: ", gse_names[1])
+        }
 
         # check if have GPL
         gpl_names <- paste0(sapply(eset, annotation), '.soft', collapse = "|")
@@ -34,7 +46,7 @@ load_agil <- function (gse_names, data_dir, gpl_dir) {
             file.copy(gpl_paths, gse_dir)
 
         # will use local GPL or download if couldn't copy
-        eset <- GEOquery::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE)
+        eset <- getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE)
 
         # name esets
         if (length(eset) > 1) {
