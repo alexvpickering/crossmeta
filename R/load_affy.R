@@ -54,7 +54,7 @@ load_affy <- function (gse_names, data_dir, gpl_dir) {
         for (method in dl_methods) {
             options('download.file.method.GEOquery' = method)
 
-            eset <- tryCatch(getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, getGPL = FALSE),
+            eset <- tryCatch(getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, getGPL = FALSE, limit_gpls = TRUE),
                              error = function(e) {
                                  return(NULL)
                                  })
@@ -75,7 +75,7 @@ load_affy <- function (gse_names, data_dir, gpl_dir) {
             file.copy(gpl_paths, gse_dir)
 
         # will use local GPL or download if couldn't copy
-        eset <- getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE)
+        eset <- getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, limit_gpls = TRUE)
 
         # name esets
         if (length(eset) > 1) {

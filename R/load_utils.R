@@ -522,7 +522,8 @@ getGEO <- function(GEO=NULL,
                    destdir=tempdir(),
                    GSElimits=NULL,GSEMatrix=TRUE,
                    AnnotGPL=FALSE,
-                   getGPL=TRUE) {
+                   getGPL=TRUE,
+                   limit_gpls=FALSE) {
     con <- NULL
     if(!is.null(GSElimits)) {
         if(length(GSElimits)!=2) {
@@ -536,7 +537,7 @@ getGEO <- function(GEO=NULL,
         GEO <- toupper(GEO)
         geotype <- toupper(substr(GEO,1,3))
         if(GSEMatrix & geotype=='GSE') {
-            return(getAndParseGSEMatrices(GEO,destdir,AnnotGPL=AnnotGPL,getGPL=getGPL))
+            return(getAndParseGSEMatrices(GEO,destdir,AnnotGPL=AnnotGPL,getGPL=getGPL,limit_gpls=limit_gpls))
         }
         filename <- GEOquery::getGEOfile(GEO,destdir=destdir,AnnotGPL=AnnotGPL)
     }
@@ -545,14 +546,14 @@ getGEO <- function(GEO=NULL,
 }
 
 
-getAndParseGSEMatrices <- function(GEO,destdir,AnnotGPL,getGPL=TRUE) {
+getAndParseGSEMatrices <- function(GEO, destdir, AnnotGPL, getGPL=TRUE, limit_gpls = FALSE) {
     GEO <- toupper(GEO)
     ## This stuff functions to get the listing of available files
     ## for a given GSE given that there may be many GSEMatrix
     ## files for a given GSE.
     stub = gsub('\\d{1,3}$','nnn',GEO,perl=TRUE)
     gdsurl <- 'https://ftp.ncbi.nlm.nih.gov/geo/series/%s/%s/matrix/'
-    b = crossmeta:::getDirListing(sprintf(gdsurl,stub,GEO))
+    b = crossmeta:::getDirListing(sprintf(gdsurl,stub,GEO), limit_gpls)
     message(sprintf('Found %d file(s)',length(b)))
     ret <- list()
     ## Loop over the files, returning a list, one element
@@ -607,7 +608,7 @@ getGEOSuppFiles <- function(GEO,makeDirectory=TRUE,baseDir=getwd()) {
     invisible(do.call(rbind,fileinfo))
 }
 
-getDirListing <- function(url) {
+getDirListing <- function(url, limit_gpls = FALSE) {
     message(url)
     # Takes a URL and returns a character vector of filenames
     a <- RCurl::getURL(url)
@@ -622,9 +623,11 @@ getDirListing <- function(url) {
 
         # make sure link doesn't end with '/'
         links <- links[!grepl('/$', links)]
-        gpls  <- stringr::str_extract(links, 'GPL\\d+')
 
-        if (!all(is.na(gpls))) links <- links[gpls %in% row.names(gpl_bioc)]
+        if (limit_gpls) {
+            gpls  <- stringr::str_extract(links, 'GPL\\d+')
+            if (!all(is.na(gpls))) links <- links[gpls %in% row.names(gpl_bioc)]
+        }
 
         b <- as.matrix(links)
         message('OK')
