@@ -337,7 +337,7 @@ symbol_annot <- function (eset, gse_name = "") {
             }
         )
 
-        # --------------------- Add 'PROBE', 'Org_SYMBOL' and 'SYMBOL' to Feature Data
+        # --------------------- Add 'PROBE', 'taxid_SYMBOL' and 'SYMBOL' to Feature Data
 
         # PROBE is feature names
         # added '.' to identify replicates (remove)
@@ -350,8 +350,8 @@ symbol_annot <- function (eset, gse_name = "") {
         fData(eset)$PROBE <- PROBE
         row.names(eset) <- make.unique(PROBE)
 
-        # add Org_SYMBOL to fData
-        org_col <- colnames(map)[grep('_SYMBOL$', colnames(map))]
+        # add taxid_SYMBOL to fData
+        org_col <- colnames(map)[grep('^\\d+_SYMBOL$', colnames(map))]
         if (length(org_col)) fData(eset)[[org_col]] <- map[[org_col]]
 
         if (!is.null(SYMBOL)) {
@@ -384,8 +384,8 @@ symbol_annot <- function (eset, gse_name = "") {
         # add entrez ids to fData
         fData(eset)$ENTREZID <- map$ENTREZID
 
-        # add Org_SYMBOL to fData
-        org_col <- colnames(map)[grep('_SYMBOL$', colnames(map))]
+        # add taxid_SYMBOL to fData
+        org_col <- colnames(map)[grep('^\\d+_SYMBOL$', colnames(map))]
         if (length(org_col)) fData(eset)[[org_col]] <- map[[org_col]]
 
     }
@@ -460,18 +460,19 @@ gene_map <- function(eset, map) {
     org_col <- grep('organism', colnames(pData(eset)))
     org     <- unique(as.character(pData(eset)[, org_col]))
 
+    # TODO build if not in org_pkg but in ensembl
     if (!org %in% names(org_pkg)) return(map)
 
     # get organism package
     pkg_name <- org_pkg[[org]]
     pkg      <- get_biocpack(pkg_name)
 
-    # organism shorthand
-    org_short <- gsub('^org[.](.+?)[.].+?db$', '\\1', pkg_name)
+    # get organism taxon id
+    taxid <- org_taxid[[org]]
 
     # map from entrezid to organism gene name
     gene_map <- suppressMessages(AnnotationDbi::select(pkg, unique(map$ENTREZID), 'SYMBOL', 'ENTREZID'))
-    colnames(gene_map) <- c('ENTREZID', paste0(org_short, '_SYMBOL'))
+    colnames(gene_map) <- c('ENTREZID', paste0(taxid, '_SYMBOL'))
 
     # merge with original map
     gene_map <- merge(gene_map, map, by='ENTREZID', all.x = TRUE)

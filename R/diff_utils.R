@@ -80,7 +80,7 @@ diff_expr <- function (esets, data_dir = getwd(),
 
         # set annot to Org_SYMBOL of first eset
         eset <- esets[[1]]
-        annot <- grep('_SYMBOL$', colnames(fData(eset)), value = TRUE)
+        annot <- grep('^\\d+_SYMBOL$', colnames(fData(eset)), value = TRUE)
     }
 
     # check for annot column
