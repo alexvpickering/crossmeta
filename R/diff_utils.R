@@ -279,7 +279,8 @@ diff_setup <- function(eset, group_levels, gse_name, svanal = TRUE){
     if (svanal) {
         # surrogate variable analysis
         # remove duplicated rows (from 1:many PROBE:SYMBOL) as affect sva
-        expr <- unique(data.table(exprs(eset)))
+        PROBE <- fData(eset)$PROBE
+        expr  <- unique(data.table(exprs(eset), PROBE))[, PROBE:=NULL]
         svobj <- tryCatch (
             {utils::capture.output(svobj <- sva::sva(as.matrix(expr), mod, mod0)); svobj},
 

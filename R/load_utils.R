@@ -240,10 +240,8 @@ get_biocpack_name <- function (gpl_name) {
     biocpack_name <- gpl_bioc[gpl_name, "bioc_package"]
 
     # manual entry if needed
-    if (is.na(biocpack_name)) {
-        biocpack_name <- readline(prompt = paste("Enter biocpack_name for",
-                                                 paste0(gpl_name, ":")))
-    }
+    if (is.na(biocpack_name)) biocpack_name <- ""
+
     return (paste(biocpack_name, ".db", sep = ""))
 }
 
@@ -295,37 +293,28 @@ symbol_annot <- function (eset, gse_name = "") {
 
     if (exist_homologues) {
 
-        # use original entrez id if human
-        if ('9606_SYMBOL' %in% colnames(map)) {
+        # use original entrez id if human (taxid 9606)
+        if ('SYMBOL_9606' %in% colnames(map)) {
             filt <- is.na(map$ENTREZID_HS)
             map[filt, "ENTREZID_HS"] <- map$ENTREZID[filt]
         }
 
         # map human entrez to gene symbol
         hs <- get_biocpack("org.Hs.eg.db")
-        map$SYMBOL <- suppressMessages(AnnotationDbi::select(hs, as.character(map$ENTREZID_HS), "SYMBOL", "ENTREZID")$SYMBOL)
+        map$SYMBOL <- toupper(suppressMessages(AnnotationDbi::select(hs, as.character(map$ENTREZID_HS), "SYMBOL", "ENTREZID")$SYMBOL))
     }
 
-    # merge map, fdata, and exprs ----
-    PROBEID <- gsub('[.]\\d+$', '', featureNames(eset))
-
-    # merge fdata with map
-    fdata <- fData(eset)
-    fdata$PROBEID <- PROBEID
-    fdata <- merge(fdata, map, on = 'PROBEID', all.x=TRUE, sort=FALSE)
-
-    # merge fdata with exprs
-    df <- as.data.frame(exprs(eset))
-    df$PROBEID <- PROBEID
-    df <- merge(df, fdata, on = 'PROBEID', all.x=TRUE, sort=FALSE)
-
-    # seperate fdata and exprs
-    mat <- as.matrix(df[, sampleNames(eset)])
-    fdata <- df[, colnames(fdata)]
+    # merge map and exprs
+    PROBE <- gsub('[.]\\d+$', '', featureNames(eset))
+    dt <- data.table(exprs(eset), PROBE, key='PROBE')
+    dt <- merge(unique(dt), map, by = 'PROBE', all.x=TRUE, sort=FALSE)
+    dt <- data.frame(dt, row.names = make.unique(dt$PROBE))
 
     # transfer to eset
-    eset <- list(ExpressionSet(mat, pData(eset), AnnotatedDataFrame(fdata), annotation = annotation(eset)))
-    return (eset)
+    ExpressionSet(as.matrix(dt[, sampleNames(eset)]),
+                  phenoData(eset),
+                  AnnotatedDataFrame(dt[, colnames(map)]),
+                  annotation = annotation(eset))
 }
 
 
@@ -344,13 +333,12 @@ symbol_annot <- function (eset, gse_name = "") {
 entrez_map <- function(eset) {
 
     # default map
-    map <- data.frame(PROBEID = 1:nrow(eset), ENTREZID = NA)
+    map <- data.frame(PROBE = 1:nrow(eset), ENTREZID = NA)
 
-    # check internal data or UI for biocpack_name
+    # try to get ENTREZ from biocpack ----
+
     biocpack_name <- get_biocpack_name(annotation(eset))
     ID <-  gsub('[.]\\d+$', '', featureNames(eset))
-
-    # get ENTREZID ----
 
     # if biocpack_name not empty, use to get entrez id
     if (!biocpack_name %in% c("", ".db")) {
@@ -366,23 +354,23 @@ entrez_map <- function(eset) {
     org     <- unique(as.character(pData(eset)[, org_col]))
     taxid   <- org_taxid[org]
 
-    orgpack_name <- org_pkg[[org]]
+    orgpack_name <- org_pkg[org]
     orgpack      <- get_biocpack(orgpack_name)
 
-
+    # try to get ENTREZ from fdata ----
     if (fentrez < 0.2) {
 
         # check fData column for organism entrez id
-        fdatacols <- grep("gene_id|^gene$|entrez",
+        entrezcols <- grep("gene_id|^gene$|entrez",
                           fvarLabels(eset), ignore.case = TRUE, value = TRUE)
 
         # organism entrez ids
         org_entrez <- AnnotationDbi::keys(orgpack, 'ENTREZID')
 
-        if (length(fdatacols) != 0) {
+        if (length(entrezcols) != 0) {
             # pick col with most organism entrez id matches (min 1/4)
-            matches <- sapply(fdatacols, function(fdatacol) {
-                sum(fData(eset)[, fdatacol] %in% org_entrez) / nrow(eset)
+            matches <- sapply(entrezcols, function(entrezcol) {
+                sum(fData(eset)[, entrezcol] %in% org_entrez) / length(ID)
             })
             best <- names(which.max(matches))
 
@@ -393,8 +381,8 @@ entrez_map <- function(eset) {
                 rn <- sapply(seq_along(entrez),
                              function(x) rep(x, length(entrez[[x]])))
 
-                map <- data.frame(PROBEID = ID[unlist(rn)],
-                                  ENTREZID = as.integer(unlist(entrez)))
+                map <- data.frame(PROBE = ID[unlist(rn)],
+                                  ENTREZID = unlist(entrez), stringsAsFactors = FALSE)
             }
         }
     }
@@ -402,9 +390,12 @@ entrez_map <- function(eset) {
     # update fraction of probes with entrez ids
     fentrez <- sum(!is.na(map$ENTREZID)) / nrow(map)
 
+    # try to get ENTREZ from orgpack ----
     if (fentrez < 0.2) {
 
         # find fdata column that best matches organism column
+        fdatacols <- fvarLabels(eset)
+
         keytypes <- AnnotationDbi::keytypes(orgpack)
         orgcols  <- keytypes[keytypes %in% c('ACCNUM', 'ALIAS', 'ENSEMBL', 'ENSEMBLPROT', 'ENSEMBLTRANS', 'REFSEQ', 'SYMBOL')]
 
@@ -417,7 +408,7 @@ entrez_map <- function(eset) {
 
             # get fraction of fdata column that has a match
             matches <- sapply(fdatacols, function(fdatacol) {
-                sum(fData(eset)[, fdatacol] %in% orgkeys) / nrow(eset)
+                sum(fData(eset)[, fdatacol] %in% orgkeys) / length(ID)
             })
 
             # update best
@@ -440,22 +431,26 @@ entrez_map <- function(eset) {
             names(idmap) <- c('PROBEID', best['orgcol'])
 
             # merge
-            map <- merge(idmap, map, all.x = TRUE, sort = FALSE)
+            map <- merge(idmap, map, by = 'PROBEID', all.x = TRUE, sort = FALSE)
             map <- map[, c('PROBEID', 'ENTREZID')]
         }
     }
 
-    # get taxid_SYMBOL ----
+    colnames(map) <- c('PROBE', 'ENTREZID')
+
+    # get SYMBOL_taxid ----
     if (!org %in% names(org_pkg)) return(map)
 
     # map from organism entrez id to organism symbol
     gene_map <- suppressMessages(AnnotationDbi::select(orgpack, unique(map$ENTREZID), 'SYMBOL', 'ENTREZID'))
-    colnames(gene_map) <- c('ENTREZID', paste0(taxid, '_SYMBOL'))
+    colnames(gene_map) <- c('ENTREZID', paste0('SYMBOL_', taxid))
 
     # merge with original map
     map <- merge(gene_map, map, by='ENTREZID', all.x = TRUE)
 
-    return(map)
+    # remove duplicated rows
+    map <- unique(data.table(map))
+    return(as.data.frame(map))
 }
 
 

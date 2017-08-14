@@ -55,5 +55,9 @@ get_homologene <- function(homologene_path) {
     hs <- data.frame(ENTREZID = hs, ENTREZID_HS = hs)
     homologene <- rbind(homologene, hs)
 
+    # character class
+    homologene[] <- lapply(homologene, as.character)
+
     return(homologene)
 }
+
