@@ -24,20 +24,8 @@ load_illum <- function (gse_names, data_dir, gpl_dir) {
         save_name <- paste(gse_name, "eset.rds", sep = "_")
 
 
-        # get GSEMatrix (for pheno data)
-        dl_methods <- c('auto', 'libcurl', 'wget', 'curl')
-        eset <- NULL
-
-        for (method in dl_methods) {
-            options('download.file.method.GEOquery' = method)
-
-            eset <- tryCatch(getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, getGPL = FALSE, limit_gpls = TRUE),
-                             error = function(e) return(NULL))
-
-            if (inherits(eset, 'list')) break()
-            Sys.sleep(5)
-            if (method == 'curl') stop("Couldn't get GSEMatrix for: ", gse_names[1])
-        }
+        # get GSEMatrix (for pheno dat)
+        eset <- getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, getGPL = FALSE, limit_gpls = TRUE)
 
 
         # check if have GPL
@@ -138,10 +126,6 @@ load_illum_plat <- function(eset, gse_name, gse_dir) {
         pData(eset)$illum <- NA
     }
     colnames(data) <- sampleNames(eset)
-
-
-    # reserve '.' for replicates
-    row.names(eset) <- gsub(".", "*", row.names(eset), fixed = TRUE)
 
     # transfer data to eset
     fData(eset) <- merge_fdata(fData(eset), data.frame(row.names = row.names(data)))
@@ -311,9 +295,6 @@ fix_illum_features <- function(eset, data) {
 
         # expand 1:many map
         data <- data[map$dfn, ]
-
-        # reserve periods in data row names to indicate replicates
-        map$efn <- gsub(".", "*", map$efn, fixed = TRUE)
         row.names(data) <- make.unique(map$efn)
     }
 
