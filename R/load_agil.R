@@ -11,7 +11,7 @@
 # @seealso \code{\link{get_raw}} to obtain raw data.
 # @return List of annotated esets.
 
-load_agil <- function (gse_names, data_dir, gpl_dir) {
+load_agil <- function (gse_names, data_dir, gpl_dir, entrez_dir) {
 
     esets  <- list()
     errors <- c()
@@ -45,7 +45,7 @@ load_agil <- function (gse_names, data_dir, gpl_dir) {
 
         # load eset for each platform in GSE
         eset <- lapply(eset, function(eset.gpl) {
-            tryCatch(load_agil_plat(eset.gpl, gse_dir, gse_name),
+            tryCatch(load_agil_plat(eset.gpl, gse_dir, gse_name, entrez_dir),
                      error = function(e) NA)
         })
 
@@ -72,7 +72,7 @@ load_agil <- function (gse_names, data_dir, gpl_dir) {
 # ------------------------
 
 
-load_agil_plat <- function (eset, gse_dir, gse_name) {
+load_agil_plat <- function (eset, gse_dir, gse_name, entrez_dir) {
 
     # get paths to raw files for samples in eset
     pattern <- paste(sampleNames(eset), ".*txt", collapse = "|", sep = "")
@@ -100,7 +100,7 @@ load_agil_plat <- function (eset, gse_dir, gse_name) {
                           annotation = annotation(eset))
 
     # add SYMBOL annotation
-    eset <- symbol_annot(eset, gse_name)
+    eset <- symbol_annot(eset, gse_name, entrez_dir)
 
     return(eset)
 }

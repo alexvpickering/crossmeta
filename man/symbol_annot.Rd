@@ -4,7 +4,7 @@
 \alias{symbol_annot}
 \title{Add hgnc symbol to expression set.}
 \usage{
-symbol_annot(eset, gse_name = "")
+symbol_annot(eset, gse_name = "", entrez_dir = NULL)
 }
 \arguments{
 \item{eset}{Expression set to annotate.}

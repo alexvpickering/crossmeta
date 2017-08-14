@@ -14,7 +14,7 @@
 
 # @return List of annotated esets.
 
-load_illum <- function (gse_names, data_dir, gpl_dir) {
+load_illum <- function (gse_names, data_dir, gpl_dir, entrez_dir) {
 
     esets  <- list()
     errors <- c()
@@ -46,7 +46,7 @@ load_illum <- function (gse_names, data_dir, gpl_dir) {
             errors <- c(errors, gse_name)
             next
         }
-        eset <- tryCatch(load_illum_plat(eset[[1]], gse_name, gse_dir),
+        eset <- tryCatch(load_illum_plat(eset[[1]], gse_name, gse_dir, entrez_dir),
                          error = function(e) NULL)
 
         # save to disc
@@ -77,7 +77,7 @@ load_illum <- function (gse_names, data_dir, gpl_dir) {
 # @seealso \code{\link{load_illum}}.
 # @return Annotated eset.
 
-load_illum_plat <- function(eset, gse_name, gse_dir) {
+load_illum_plat <- function(eset, gse_name, gse_dir, entrez_dir) {
 
     # load header fixed if available
     data_paths <- list.files(gse_dir, pattern = "_fixed\\.txt$",
@@ -138,7 +138,7 @@ load_illum_plat <- function(eset, gse_name, gse_dir) {
     eset <- add_pvals(eset, data$other$Detection)
 
     # add SYMBOL annotation
-    eset <- symbol_annot(eset, gse_name)
+    eset <- symbol_annot(eset, gse_name, entrez_dir)
     return(eset)
 }
 

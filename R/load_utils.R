@@ -61,7 +61,7 @@ get_raw <- function (gse_names, data_dir = getwd()) {
 #' eset <- load_raw("GSE9601", data_dir = data_dir)
 
 
-load_raw <- function(gse_names, data_dir = getwd(), gpl_dir = '..', overwrite = FALSE) {
+load_raw <- function(gse_names, data_dir = getwd(), gpl_dir = '..', overwrite = FALSE, entrez_dir = NULL) {
 
     # no duplicates allowed (causes mismatched names/esets)
     gse_names <- unique(gse_names)
@@ -109,9 +109,9 @@ load_raw <- function(gse_names, data_dir = getwd(), gpl_dir = '..', overwrite = 
     names(saved) <- eset_names
 
     # load non-saved esets
-    affy  <- load_affy(affy_names, data_dir, gpl_dir)
-    agil  <- load_agil(agil_names, data_dir, gpl_dir)
-    illum <- load_illum(illum_names, data_dir, gpl_dir)
+    affy  <- load_affy(affy_names, data_dir, gpl_dir, entrez_dir)
+    agil  <- load_agil(agil_names, data_dir, gpl_dir, entrez_dir)
+    illum <- load_illum(illum_names, data_dir, gpl_dir, entrez_dir)
 
 
     # no raw data found
@@ -280,11 +280,11 @@ get_biocpack_name <- function (gpl_name) {
 #' # annotate eset (need if load_raw failed to annotate)
 #' eset <- symbol_annot(eset)
 
-symbol_annot <- function (eset, gse_name = "") {
+symbol_annot <- function (eset, gse_name = "", entrez_dir = NULL) {
     cat("Annotating")
 
     # get map from features to organism entrez ids and  symbols
-    map <- entrez_map(eset)
+    map <- entrez_map(eset, entrez_dir)
 
     # get map from entrez ids to homologous human entrez ids
     map <- merge(map, homologene, by = "ENTREZID", all.x = TRUE, sort = FALSE)
@@ -293,15 +293,15 @@ symbol_annot <- function (eset, gse_name = "") {
 
     if (exist_homologues) {
 
-        # use original entrez id if human (taxid 9606)
+        # use original entrez id and symbols if human (taxid 9606)
         if ('SYMBOL_9606' %in% colnames(map)) {
-            filt <- is.na(map$ENTREZID_HS)
-            map[filt, "ENTREZID_HS"] <- map$ENTREZID[filt]
+            map$ENTREZID_HS <- map$ENTREZID
+            map$SYMBOL_9606 <- map$SYMBOL <- toupper(map$SYMBOL_9606)
+        } else {
+            # map human entrez to gene symbol
+            map$SYMBOL <- toupper(hs[map$ENTREZID_HS, SYMBOL])
         }
 
-        # map human entrez to gene symbol
-        hs <- get_biocpack("org.Hs.eg.db")
-        map$SYMBOL <- toupper(suppressMessages(AnnotationDbi::select(hs, as.character(map$ENTREZID_HS), "SYMBOL", "ENTREZID")$SYMBOL))
     }
 
     # merge map and exprs
@@ -330,7 +330,7 @@ symbol_annot <- function (eset, gse_name = "") {
 # @return Data.frame with columns 'PROBEID' and 'ENTREZID' which maps from eset
 #    feature names to corresponding entrez gene ids.
 
-entrez_map <- function(eset) {
+entrez_map <- function(eset, entrez_dir) {
 
     # default map
     map <- data.frame(PROBE = 1:nrow(eset), ENTREZID = NA)
@@ -344,18 +344,32 @@ entrez_map <- function(eset) {
     if (!biocpack_name %in% c("", ".db")) {
         biocpack <- get_biocpack(biocpack_name)
         suppressMessages(map <- AnnotationDbi::select(biocpack, ID, "ENTREZID"))
+
+        #TODO: record species of all GPLs
+
+        # use biocpack species
+        org   <- AnnotationDbi::species(biocpack)
+        taxid <- org_taxid[org]
+    } else {
+        # use pdata species
+        org_col <- grep('organism', colnames(pData(eset)))
+        org     <- unique(as.character(pData(eset)[, org_col]))
+        taxid   <- org_taxid[org]
     }
 
     # fraction of probes with entrez ids
     fentrez <- sum(!is.na(map$ENTREZID)) / nrow(map)
 
-    # get organism package
-    org_col <- grep('organism', colnames(pData(eset)))
-    org     <- unique(as.character(pData(eset)[, org_col]))
-    taxid   <- org_taxid[org]
+    orgpack_name   <- org_pkg[org]
+    orgpack_exists <- !is.na(orgpack_name)
+    if (orgpack_exists) orgpack <- get_biocpack(orgpack_name)
 
-    orgpack_name <- org_pkg[org]
-    orgpack      <- get_biocpack(orgpack_name)
+    # get entrez gene map
+    entrez_path   <- file.path(entrez_dir, paste0(taxid, '.rds'))
+    entrez_exists <- file.exists(entrez_path)
+    if (entrez_exists) gene_map <- readRDS(entrez_path)
+
+
 
     # try to get ENTREZ from fdata ----
     if (fentrez < 0.2) {
@@ -365,7 +379,11 @@ entrez_map <- function(eset) {
                           fvarLabels(eset), ignore.case = TRUE, value = TRUE)
 
         # organism entrez ids
-        org_entrez <- AnnotationDbi::keys(orgpack, 'ENTREZID')
+        if (entrez_exists) {
+            org_entrez <- unique(gene_map$ENTREZID)
+        } else {
+            org_entrez <- AnnotationDbi::keys(orgpack, 'ENTREZID')
+        }
 
         if (length(entrezcols) != 0) {
             # pick col with most organism entrez id matches (min 1/4)
@@ -431,7 +449,7 @@ entrez_map <- function(eset) {
             names(idmap) <- c('PROBEID', best['orgcol'])
 
             # merge
-            map <- merge(idmap, map, by = 'PROBEID', all.x = TRUE, sort = FALSE)
+            map <- merge(idmap, map, by = best['orgcol'], all.x = TRUE, sort = FALSE)
             map <- map[, c('PROBEID', 'ENTREZID')]
         }
     }
@@ -439,14 +457,15 @@ entrez_map <- function(eset) {
     colnames(map) <- c('PROBE', 'ENTREZID')
 
     # get SYMBOL_taxid ----
-    if (!org %in% names(org_pkg)) return(map)
 
-    # map from organism entrez id to organism symbol
-    gene_map <- suppressMessages(AnnotationDbi::select(orgpack, unique(map$ENTREZID), 'SYMBOL', 'ENTREZID'))
-    colnames(gene_map) <- c('ENTREZID', paste0('SYMBOL_', taxid))
+    if (!exists('gene_map')) {
+        # map from organism entrez id to organism symbol
+        gene_map <- suppressMessages(AnnotationDbi::select(orgpack, unique(map$ENTREZID), 'SYMBOL', 'ENTREZID'))
+        colnames(gene_map) <- c('ENTREZID', paste0('SYMBOL_', taxid))
+    }
 
     # merge with original map
-    map <- merge(gene_map, map, by='ENTREZID', all.x = TRUE)
+    map <- merge(map, gene_map, by='ENTREZID', all.x = TRUE, sort = FALSE)
 
     # remove duplicated rows
     map <- unique(data.table(map))
@@ -535,7 +554,7 @@ getAndParseGSEMatrices <- function(GEO, destdir, AnnotGPL, getGPL=TRUE, limit_gp
     ## for each file
     for(i in 1:length(b)) {
         message(b[i])
-        destfile=file.path(destdir,b[i])
+        destfile=list.files(destdir, gsub('.gz$', '', b[i]), full.names = TRUE)[1]
         if(file.exists(destfile)) {
             message(sprintf('Using locally cached version: %s',destfile))
         } else {

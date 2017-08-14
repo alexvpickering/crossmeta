@@ -37,7 +37,7 @@ cel_dates <- function(cel_paths) {
 # @seealso \code{\link{get_raw}} to obtain raw data.
 # @return List of annotated esets (one for each unique GSE/GPL platform).
 
-load_affy <- function (gse_names, data_dir, gpl_dir) {
+load_affy <- function (gse_names, data_dir, gpl_dir, entrez_dir) {
 
 
     esets  <- list()
@@ -72,7 +72,7 @@ load_affy <- function (gse_names, data_dir, gpl_dir) {
 
         # load eset for each platform in GSE
         eset <- lapply(eset, function(eset.gpl) {
-            tryCatch(load_affy_plat(eset.gpl, gse_dir, gse_name),
+            tryCatch(load_affy_plat(eset.gpl, gse_dir, gse_name, entrez_dir),
                      error = function(e) NA)
         })
 
@@ -108,7 +108,7 @@ load_affy <- function (gse_names, data_dir, gpl_dir) {
 # @seealso \code{\link{load_affy}}.
 # @return Annotated eset with scan_date in pData slot.
 
-load_affy_plat <- function (eset, gse_dir, gse_name) {
+load_affy_plat <- function (eset, gse_dir, gse_name, entrez_dir) {
 
     sample_names <- sampleNames(eset)
     pattern <- paste(sample_names, ".*CEL$", collapse = "|", sep = "")
@@ -169,7 +169,7 @@ load_affy_plat <- function (eset, gse_dir, gse_name) {
     pData(eset)$scan_date <- scan_dates[sample_order]
 
     # add SYMBOL annotation
-    eset <- symbol_annot(eset, gse_name)
+    eset <- symbol_annot(eset, gse_name, entrez_dir)
 
     return(eset)
 }
