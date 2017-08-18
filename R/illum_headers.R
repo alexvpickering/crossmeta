@@ -1,14 +1,8 @@
 
 
-
-# used by load_raw to fix illumina headers
-fix_illum_headers <- function(gse_names, data_dir) {
+fix_illum_headers <- function(data_paths, eset) {
 
     # functions
-    can_load  <- function(path) {
-        tryCatch({limma::read.ilmn(path, probeid = "ID_REF", verbose = FALSE); TRUE},
-                 error = function(e) FALSE)
-    }
     get_hline <- function (file, columns, sep = "\t") {
         if (missing(columns) || !length(columns))
             stop("must specify column headings to find")
@@ -32,281 +26,129 @@ fix_illum_headers <- function(gse_names, data_dir) {
         return(i)
     }
 
+    for (path in data_paths) {
+        # fixed path
+        fpath <- gsub(".txt", "_fixed.txt", path, fixed = TRUE)
 
-    fixed <- NULL
-    cat('Trying to fix headers for Illumina data:', paste(gse_names, collapse = ', '), '\n')
+        # read raw file
+        rawf <- readLines(path)
 
-    for (gse_name in gse_names) {
-        gse_dir <- file.path(data_dir, gse_name)
+        # make tab seperated if currently not
+        delim <- reader::get.delim(path, n=50, skip=100)
+        if (delim != '\t') rawf <- gsub(delim, '\t', rawf)
 
-        paths   <- list.files(gse_dir, "non.norm.*txt$|raw.*txt$|nonorm.*txt$",
-                              full.names = TRUE, ignore.case = TRUE)
+        # exclude lines starting with hashtag or tab
+        exclude <- grepl('^.?#|^\t', rawf)
+        rawf <- rawf[!exclude]
 
+        # remove trailing tabs
+        rawf <- gsub('\t*$', '', rawf)
 
+        # save as will read from
+        writeLines(rawf, fpath)
 
-        for (path in paths) {
+        # fread first 1000 rows as example
+        hline <- get_hline(fpath, 'signal|pval|detection|id')
+        ex <- data.table::fread(fpath, skip = hline-1, nrows = 1000, fill = TRUE)
+        ex <- as.data.frame(ex)
 
-            # get header line
-            col1 <- 'ID_REF\\s*\t'
-            col2 <- 'TARGET_ID\\s*\t|TargetID\\s*\t'
-            col3 <- 'PROBE_ID\\s*\t|ProbeID\\s*\t'
+        # fix annotation columns ----
 
-            hline <- tryCatch(get_hline(path, col1), error = function(e) NULL)
+        # look for column with ILMN entries
+        nilmn  <- apply(ex, 2, function(col) sum(grepl('ILMN_', col)))
+        idcol  <- which(nilmn > 950)
 
-            if (!is.null(hline)) {
-                idref <- FALSE
+        # fix if idcol is not ID_REF
+        if (length(idcol) && names(idcol) != 'ID_REF') {
+            names(ex)[idcol] <- names(idcol)
+            rawf[hline] <- paste0(names(ex), collapse = '\t')
+        }
 
-            } else {
-                idref <- TRUE
-                hline <- tryCatch(get_hline(path, col2), error = function(e) NULL)
+        # identify other annotation columns
+        isnum   <- sapply(ex, class) == 'numeric'
+        anncols <- setdiff(names(ex)[!isnum], 'ID_REF')
+
+        if (!length(anncols)) anncols <- NULL
+
+        # rename Signal and Pvalue identifiers ----
+        pcols <- grep('pval|detection', colnames(ex), TRUE)
+        scols <- grep('signal', colnames(ex), TRUE)
+
+        # rename pvalue columns
+        if (length(pcols)) {
+
+            # longest common prefix or suffix in pvalue columns
+            pcol_prefix <- lcPrefix(colnames(ex)[pcols])
+            pcol_sufix  <- lcSuffix(colnames(ex)[pcols])
+
+            if (grepl('pval|detection', pcol_prefix, TRUE)) {
+                colnames(ex)[pcols] <- gsub(pcol_prefix, '', colnames(ex)[pcols])
+                colnames(ex)[pcols] <- paste0('Detection-', colnames(ex)[pcols])
+
+                rawf[hline] <- paste0(colnames(ex), collapse = '\t')
+
+            } else if (grepl('pval|detection', pcol_sufix, TRUE)) {
+                colnames(ex)[pcols] <- gsub(pcol_sufix, '', colnames(ex)[pcols])
+                colnames(ex)[pcols] <- paste0('Detection-', colnames(ex)[pcols])
+
+                rawf[hline] <- paste0(colnames(ex), collapse = '\t')
             }
+        }
 
-            if (is.null(hline))
-                hline <- tryCatch(get_hline(path, col3), error = function(e) NULL)
+        # rename signal columns
+        if (length(scols)) {
 
-            if (is.null(hline))
-                next()
+            # longest common prefix or suffix in pvalue columns
+            scol_prefix <- lcPrefix(colnames(ex)[scols])
+            scol_sufix  <- lcSuffix(colnames(ex)[scols])
 
-            # read raw file
-            rawf <- readLines(path)
+            if (grepl('signal', scol_prefix, TRUE)) {
+                colnames(ex)[scols] <- gsub(scol_prefix, '', colnames(ex)[scols])
+                colnames(ex)[scols] <- paste0('AVG_Signal-', colnames(ex)[scols])
 
-            # fixed path
-            fpath <- gsub(".txt", "_fixed.txt", path, fixed = TRUE)
+                rawf[hline] <- paste0(colnames(ex), collapse = '\t')
 
+            } else if (grepl('signal', scol_sufix, TRUE)) {
+                colnames(ex)[scols] <- gsub(scol_sufix, '', colnames(ex)[scols])
+                colnames(ex)[scols] <- paste0('AVG_Signal-', colnames(ex)[scols])
 
-            # ID_REF issue? ----
-
-            if (idref) {
-
-
-                pat <- "\\bTARGET_ID\\b|\\bTargetID\\b"
-
-                if (grepl(pat, rawf[hline], TRUE)) {
-                    # cat('target\n')
-                    rawf[hline] <- gsub(pat, "ID_REF", rawf[hline], TRUE)
-                    writeLines(rawf, fpath)
-
-                    # check if fixed
-                    if (can_load(fpath)) {
-                        fixed <- c(fixed, gse_name)
-                        next()
-                    }
-
-                } else {
-
-                    # Probe ID issue?
-                    pat1 <- "\\bPROBE_ID\\b|\\bProbeID\\b"
-
-                    if (grepl(pat1, rawf[hline], TRUE)) {
-                        # cat('pat1\n')
-                        rawf[hline] <- gsub(pat1, "ID_REF", rawf[hline], TRUE)
-                        writeLines(rawf, fpath)
-
-                        # check if fixed
-                        if (can_load(fpath)) {
-                            fixed <- c(fixed, gse_name)
-                            next()
-                        }
-                    }
-                }
+                rawf[hline] <- paste0(colnames(ex), collapse = '\t')
             }
-
-            # not ID_REF issue if here
-            # not header issue if can load original
-            if (can_load(path)) next()
-
-            # Pattern 1 issue? ----
-
-            pat <- ".\\(p.Value\\)"
-
-            if (grepl(pat, rawf[hline], TRUE)) {
-                # cat('pat1\n')
-                rawf[hline] <- gsub(pat, "-Detection", rawf[hline], TRUE)
-                writeLines(rawf, fpath)
-
-                pat <- ".\\(AVERAGE.Signal\\)"
-
-                if (grepl(pat, rawf[hline], TRUE)) {
-                    # cat('pat1\n')
-                    rawf[hline] <- gsub(pat, "-AVG_Signal", rawf[hline], TRUE)
-                    writeLines(rawf, fpath)
-
-                    # check if fixed
-                    if (can_load(fpath)) {
-                        fixed <- c(fixed, gse_name)
-                        next()
-                    }
-                }
-            }
-
-            # Pattern 2 issue? ----
-
-            pat <- ".p.Value"
-
-            if (grepl(pat, rawf[hline], TRUE)) {
-                # cat('pat2\n')
-                rawf[hline] <- gsub(pat, "-Detection", rawf[hline], TRUE)
-                writeLines(rawf, fpath)
-
-                # check if fixed
-                if (can_load(fpath)) {
-                    fixed <- c(fixed, gse_name)
-                    next()
-                }
-            }
-
-            pat <- ".AVERAGE.Signal"
-
-            if (grepl(pat, rawf[hline], TRUE)) {
-                # cat('pat2\n')
-                rawf[hline] <- gsub(pat, "-AVG_Signal", rawf[hline], TRUE)
-                writeLines(rawf, fpath)
-
-                # check if fixed
-                if (can_load(fpath)) {
-                    fixed <- c(fixed, gse_name)
-                    next()
-                }
-            }
-
-            # Pattern 3 issue? ----
-
-            pat <- "([^\t]+).Signal\t\\1.Detection[^\t]*"
-            rep <- "AVG_Signal-\\1\tDetection-\\1"
-
-            if (grepl(pat, rawf[hline], TRUE)) {
-                # cat('pat3\n')
-                rawf[hline] <- gsub(pat, rep, rawf[hline], TRUE)
-                writeLines(rawf, fpath)
-
-                # check if fixed
-                if (can_load(fpath)) {
-                    fixed <- c(fixed, gse_name)
-                    next()
-                }
-            }
-
-            # Pattern 4 issue? ----
-
-            pat <- "([^\t]+)\tDetection[^\t]*"
-            rep <- "AVG_Signal-\\1\tDetection-\\1"
-
-            if (grepl(pat, rawf[hline], TRUE)) {
-                # cat('pat4\n')
-                rawf[hline] <- gsub(pat, rep, rawf[hline], TRUE)
-                writeLines(rawf, fpath)
-
-                # check if fixed
-                if (can_load(fpath)) {
-                    fixed <- c(fixed, gse_name)
-                    next()
-                }
-            }
-
-            # Pattern 5 issue? ----
-
-            pat <- "([^\t]+)\t\\1.Avg_NBEADS"
-            rep <- "AVG_Signal-\\1\t\\1.Avg_NBEADS"
-
-            if (grepl(pat, rawf[hline], TRUE)) {
-                # cat('pat5\n')
-                rawf[hline] <- gsub(pat, rep, rawf[hline], TRUE)
-                writeLines(rawf, fpath)
-
-                # check if fixed
-                if (can_load(fpath)) {
-                    fixed <- c(fixed, gse_name)
-                    next()
-                }
-            }
-
-            # Pattern 6 issue? ----
-
-            pat <- "([^\t]+) \\(Average signal\\)\t\\1 \\(p-Value\\)"
-            rep <- "AVG_Signal-\\1\tDetection-\\1"
-
-            if (grepl(pat, rawf[hline], TRUE)) {
-                # cat('pat6\n')
-                rawf[hline] <- gsub(pat, rep, rawf[hline], TRUE)
-                writeLines(rawf, fpath)
-
-                # check if fixed
-                if (can_load(fpath)) {
-                    fixed <- c(fixed, gse_name)
-                    next()
-                }
-            }
-
-            # Pattern 7 issue? ----
-
-            pat <- "([^\t]+)\t\\1[^\t]*Detection[^\t]*"
-            rep <- "AVG_Signal-\\1\tDetection-\\1"
-
-            if (grepl(pat, rawf[hline], TRUE)) {
-                # cat('pat7\n')
-                rawf[hline] <- gsub(pat, rep, rawf[hline], TRUE)
-                writeLines(rawf, fpath)
-
-                # check if fixed
-                if (can_load(fpath)) {
-                    fixed <- c(fixed, gse_name)
-                    next()
-                }
-            }
-
-            # Pattern 8 ----
-
-            pat <- "(GSM[0-9]+\t*)"
-            rep <- "AVG_Signal-\\1"
-
-            if (grepl(pat, rawf[hline], TRUE)) {
-                # cat('pat8\n')
-                rawf[hline] <- gsub(pat, rep, rawf[hline], TRUE)
-                writeLines(rawf, fpath)
-
-                # check if fixed
-                if (can_load(fpath)) {
-                    fixed <- c(fixed, gse_name)
-                    next()
-                }
-            }
-
-            # Pattern 9 ----
-
-            pat <- "(SAMPLE[0-9]+\t*)"
-            rep <- "AVG_Signal-\\1"
-
-            if (grepl(pat, rawf[hline], TRUE)) {
-                # cat('pat9\n')
-                rawf[hline] <- gsub(pat, rep, rawf[hline], TRUE)
-                writeLines(rawf, fpath)
-
-                # check if fixed
-                if (can_load(fpath)) {
-                    fixed <- c(fixed, gse_name)
-                    next()
-                }
-            }
+        }
 
 
-            # Pattern 10 ----
+        # if Pvalue every second column, set Signal to every first ----
+        if (!length(pcols))
+            pcols <- unname(which(sapply(ex, function(col) ifelse(is.numeric(col), max(col) < 1.01, FALSE))))
 
-            pat <- "\t([^\t]+)"
-            rep <- "\tAVG_Signal-\\1"
+        if (length(pcols))
+            p2nd <- all.equal(seq(min(pcols), max(pcols), 2), pcols)
 
-            if (grepl(pat, rawf[hline], TRUE)) {
-                # cat('pat10\n')
-                rawf[hline] <- gsub(pat, rep, rawf[hline], TRUE)
-                writeLines(rawf, fpath)
+        if (length(pcols) && p2nd) {
+            # make Signal columns to left of Pvalue columns
+            # (if couldn't detect)
+            if (!length(scols))
+                scols <- pcols-1
 
-                # check if fixed
-                if (can_load(fpath)) {
-                    fixed <- c(fixed, gse_name)
-                    next()
-                }
-            }
+            # use Signal column for sample names
+            sample_names <- gsub('AVG_Signal-', '', colnames(ex)[scols])
 
+            colnames(ex)[scols] <- paste0('AVG_Signal-', sample_names)
+            colnames(ex)[pcols] <- paste0('Detection-', sample_names)
+
+            rawf[hline] <- paste(colnames(ex), collapse = '\t')
+        }
+
+
+        # if num numeric columns is n samples, set Signal to numeric columns ----
+        nsamp <- ncol(eset)
+
+        if (sum(isnum) == nsamp) {
+            # add Signal identifier to all numeric columns
+            colnames(ex)[isnum] <- gsub('AVG_Signal-', '', colnames(ex)[isnum])
+            colnames(ex)[isnum] <- paste0('AVG_Signal-', colnames(ex)[isnum])
         }
     }
-    return(unique(fixed))
+    writeLines(rawf, fpath)
+    return(anncols)
 }

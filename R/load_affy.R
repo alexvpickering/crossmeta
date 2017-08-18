@@ -48,7 +48,7 @@ load_affy <- function (gse_names, data_dir, gpl_dir, entrez_dir) {
         save_name <- paste(gse_name, "eset.rds", sep = "_")
 
         # get GSEMatrix (for pheno dat)
-        eset <- getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, getGPL = FALSE, limit_gpls = TRUE)
+        eset <- getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, getGPL = FALSE)
 
         # check if have GPL
         gpl_names <- paste0(sapply(eset, annotation), '.soft')
@@ -61,7 +61,7 @@ load_affy <- function (gse_names, data_dir, gpl_dir, entrez_dir) {
             file.copy(gpl_paths, gse_dir)
 
         # will use local GPL or download if couldn't copy
-        eset <- getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, limit_gpls = TRUE)
+        eset <- getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE)
 
         # name esets
         if (length(eset) > 1) {
@@ -129,6 +129,10 @@ load_affy_plat <- function (eset, gse_dir, gse_name, entrez_dir) {
         }
     )
 
+    # if multiple with same GSM, take first
+    gsm_names  <- stringr::str_extract(cel_paths, "GSM[0-9]+")
+    cel_paths <- cel_paths[!duplicated(gsm_names)]
+
     data <- tryCatch (
         {
             raw_data <- affy::ReadAffy(filenames = cel_paths)
@@ -146,8 +150,17 @@ load_affy_plat <- function (eset, gse_dir, gse_name, entrez_dir) {
             }
         },
         error = function(c) {
-            raw_data <- oligo::read.celfiles(cel_paths)
-            return (oligo::rma(raw_data))
+            # is the error a corrupted CEL?
+            if (grepl('corrupted', c$message)) {
+                # exclude corrupted and try again
+                corrupted <- stringr::str_extract(c$message, 'GSM\\d+')
+                cel_paths <- cel_paths[!grepl(corrupted, cel_paths)]
+                raw_data  <- affy::ReadAffy(filenames = cel_paths)
+                affy::rma(raw_data)
+            } else {
+                raw_data <- oligo::read.celfiles(cel_paths)
+                return (oligo::rma(raw_data))
+            }
         }
     )
     # rename samples in data

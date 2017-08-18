@@ -21,7 +21,7 @@ load_agil <- function (gse_names, data_dir, gpl_dir, entrez_dir) {
         save_name <- paste(gse_name, "eset.rds", sep = "_")
 
         # get GSEMatrix (for pheno dat)
-        eset <- getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, getGPL = FALSE, limit_gpls = TRUE)
+        eset <- crossmeta:::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, getGPL = FALSE)
 
         # check if have GPL
         gpl_names <- paste0(sapply(eset, annotation), '.soft', collapse = "|")
@@ -34,7 +34,7 @@ load_agil <- function (gse_names, data_dir, gpl_dir, entrez_dir) {
             file.copy(gpl_paths, gse_dir)
 
         # will use local GPL or download if couldn't copy
-        eset <- getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, limit_gpls = TRUE)
+        eset <- crossmeta:::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE)
 
         # name esets
         if (length(eset) > 1) {
@@ -78,8 +78,23 @@ load_agil_plat <- function (eset, gse_dir, gse_name, entrez_dir) {
     pattern <- paste(sampleNames(eset), ".*txt", collapse = "|", sep = "")
     data_paths <- list.files(gse_dir, pattern, full.names = TRUE, ignore.case = TRUE)
 
+    # if multiple with same GSM, take first
+    gsm_names  <- stringr::str_extract(data_paths, "GSM[0-9]+")
+    data_paths <- data_paths[!duplicated(gsm_names)]
+
     # load non-normalized txt files and normalize
-    data <- limma::read.maimages(data_paths, source = "agilent", green.only = TRUE)
+    data <- tryCatch(limma::read.maimages(data_paths, source = "agilent", green.only = TRUE),
+                     error = function(e) {
+                         # determine source of error
+                         exclude <- c()
+                         for (data_path in data_paths) {
+                             tryCatch(limma::read.maimages(data_path, source = "agilent", green.only = TRUE, verbose = FALSE),
+                                      error = function(e) exclude <<- c(exclude, data_path))
+                         }
+                         # retry with errors excluded
+                         data_paths <- setdiff(data_paths, exclude)
+                         limma::read.maimages(data_paths, source = "agilent", green.only = TRUE)
+                     })
     data <- limma::neqc(data, status = data$genes$ControlType, negctrl = -1, regular = 0)
 
     # fix up sample/feature names

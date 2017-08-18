@@ -25,7 +25,7 @@ load_illum <- function (gse_names, data_dir, gpl_dir, entrez_dir) {
 
 
         # get GSEMatrix (for pheno dat)
-        eset <- getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, getGPL = FALSE, limit_gpls = TRUE)
+        eset <- crossmeta:::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, getGPL = FALSE)
 
 
         # check if have GPL
@@ -39,7 +39,7 @@ load_illum <- function (gse_names, data_dir, gpl_dir, entrez_dir) {
             file.copy(gpl_paths, gse_dir)
 
         # will use local GPL or download if couldn't copy
-        eset <- getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, limit_gpls = TRUE)
+        eset <- crossmeta:::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE)
 
         if (length(eset) > 1) {
             warning("Multi-platform Illumina GSEs not supported. ", gse_name)
@@ -79,39 +79,39 @@ load_illum <- function (gse_names, data_dir, gpl_dir, entrez_dir) {
 
 load_illum_plat <- function(eset, gse_name, gse_dir, entrez_dir) {
 
-    # load header fixed if available
-    data_paths <- list.files(gse_dir, pattern = "_fixed\\.txt$",
-                             full.names = TRUE, ignore.case = TRUE)
+    # fix header issues
+    data_paths <- list.files(gse_dir, pattern = "non.norm.*txt$|raw.*txt$|nonorm.*txt$", full.names = TRUE, ignore.case = TRUE)
+    data_paths <- data_paths[!grepl('fixed[.]txt$', data_paths)]
+    anncols    <- crossmeta:::fix_illum_headers(data_paths, eset)
 
-    # otherwise load non-normalized txt files and normalize
-    if (!length(data_paths))
-        data_paths <- list.files(gse_dir, pattern = "non.norm.*txt$|raw.*txt$|nonorm.*txt$",
-                                 full.names = TRUE, ignore.case = TRUE)
+    # load fixed data paths
+    data_paths <- gsub(".txt", "_fixed.txt", data_paths, fixed = TRUE)
 
-
-    # don't correct if already log transformed
-    data <- limma::read.ilmn(data_paths, probeid = "ID_REF")
+    # don't correct if already log transformed (already corrected?)
+    data <- limma::read.ilmn(data_paths, probeid = "ID_REF", annotation = anncols)
     logd <- max(data$E, na.rm = TRUE) < 1000
 
     if (!logd) {
         data <- tryCatch (
             limma::neqc(data),
-            error = function(cond) {
+            error = function(c) {
+                # PMID:19068485 recommends mle and offset 50
                 data <- limma::backgroundCorrect(data, method = "normexp",
-                                                 normexp.method = "rma",
-                                                 offset = 16)
+                                                 normexp.method = "mle",
+                                                 offset = 50)
 
                 return(limma::normalizeBetweenArrays(data, method = "quantile"))
             })
     }
 
     # fix up data feature names
-    data <- fix_illum_features(eset, data)
+    data <- crossmeta:::fix_illum_features(eset, data)
 
     # determine best sample matches
-    match_res <- match_samples(eset, data)
-    data <- match_res$data
-    warn <- match_res$warn
+    res  <- crossmeta:::match_samples(eset, data)
+    data <- data[, res$data_order]
+    eset <- eset[, res$eset_order]
+    warn <- res$warn
 
     # keep gse matrix and raw data title
     pData(eset)$title.gsemat <- pData(eset)$title
@@ -128,43 +128,108 @@ load_illum_plat <- function(eset, gse_name, gse_dir, entrez_dir) {
     colnames(data) <- sampleNames(eset)
 
     # transfer data to eset
-    fData(eset) <- merge_fdata(fData(eset), data.frame(row.names = row.names(data)))
+    if (!is.null(data$genes)) {
+        dfdat <- data.frame(data$genes, row.names = row.names(data))
+    } else {
+        dfdat <- data.frame(row.names = row.names(data))
+    }
+
+    fData(eset) <- crossmeta:::merge_fdata(fData(eset), dfdat)
     eset <- ExpressionSet(data$E,
                           phenoData = phenoData(eset),
                           featureData = featureData(eset),
                           annotation = annotation(eset))
 
     # transfer pvals from data to eset
-    eset <- add_pvals(eset, data$other$Detection)
+    eset <- crossmeta:::add_pvals(eset, data$other$Detection)
 
     # add SYMBOL annotation
-    eset <- symbol_annot(eset, gse_name, entrez_dir)
+    eset <- crossmeta:::symbol_annot(eset, gse_name, entrez_dir)
     return(eset)
 }
 
 
 # -------------------
 
+# like base pmatch
+# partial match occurs if the whole of the element of x matches any part of the element of table
+fuzzy_pmatch <- function(x, table) {
+    x <- tolower(x)
+    table <- tolower(table)
+
+    # first look for perfect matches
+    perfect <- match(x, table)
+
+    # is every x has a perfect match in table, return
+    if (sum(is.na(perfect)) == 0) return(perfect)
+
+    # otherwise first grep
+    tomatch <- x[is.na(perfect)]
+    gmatch  <- sapply(tomatch, function(val) {
+        res <- grep(val, table, fixed = TRUE)[1]
+        if (!length(res)) return(NA_integer_)
+        return(res)
+    })
+
+    # fill in grep result where NA in perfect
+    perfect[is.na(perfect)] <- gmatch[is.na(perfect)]
+    return(perfect)
+}
+
 match_samples <- function(eset, data) {
 
-    # check if colnames match
-    if (all(colnames(eset) %in% colnames(data))) {
-        cat('Illumina samples matched by column names.\n')
-        return(list(data = data[, colnames(eset)], warn = FALSE))
+    # determine if data has fewer samples
+    data_fewer <- ncol(data) < ncol(eset)
+
+    # check if colnames match ----
+    if (data_fewer) {
+        # check if all data colnames in eset colnames
+        if (all(colnames(data) %in% colnames(eset))) {
+            cat('Illumina samples matched by column names.\n')
+            return(list(data_order = colnames(data), eset_order = colnames(data), warn = FALSE))
+        }
+
+    } else {
+        # check if all eset colnames in data colnames
+        if (all(colnames(eset) %in% colnames(data))) {
+            cat('Illumina samples matched by column names.\n')
+            return(list(data_order = colnames(eset), eset_order = colnames(eset), warn = FALSE))
+        }
     }
 
-    # check if any pheno data columns match
-    ismatch <- sapply(pData(eset), function(col) {
-        all(tolower(colnames(data)) %in% gsub('.+?[;:] ', '', tolower(col)))
+    # check if eset pdata col matches data colnames ----
+
+    if (!is.null(colnames(data))) {
+
+        # matrix of positions of matches for data colnames among those for each pdata column
+        matches <- sapply(pData(eset), function(col) {
+            fuzzy_pmatch(colnames(data), col)
         })
 
-    if (any(ismatch)) {
-        eset_order <- as.character(pData(eset)[[which(ismatch)[1]]])
-        col_order  <- match(tolower(colnames(data)), gsub('.+?: ', '', tolower(eset_order)))
+        # number of unique non NA matches for each pdata column
+        nunique <- apply(matches, 2, function(match) length(unique(match[!is.na(match)])))
 
-        cat('Illumina samples matched by pData column.\n')
-        return(list(data = data[, col_order], warn = FALSE))
+        # number of unique non NA matches should be the min of number of eset or pdata samples
+        nmin <- min(ncol(eset), ncol(data))
+        if (any(nunique == nmin)) {
+            cat('Illumina samples matched by pdata column.\n')
+
+            # matches where satisfied
+            bestcol <- names(which(nunique == nmin))[1]
+            matches <- matches[, bestcol]
+
+            # data_order is positions where matches are not NA
+            data_order <- which(!is.na(matches))
+
+            # eset_order is non NA matches
+            eset_order <- matches[!is.na(matches)]
+
+            return(list(data_order = data_order, eset_order = eset_order, warn = FALSE))
+        }
     }
+
+    # check if similarity offers unique match ----
+
 
     # make sure eset is log2 transformed
     logd <- max(exprs(eset), na.rm = TRUE) < 1000
@@ -172,60 +237,63 @@ match_samples <- function(eset, data) {
         exprs(eset) <- log2(exprs(eset) + abs(min(exprs(eset), na.rm = TRUE)) + 16)
     }
 
-    # determine most similar data sample for each sample in eset
-    qres <- list()
+    qres  <- list()
+    eset  <- eset[complete.cases(exprs(eset)), ]
+    data  <- data[complete.cases(data$E), ]
+    ngenes <- min(nrow(eset), nrow(data))
 
-    for (i in 1:ncol(eset)) {
+    if (data_fewer) {
+        # determine most similar eset sample for each sample in data
+        for (i in 1:ncol(data)) {
+            qsamp <- data$E[, i]
+            qres[[colnames(data)[i]]] <- ccmap::query_drugs(qsamp, exprs(eset), sorted = FALSE, ngenes = ngenes)
+        }
 
-        # query sample
-        qsamp <- exprs(eset)[, i]
-        qres[[colnames(eset)[i]]] <- ccmap::query_drugs(qsamp, data$E, sorted = FALSE, ngenes = nrow(eset))
-
+    } else {
+        # determine most similar data sample for each sample in eset
+        for (i in 1:ncol(eset)) {
+            qsamp <- exprs(eset)[, i]
+            qres[[colnames(eset)[i]]] <- ccmap::query_drugs(qsamp, data$E, sorted = FALSE, ngenes = ngenes)
+        }
     }
+
     # eset sample to most similar data sample
     qres <- as.data.frame(qres)
     best <- sapply(qres, which.max)
 
     if (length(best) == length(unique(best))) {
         cat('Illumina samples matched by similarity.\n')
-        return(list(data = data[, best], warn = FALSE))
+
+        if (data_fewer) {
+            data_order <- colnames(data)
+            eset_order <- best
+        } else {
+            data_order <- best
+            eset_order <- colnames(eset)
+        }
+
+        return(list(data_order = data_order, eset_order = eset_order, warn = FALSE))
 
     } else {
-        # cat('checking non-first query results.\n')
         # look for misses in non-first query results
         dups   <- unique(best[duplicated(best)])
         misses <- setdiff(1:nrow(qres), unique(best))
 
-        # cat('Duplicated:', paste0(row.names(qres)[dups], collapse = ', '), '\n')
-        # cat('Missing:', paste0(row.names(qres)[misses], collapse = ', '), '\n\n')
-
         n <- nrow(qres)
-
         for (dup in dups) {
-
-            # cat('Checking duplicate:', row.names(qres)[dup], '\n')
-
             # query results for duplicate
             i <- 1
             qres_dup  <- qres[, best == dup]
 
             while (dup %in% dups & i < n) {
-
-                # cat('Checking rank:', i+1, '\n')
                 ibest_dup <- sapply(qres_dup, function(col) which(col == sort(col, partial=n-i)[n-i]))
 
                 # for each miss
                 for (miss in misses) {
-
-                    # cat('Checking if', row.names(qres)[miss], 'is in rank', i+1, 'exactly once.\n')
-
                     # check if one ibest is miss
                     imiss <- ibest_dup == miss
 
                     if (sum(imiss) == 1){
-
-                        # cat('yes it is!\n')
-
                         # if so, replace best with ibest
                         ibest_repl <- ibest_dup[imiss]
                         best[names(ibest_repl)] <- ibest_repl
@@ -236,7 +304,6 @@ match_samples <- function(eset, data) {
 
                         # if no more misses, break
                         if (!length(misses)) {
-                            # cat('no more missing!\n')
                             break()
                         }
                     }
@@ -247,10 +314,18 @@ match_samples <- function(eset, data) {
 
         if (!length(dups)) {
             cat('Illumina samples matched by similarity using non-first ranks.\n')
-            return(list(data = data[, best], warn = TRUE))
+            if (data_fewer) {
+                data_order <- colnames(data)
+                eset_order <- best
+            } else {
+                data_order <- best
+                eset_order <- colnames(eset)
+            }
+            return(list(data_order = data_order, eset_order = eset_order, warn = FALSE))
+
         } else {
             cat('Illumina samples not matched.\n')
-            return(list(data = data, warn = TRUE))
+            return(list(data_order = colnames(data), eset_order = colnames(eset), warn = TRUE))
         }
     }
 }
@@ -274,30 +349,55 @@ match_samples <- function(eset, data) {
 
 fix_illum_features <- function(eset, data) {
 
-    data <- data[row.names(data) != "", ]
-    fData(eset)$rownames <- featureNames(eset)
+    genes_null <- is.null(data$genes)
+    names_null <- is.null(row.names(data))
 
-    df <- data.frame(dfn = row.names(data), stringsAsFactors = FALSE)
-    ef <- data.frame(efn = featureNames(eset), stringsAsFactors = FALSE)
+    if (genes_null & names_null) stop('Raw data lacks feature names.')
+
+    datacols <- c(data$genes, list(row.names(data)))
+    datacols <- datacols[!sapply(datacols, is.null)]
+
+    fData(eset)$rn <- gsub('[.]\\d+$', '', row.names(eset))
+
 
     # find eset fData column that best matches data features
-    cols <- colnames(fData(eset))
+    best  <- c(esetcol=NA, datacol=NA)
+    bestf <- 0
 
-    matches <- sapply(cols, function(col) {
-        sum(df$dfn %in% fData(eset)[, col]) / dim(eset)[[1]]
-    })
+    for (i in seq_along(datacols)) {
 
-    if (max(matches) > 0.5) {
-        ef$best <- fData(eset)[, names(which.max(matches))]
+        datacol <- datacols[[i]]
 
-        # get map from data features -> best eset match -> eset features
-        map <- merge(df, ef, by.x = "dfn", by.y = "best", sort = FALSE)
+        # get fraction of fdata column that has a match
+        matches <- sapply(fvarLabels(eset), function(fdatacol) {
+            sum(datacol %in% fData(eset)[, fdatacol]) / length(datacol)
+        })
 
-        # expand 1:many map
-        data <- data[map$dfn, ]
-        row.names(data) <- make.unique(map$efn)
+        # update best
+        if (max(matches) > bestf) {
+            bestf <- max(matches)
+            best['datacol'] <- names(datacols)[i]
+            best['esetcol'] <- names(matches[which.max(matches)])
+        }
     }
 
+    if (bestf > 0.5) {
+
+        # map from best datacol to eset row names
+        df <- data.frame(datacols)[best['datacol']]
+        ef <- fData(eset)[, best['esetcol'], drop=FALSE]
+        ef$rn <- fData(eset)$rn
+
+        map <- merge(df, ef, all.x = TRUE, by.x = best['datacol'], by.y = best['esetcol'], sort = FALSE)
+        map <- unique(map)
+
+
+        # positions where best datacol is in map
+        rowind <- match(data$genes[, best['datacol']], map[, best['datacol']])
+        row.names(data) <- make.unique(map[rowind, 'rn'])
+        data <- data[!is.na(row.names(data)), ]
+
+    }
     return(data)
 }
 

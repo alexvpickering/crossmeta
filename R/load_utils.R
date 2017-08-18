@@ -132,36 +132,8 @@ load_raw <- function(gse_names, data_dir = getwd(), gpl_dir = '..', overwrite = 
     }
 
     if (length(illum$errors) > 0) {
-
-        # try to fix headers
-        fixed   <- fix_illum_headers(illum$errors, data_dir)
-        unfixed <- setdiff(illum$errors, fixed)
-
-        # try to load fixed
-        if (!is.null(fixed)) {
-            illum_fixed <- load_illum(fixed, data_dir, gpl_dir)
-
-            if (!is.null(illum_fixed$esets))
-                cat('\nFixed headers for Illumina data:', paste(names(illum_fixed$esets), collapse=", "), '\n')
-
-            illum$esets <- c(illum$esets, illum_fixed$esets)
-            unfixed     <- c(unfixed, illum_fixed$errors)
-        }
-
-        # message any unfixed
-        if (length(unfixed) > 0) {
-
-            # remove previous fix attempt
-            for (gse_name in unfixed) {
-                gse_dir <- file.path(data_dir, gse_name)
-                prev    <- list.files(gse_dir, "_fixed\\.txt$", full.names = TRUE, ignore.case = TRUE)
-                unlink(prev)
-            }
-
-            message(paste0("Couldn't load raw Illumina data for: ",
-                           paste(unfixed, collapse=", "),
-                           ".\nsee 'Checking Raw Illumina Data' in vignette."))
-        }
+        message(paste0("Couldn't load raw Illumina data for: ",
+                       paste(illum$errors, collapse=", ")))
     }
 
 
@@ -193,14 +165,13 @@ merge_fdata <- function(efdat, dfdat) {
     dt1 <- data.table(efdat, key = "rn")
     dt2 <- data.table(dfdat, key = "rn")
 
-    fdat <- merge(unique(dt1), dt2, by = "rn", all.y = TRUE)
+    fdat <- merge(unique(dt1), dt2, by = "rn", all.y = TRUE, allow.cartesian = TRUE)
     fdat <- as.data.frame(fdat)
     row.names(fdat) <- make.unique(fdat$rn)
     fdat$rn <- NULL
 
     return(fdat[row.names(dfdat), ])
 }
-
 
 # Downloads bioconductor package.
 #
@@ -299,7 +270,7 @@ symbol_annot <- function (eset, gse_name = "", entrez_dir = NULL) {
             map$SYMBOL_9606 <- map$SYMBOL <- toupper(map$SYMBOL_9606)
         } else {
             # map human entrez to gene symbol
-            map$SYMBOL <- toupper(hs[map$ENTREZID_HS, SYMBOL])
+            map$SYMBOL <- toupper(hs[map$ENTREZID_HS, SYMBOL_9606])
         }
 
     }
@@ -337,13 +308,14 @@ entrez_map <- function(eset, entrez_dir) {
 
     # try to get ENTREZ from biocpack ----
 
-    biocpack_name <- get_biocpack_name(annotation(eset))
+    biocpack_name <- crossmeta:::get_biocpack_name(annotation(eset))
     ID <-  gsub('[.]\\d+$', '', featureNames(eset))
 
     # if biocpack_name not empty, use to get entrez id
     if (!biocpack_name %in% c("", ".db")) {
-        biocpack <- get_biocpack(biocpack_name)
-        suppressMessages(map <- AnnotationDbi::select(biocpack, ID, "ENTREZID"))
+        biocpack <- crossmeta:::get_biocpack(biocpack_name)
+        map <- tryCatch(AnnotationDbi::select(biocpack, ID, "ENTREZID"),
+                        error = function(e) return(map))
 
         #TODO: record species of all GPLs
 
@@ -352,7 +324,7 @@ entrez_map <- function(eset, entrez_dir) {
         taxid <- org_taxid[org]
     } else {
         # use pdata species
-        org_col <- grep('organism', colnames(pData(eset)))
+        org_col <- grep('organism', colnames(pData(eset)))[1]
         org     <- unique(as.character(pData(eset)[, org_col]))
         taxid   <- org_taxid[org]
     }
@@ -516,8 +488,7 @@ getGEO <- function(GEO=NULL,
                    destdir=tempdir(),
                    GSElimits=NULL,GSEMatrix=TRUE,
                    AnnotGPL=FALSE,
-                   getGPL=TRUE,
-                   limit_gpls=FALSE) {
+                   getGPL=TRUE) {
     con <- NULL
     if(!is.null(GSElimits)) {
         if(length(GSElimits)!=2) {
@@ -531,7 +502,7 @@ getGEO <- function(GEO=NULL,
         GEO <- toupper(GEO)
         geotype <- toupper(substr(GEO,1,3))
         if(GSEMatrix & geotype=='GSE') {
-            return(getAndParseGSEMatrices(GEO,destdir,AnnotGPL=AnnotGPL,getGPL=getGPL,limit_gpls=limit_gpls))
+            return(getAndParseGSEMatrices(GEO,destdir,AnnotGPL=AnnotGPL,getGPL=getGPL))
         }
         filename <- GEOquery::getGEOfile(GEO,destdir=destdir,AnnotGPL=AnnotGPL)
     }
@@ -540,14 +511,14 @@ getGEO <- function(GEO=NULL,
 }
 
 
-getAndParseGSEMatrices <- function(GEO, destdir, AnnotGPL, getGPL=TRUE, limit_gpls = FALSE) {
+getAndParseGSEMatrices <- function(GEO, destdir, AnnotGPL, getGPL=TRUE) {
     GEO <- toupper(GEO)
     ## This stuff functions to get the listing of available files
     ## for a given GSE given that there may be many GSEMatrix
     ## files for a given GSE.
     stub = gsub('\\d{1,3}$','nnn',GEO,perl=TRUE)
     gdsurl <- 'https://ftp.ncbi.nlm.nih.gov/geo/series/%s/%s/matrix/'
-    b = crossmeta:::getDirListing(sprintf(gdsurl,stub,GEO), limit_gpls)
+    b = crossmeta:::getDirListing(sprintf(gdsurl,stub,GEO))
     message(sprintf('Found %d file(s)',length(b)))
     ret <- list()
     ## Loop over the files, returning a list, one element
@@ -558,6 +529,7 @@ getAndParseGSEMatrices <- function(GEO, destdir, AnnotGPL, getGPL=TRUE, limit_gp
         if(file.exists(destfile)) {
             message(sprintf('Using locally cached version: %s',destfile))
         } else {
+            destfile=file.path(destdir,b[i])
             download.file(sprintf('https://ftp.ncbi.nlm.nih.gov/geo/series/%s/%s/matrix/%s',
                                   stub,GEO,b[i]),destfile=destfile,mode='wb',
                           method=getOption('download.file.method.GEOquery'))
@@ -602,7 +574,7 @@ getGEOSuppFiles <- function(GEO,makeDirectory=TRUE,baseDir=getwd()) {
     invisible(do.call(rbind,fileinfo))
 }
 
-getDirListing <- function(url, limit_gpls = FALSE) {
+getDirListing <- function(url) {
     message(url)
     # Takes a URL and returns a character vector of filenames
     a <- RCurl::getURL(url)
@@ -617,11 +589,6 @@ getDirListing <- function(url, limit_gpls = FALSE) {
 
         # make sure link doesn't end with '/'
         links <- links[!grepl('/$', links)]
-
-        if (limit_gpls) {
-            gpls  <- stringr::str_extract(links, 'GPL\\d+')
-            if (!all(is.na(gpls))) links <- links[gpls %in% row.names(gpl_bioc)]
-        }
 
         b <- as.matrix(links)
         message('OK')
