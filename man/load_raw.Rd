@@ -5,7 +5,7 @@
 \title{Load and annotate raw data downloaded from GEO.}
 \usage{
 load_raw(gse_names, data_dir = getwd(), gpl_dir = "..", overwrite = FALSE,
-  entrez_dir = NULL)
+  ensql = NULL)
 }
 \arguments{
 \item{gse_names}{Character vector of GSE names.}

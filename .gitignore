@@ -9,6 +9,6 @@ vignettes/*.html
 vignettes/*.R
 
 #directories
-literature/
-inst/doc
-data-raw/entrez_dir/*.rds
+inst/
+data-raw/entrezdt/
+

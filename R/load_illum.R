@@ -14,7 +14,7 @@
 
 # @return List of annotated esets.
 
-load_illum <- function (gse_names, data_dir, gpl_dir, entrez_dir) {
+load_illum <- function (gse_names, data_dir, gpl_dir, ensql) {
 
     esets  <- list()
     errors <- c()
@@ -25,8 +25,16 @@ load_illum <- function (gse_names, data_dir, gpl_dir, entrez_dir) {
 
 
         # get GSEMatrix (for pheno dat)
-        eset <- crossmeta:::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, getGPL = FALSE)
+        eset <- NULL
+        while (is.null(eset)) {
+            eset <- try(crossmeta:::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, getGPL = FALSE))
+        }
 
+        if (length(eset) > 1) {
+            warning("Multi-platform Illumina GSEs not supported. ", gse_name)
+            errors <- c(errors, gse_name)
+            next
+        }
 
         # check if have GPL
         gpl_names <- paste0(sapply(eset, annotation), '.soft', collapse = "|")
@@ -39,14 +47,11 @@ load_illum <- function (gse_names, data_dir, gpl_dir, entrez_dir) {
             file.copy(gpl_paths, gse_dir)
 
         # will use local GPL or download if couldn't copy
-        eset <- crossmeta:::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE)
-
-        if (length(eset) > 1) {
-            warning("Multi-platform Illumina GSEs not supported. ", gse_name)
-            errors <- c(errors, gse_name)
-            next
+        eset <- NULL
+        while (is.null(eset)) {
+            eset <- try(crossmeta:::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE))
         }
-        eset <- tryCatch(load_illum_plat(eset[[1]], gse_name, gse_dir, entrez_dir),
+        eset <- tryCatch(load_illum_plat(eset[[1]], gse_name, gse_dir, ensql),
                          error = function(e) NULL)
 
         # save to disc
@@ -77,74 +82,73 @@ load_illum <- function (gse_names, data_dir, gpl_dir, entrez_dir) {
 # @seealso \code{\link{load_illum}}.
 # @return Annotated eset.
 
-load_illum_plat <- function(eset, gse_name, gse_dir, entrez_dir) {
+load_illum_plat <- function(eset, gse_name, gse_dir, ensql) {
+
+    try(fData(eset)[fData(eset) == ""] <- NA)
+    try(fData(eset)[] <- lapply(fData(eset), as.character))
 
     # fix header issues
-    data_paths <- list.files(gse_dir, pattern = "non.norm.*txt$|raw.*txt$|nonorm.*txt$", full.names = TRUE, ignore.case = TRUE)
-    data_paths <- data_paths[!grepl('fixed[.]txt$', data_paths)]
-    anncols    <- crossmeta:::fix_illum_headers(data_paths, eset)
+    elist_paths <- list.files(gse_dir, pattern = "non.*norm.*txt$|raw.*txt$|nonorm.*txt$", full.names = TRUE, ignore.case = TRUE)
+    elist_paths <- elist_paths[!grepl('fixed[.]txt$', elist_paths)]
+    annotation  <- fix_illum_headers(elist_paths, eset)
 
-    # load fixed data paths
-    data_paths <- gsub(".txt", "_fixed.txt", data_paths, fixed = TRUE)
+    # load fixed elist paths
+    elist_paths <- gsub(".txt", "_fixed.txt", elist_paths, fixed = TRUE)
+    elist <- limma::read.ilmn(elist_paths, probeid = "ID_REF", annotation = annotation)
+
 
     # don't correct if already log transformed (already corrected?)
-    data <- limma::read.ilmn(data_paths, probeid = "ID_REF", annotation = anncols)
-    logd <- max(data$E, na.rm = TRUE) < 1000
-
+    logd <- max(elist$E, na.rm = TRUE) < 100
     if (!logd) {
-        data <- tryCatch (
-            limma::neqc(data),
+        elist <- tryCatch (
+            limma::neqc(elist),
             error = function(c) {
                 # PMID:19068485 recommends mle and offset 50
-                data <- limma::backgroundCorrect(data, method = "normexp",
+                elist <- limma::backgroundCorrect(elist, method = "normexp",
                                                  normexp.method = "mle",
                                                  offset = 50)
 
-                return(limma::normalizeBetweenArrays(data, method = "quantile"))
+                return(limma::normalizeBetweenArrays(elist, method = "quantile"))
             })
     }
 
-    # fix up data feature names
-    data <- crossmeta:::fix_illum_features(eset, data)
+    # merge eset and elist fdata
+    elist <- merge_elist(eset, elist)
+
+    if ('ID_REF' %in% colnames(elist$genes)) {
+        row.names(elist$E) <- row.names(elist$genes) <- make.unique(elist$genes$ID_REF)
+    } else {
+        row.names(elist$E) <- row.names(elist$genes) <- NULL
+    }
 
     # determine best sample matches
-    res  <- crossmeta:::match_samples(eset, data)
-    data <- data[, res$data_order]
-    eset <- eset[, res$eset_order]
-    warn <- res$warn
+    res   <- match_samples(eset, elist)
+    elist <- elist[, res$elist_order]
+    eset  <- eset[, res$eset_order]
+    warn  <- res$warn
 
-    # keep gse matrix and raw data title
+    # keep gse matrix and raw elist title
     pData(eset)$title.gsemat <- pData(eset)$title
-    pData(eset)$title.raw    <- colnames(data)
+    pData(eset)$title.raw    <- colnames(elist)
 
 
     if (warn) {
-        # use raw data titles to ensure correct contrasts
-        pData(eset)$title <- colnames(data)
+        # use raw elist titles to ensure correct contrasts
+        pData(eset)$title <- colnames(elist)
 
         # add illum colname to warn about pData
         pData(eset)$illum <- NA
     }
-    colnames(data) <- sampleNames(eset)
+    colnames(elist) <- sampleNames(eset)
 
-    # transfer data to eset
-    if (!is.null(data$genes)) {
-        dfdat <- data.frame(data$genes, row.names = row.names(data))
-    } else {
-        dfdat <- data.frame(row.names = row.names(data))
-    }
-
-    fData(eset) <- crossmeta:::merge_fdata(fData(eset), dfdat)
-    eset <- ExpressionSet(data$E,
+    # transfer elist to eset
+    eset <- ExpressionSet(elist$E,
                           phenoData = phenoData(eset),
-                          featureData = featureData(eset),
+                          featureData = as(elist$genes, 'AnnotatedDataFrame'),
                           annotation = annotation(eset))
 
-    # transfer pvals from data to eset
-    eset <- crossmeta:::add_pvals(eset, data$other$Detection)
-
     # add SYMBOL annotation
-    eset <- crossmeta:::symbol_annot(eset, gse_name, entrez_dir)
+    eset <- symbol_annot(eset, gse_name, ensql)
     return(eset)
 }
 
@@ -176,41 +180,41 @@ fuzzy_pmatch <- function(x, table) {
     return(perfect)
 }
 
-match_samples <- function(eset, data) {
+match_samples <- function(eset, elist) {
 
-    # determine if data has fewer samples
-    data_fewer <- ncol(data) < ncol(eset)
+    # determine if elist has fewer samples
+    data_fewer <- ncol(elist) < ncol(eset)
 
     # check if colnames match ----
     if (data_fewer) {
-        # check if all data colnames in eset colnames
-        if (all(colnames(data) %in% colnames(eset))) {
+        # check if all elist colnames in eset colnames
+        if (all(colnames(elist) %in% colnames(eset))) {
             cat('Illumina samples matched by column names.\n')
-            return(list(data_order = colnames(data), eset_order = colnames(data), warn = FALSE))
+            return(list(elist_order = colnames(elist), eset_order = colnames(elist), warn = FALSE))
         }
 
     } else {
-        # check if all eset colnames in data colnames
-        if (all(colnames(eset) %in% colnames(data))) {
+        # check if all eset colnames in elist colnames
+        if (all(colnames(eset) %in% colnames(elist))) {
             cat('Illumina samples matched by column names.\n')
-            return(list(data_order = colnames(eset), eset_order = colnames(eset), warn = FALSE))
+            return(list(elist_order = colnames(eset), eset_order = colnames(eset), warn = FALSE))
         }
     }
 
-    # check if eset pdata col matches data colnames ----
+    # check if eset pdata col matches elist colnames ----
 
-    if (!is.null(colnames(data))) {
+    if (!is.null(colnames(elist))) {
 
-        # matrix of positions of matches for data colnames among those for each pdata column
+        # matrix of positions of matches for elist colnames among those for each pdata column
         matches <- sapply(pData(eset), function(col) {
-            fuzzy_pmatch(colnames(data), col)
+            fuzzy_pmatch(colnames(elist), col)
         })
 
         # number of unique non NA matches for each pdata column
         nunique <- apply(matches, 2, function(match) length(unique(match[!is.na(match)])))
 
         # number of unique non NA matches should be the min of number of eset or pdata samples
-        nmin <- min(ncol(eset), ncol(data))
+        nmin <- min(ncol(eset), ncol(elist))
         if (any(nunique == nmin)) {
             cat('Illumina samples matched by pdata column.\n')
 
@@ -218,13 +222,13 @@ match_samples <- function(eset, data) {
             bestcol <- names(which(nunique == nmin))[1]
             matches <- matches[, bestcol]
 
-            # data_order is positions where matches are not NA
-            data_order <- which(!is.na(matches))
+            # elist_order is positions where matches are not NA
+            elist_order <- which(!is.na(matches))
 
             # eset_order is non NA matches
             eset_order <- matches[!is.na(matches)]
 
-            return(list(data_order = data_order, eset_order = eset_order, warn = FALSE))
+            return(list(elist_order = elist_order, eset_order = eset_order, warn = FALSE))
         }
     }
 
@@ -237,27 +241,36 @@ match_samples <- function(eset, data) {
         exprs(eset) <- log2(exprs(eset) + abs(min(exprs(eset), na.rm = TRUE)) + 16)
     }
 
-    qres  <- list()
-    eset  <- eset[complete.cases(exprs(eset)), ]
-    data  <- data[complete.cases(data$E), ]
-    ngenes <- min(nrow(eset), nrow(data))
+    # row names are the best match columns for elist and eset
+    elist <- elist[!is.na(elist$genes[[elist$elistcol]]), ]
+    row.names(elist) <- make.unique(elist$genes[[elist$elistcol]])
+
+    eset <- eset[!is.na(fData(eset)[[elist$esetcol]]), ]
+    row.names(eset)  <- make.unique(fData(eset)[[elist$esetcol]])
+
+    # only include rows without missing values
+    eset   <- eset[complete.cases(exprs(eset)), ]
+    elist  <- elist[complete.cases(elist$E), ]
+
+    qres   <- list()
+    ngenes <- min(nrow(eset), nrow(elist))
 
     if (data_fewer) {
-        # determine most similar eset sample for each sample in data
-        for (i in 1:ncol(data)) {
-            qsamp <- data$E[, i]
-            qres[[colnames(data)[i]]] <- ccmap::query_drugs(qsamp, exprs(eset), sorted = FALSE, ngenes = ngenes)
+        # determine most similar eset sample for each sample in elist
+        for (i in 1:ncol(elist)) {
+            qsamp <- elist$E[, i]
+            qres[[colnames(elist)[i]]] <- ccmap::query_drugs(qsamp, exprs(eset), sorted = FALSE, ngenes = ngenes)
         }
 
     } else {
-        # determine most similar data sample for each sample in eset
+        # determine most similar elist sample for each sample in eset
         for (i in 1:ncol(eset)) {
             qsamp <- exprs(eset)[, i]
-            qres[[colnames(eset)[i]]] <- ccmap::query_drugs(qsamp, data$E, sorted = FALSE, ngenes = ngenes)
+            qres[[colnames(eset)[i]]] <- ccmap::query_drugs(qsamp, elist$E, sorted = FALSE, ngenes = ngenes)
         }
     }
 
-    # eset sample to most similar data sample
+    # eset sample to most similar elist sample
     qres <- as.data.frame(qres)
     best <- sapply(qres, which.max)
 
@@ -265,14 +278,14 @@ match_samples <- function(eset, data) {
         cat('Illumina samples matched by similarity.\n')
 
         if (data_fewer) {
-            data_order <- colnames(data)
+            elist_order <- colnames(elist)
             eset_order <- best
         } else {
-            data_order <- best
+            elist_order <- best
             eset_order <- colnames(eset)
         }
 
-        return(list(data_order = data_order, eset_order = eset_order, warn = FALSE))
+        return(list(elist_order = elist_order, eset_order = eset_order, warn = FALSE))
 
     } else {
         # look for misses in non-first query results
@@ -315,162 +328,67 @@ match_samples <- function(eset, data) {
         if (!length(dups)) {
             cat('Illumina samples matched by similarity using non-first ranks.\n')
             if (data_fewer) {
-                data_order <- colnames(data)
+                elist_order <- colnames(elist)
                 eset_order <- best
             } else {
-                data_order <- best
+                elist_order <- best
                 eset_order <- colnames(eset)
             }
-            return(list(data_order = data_order, eset_order = eset_order, warn = FALSE))
+            return(list(elist_order = elist_order, eset_order = eset_order, warn = FALSE))
 
         } else {
             cat('Illumina samples not matched.\n')
-            return(list(data_order = colnames(data), eset_order = colnames(eset), warn = TRUE))
+            return(list(elist_order = colnames(elist), eset_order = colnames(eset), warn = TRUE))
         }
     }
 }
 
 
 
-# Convert Illumina data features to eset features.
-#
-# Maps from raw data row names to eset row names.
-#
-# Illumina raw data ('EList' object) has no feature information other than
-# row names. These rownames may not match those of the eset GSEMatrix
-# ('ExpressionSet' object). This is fixed by mapping from raw data row names to
-# eset row names through the eset feature data column that best matches the
-# raw data row names.
-#
-# @param eset ExpressionSet from call to getGEO with GSEMatrix = TRUE.
-# @param data EList from loading raw Illumina data then limma::neqc.
-#
-# @return data with rownames matching eset rownames.
 
-fix_illum_features <- function(eset, data) {
+merge_elist <- function(eset, elist) {
 
-    genes_null <- is.null(data$genes)
-    names_null <- is.null(row.names(data))
+    if (is.null(elist$genes)) stop('Raw elist lacks feature names.')
 
-    if (genes_null & names_null) stop('Raw data lacks feature names.')
-
-    datacols <- c(data$genes, list(row.names(data)))
-    datacols <- datacols[!sapply(datacols, is.null)]
-
-    fData(eset)$rn <- gsub('[.]\\d+$', '', row.names(eset))
+    # get eset and elist fdata columns
+    esetcols  <- fData(eset)
+    elistcols <- elist$genes
 
 
-    # find eset fData column that best matches data features
-    best  <- c(esetcol=NA, datacol=NA)
+    # find eset fData column that best matches elist features
+    best  <- c(esetcol=NA, elistcol=NA)
     bestf <- 0
 
-    for (i in seq_along(datacols)) {
+    for (i in seq_along(elistcols)) {
 
-        datacol <- datacols[[i]]
+        elistcol <- elistcols[[i]]
 
         # get fraction of fdata column that has a match
-        matches <- sapply(fvarLabels(eset), function(fdatacol) {
-            sum(datacol %in% fData(eset)[, fdatacol]) / length(datacol)
+        matches <- sapply(names(esetcols), function(esetcol) {
+            sum(elistcol %in% esetcols[, esetcol]) / length(elistcol)
         })
 
         # update best
-        if (max(matches) > bestf) {
+        if (max(matches) >= bestf) {
             bestf <- max(matches)
-            best['datacol'] <- names(datacols)[i]
-            best['esetcol'] <- names(matches[which.max(matches)])
+            best['elistcol'] <- names(elistcols)[i]
+            best['esetcol']  <- names(matches[which.max(matches)])
         }
     }
 
-    if (bestf > 0.5) {
+    if (bestf > 0.3) {
+        # merge eset and elist fdata columns
+        esetcols  <- esetcols[!duplicated(esetcols[best['esetcol']]),, drop = FALSE]
+        elistcols <- merge(elistcols, esetcols, all.x = TRUE, by.x = best['elistcol'], by.y = best['esetcol'], sort = FALSE)
+        elistcols[elistcols == ""] <- NA
 
-        # map from best datacol to eset row names
-        df <- data.frame(datacols)[best['datacol']]
-        ef <- fData(eset)[, best['esetcol'], drop=FALSE]
-        ef$rn <- fData(eset)$rn
+        elist$genes <- elistcols
 
-        map <- merge(df, ef, all.x = TRUE, by.x = best['datacol'], by.y = best['esetcol'], sort = FALSE)
-        map <- unique(map)
-
-
-        # positions where best datacol is in map
-        rowind <- match(data$genes[, best['datacol']], map[, best['datacol']])
-        row.names(data) <- make.unique(map[rowind, 'rn'])
-        data <- data[!is.na(row.names(data)), ]
-
+        # add best info for illumina sample matching
+        elist$elistcol <- best[['elistcol']]
+        elist$esetcol  <- best[['esetcol']]
     }
-    return(data)
+    elist$genes[] <- lapply(elist$genes, as.character)
+    return(elist)
 }
-
-
-# -------------------
-
-
-# Add detection p-values to Illumina expression set.
-#
-# Adds detection p-vals to pvals slot of illumina expression set. Used by
-# \code{load_illum}.
-#
-# @param eset Illumina expression set to add pvals slot to.
-# @param pvals Detection slot obtained from \link{read.ilmn}
-#
-# @return Expression set with detection p-values in pvals slot.
-
-add_pvals <- function (eset, pvals) {
-    storageMode(eset) = "environment"
-    assayData(eset)[["pvals"]] = pvals
-    storageMode(eset) = "lockedEnvironment"
-    return (eset)
-}
-
-
-# -------------------
-
-
-#' Open raw Illumina microarray files.
-#'
-#' Helper function to open raw Illumina microarray files in order to check that
-#' they are formatted correctly. For details on correct format, please see
-#' 'Checking Raw Illumina Data' in vignette.
-#'
-#' @param gse_names Character vector of Illumina GSE names to open.
-#' @param data_dir String specifying directory with GSE folders.
-#'
-#' @return Character vector of successfully formated Illumina GSE names.
-#' @export
-#'
-#' @examples
-#' library(lydata)
-#'
-#' # Illumina GSE names
-#' illum_names <- c("GSE50841", "GSE34817", "GSE29689")
-#'
-#' # location of raw data
-#' data_dir <- system.file("extdata", package = "lydata")
-#'
-#' # open raw data files with default text editor
-#' # open_raw_illum(illum_names)
-
-open_raw_illum <- function (gse_names, data_dir = getwd()) {
-
-    out_names <- gse_names
-    for (i in seq_along(gse_names)) {
-        # get data paths
-        gse_dir <- paste(data_dir, gse_names[i], sep = "/")
-        data_paths <- list.files(gse_dir, pattern = "non.norm.*txt",
-                                 full.names = TRUE, ignore.case = TRUE)
-        data_paths <- c(data_paths, list.files(gse_dir, pattern = ".xls",
-                                               full.names = TRUE))
-        # open data file
-        for (j in seq_along(data_paths)) pander::openFileInOS(data_paths[j])
-
-        # check success
-        success <- tcltk::tk_select.list(choices = c("Yes", "No"),
-                                         title = paste(gse_names[i],
-                                                       "formated successfully?"))
-        # remove unsuccessful
-        if (success == "No") out_names <- setdiff(out_names, gse_names[i])
-    }
-    return(out_names)
-}
-
 

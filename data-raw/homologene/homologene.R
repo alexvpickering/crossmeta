@@ -58,6 +58,8 @@ get_homologene <- function(homologene_path) {
     # character class
     homologene[] <- lapply(homologene, as.character)
 
-    return(homologene)
+    return(data.table(homologene, key='ENTREZID'))
 }
+
+devtools::use_data(homologene, gpl_bioc, hs, sources, org_pkg, org_taxid, token, internal = TRUE, overwrite = TRUE)
 

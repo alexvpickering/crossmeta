@@ -11,7 +11,7 @@
 # @seealso \code{\link{get_raw}} to obtain raw data.
 # @return List of annotated esets.
 
-load_agil <- function (gse_names, data_dir, gpl_dir, entrez_dir) {
+load_agil <- function (gse_names, data_dir, gpl_dir, ensql) {
 
     esets  <- list()
     errors <- c()
@@ -21,8 +21,10 @@ load_agil <- function (gse_names, data_dir, gpl_dir, entrez_dir) {
         save_name <- paste(gse_name, "eset.rds", sep = "_")
 
         # get GSEMatrix (for pheno dat)
-        eset <- crossmeta:::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, getGPL = FALSE)
-
+        eset <- NULL
+        while (is.null(eset)) {
+            eset <- try(crossmeta:::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, getGPL = FALSE))
+        }
         # check if have GPL
         gpl_names <- paste0(sapply(eset, annotation), '.soft', collapse = "|")
         gpl_paths <- sapply(gpl_names, function(gpl_name) {
@@ -34,7 +36,10 @@ load_agil <- function (gse_names, data_dir, gpl_dir, entrez_dir) {
             file.copy(gpl_paths, gse_dir)
 
         # will use local GPL or download if couldn't copy
-        eset <- crossmeta:::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE)
+        eset <- NULL
+        while (is.null(eset)) {
+            eset <- try(crossmeta:::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE))
+        }
 
         # name esets
         if (length(eset) > 1) {
@@ -45,10 +50,9 @@ load_agil <- function (gse_names, data_dir, gpl_dir, entrez_dir) {
 
         # load eset for each platform in GSE
         eset <- lapply(eset, function(eset.gpl) {
-            tryCatch(load_agil_plat(eset.gpl, gse_dir, gse_name, entrez_dir),
+            tryCatch(load_agil_plat(eset.gpl, gse_dir, gse_name, ensql),
                      error = function(e) NA)
         })
-
 
         # save to disc
         if (!all(is.na(eset)))
@@ -72,90 +76,50 @@ load_agil <- function (gse_names, data_dir, gpl_dir, entrez_dir) {
 # ------------------------
 
 
-load_agil_plat <- function (eset, gse_dir, gse_name, entrez_dir) {
+load_agil_plat <- function (eset, gse_dir, gse_name, ensql) {
+
+    try(fData(eset)[fData(eset) == ""] <- NA)
+    try(fData(eset)[] <- lapply(fData(eset), as.character))
 
     # get paths to raw files for samples in eset
     pattern <- paste(sampleNames(eset), ".*txt", collapse = "|", sep = "")
-    data_paths <- list.files(gse_dir, pattern, full.names = TRUE, ignore.case = TRUE)
+    elist_paths <- list.files(gse_dir, pattern, full.names = TRUE, ignore.case = TRUE)
 
     # if multiple with same GSM, take first
-    gsm_names  <- stringr::str_extract(data_paths, "GSM[0-9]+")
-    data_paths <- data_paths[!duplicated(gsm_names)]
+    gsm_names  <- stringr::str_extract(elist_paths, "GSM[0-9]+")
+    elist_paths <- elist_paths[!duplicated(gsm_names)]
 
     # load non-normalized txt files and normalize
-    data <- tryCatch(limma::read.maimages(data_paths, source = "agilent", green.only = TRUE),
+    elist <- tryCatch(limma::read.maimages(elist_paths, source = "agilent", green.only = TRUE),
                      error = function(e) {
                          # determine source of error
-                         exclude <- c()
-                         for (data_path in data_paths) {
-                             tryCatch(limma::read.maimages(data_path, source = "agilent", green.only = TRUE, verbose = FALSE),
-                                      error = function(e) exclude <<- c(exclude, data_path))
-                         }
-                         # retry with errors excluded
-                         data_paths <- setdiff(data_paths, exclude)
-                         limma::read.maimages(data_paths, source = "agilent", green.only = TRUE)
+                         output <- capture.output(tryCatch(
+                             limma::read.maimages(elist_paths, source = "agilent", green.only = TRUE),
+                             error = function(e) NULL))
+
+                         # retry with error excluded
+                         exclude     <- which(elist_paths == gsub('^Read| ', '', output[length(output)-1])) + 1
+                         elist_paths <- elist_paths[-exclude]
+                         limma::read.maimages(elist_paths, source = "agilent", green.only = TRUE)
                      })
-    data <- limma::neqc(data, status = data$genes$ControlType, negctrl = -1, regular = 0)
+    elist <- limma::neqc(elist, status = elist$genes$ControlType, negctrl = -1, regular = 0)
 
-    # fix up sample/feature names
-    colnames(data) <- stringr::str_match(colnames(data), ".*(GSM\\d+).*")[, 2]
-    data <- data[!is.na(data$genes$ProbeName), ]
+    # fix up sample names
+    colnames(elist) <- stringr::str_match(colnames(elist), ".*(GSM\\d+).*")[, 2]
+    eset <- eset[, colnames(elist)]
 
-    row.names(data$genes) <- make.unique(data$genes$ProbeName)
-    row.names(data$E)     <- make.unique(data$genes$ProbeName)
-
-    eset <- fix_agil_features(eset, data)
-    eset <- eset[, colnames(data)]
+    # merge elist and eset feature data
+    elist <- merge_elist(eset, elist)
+    row.names(elist$E) <- row.names(elist$genes) <- make.unique(elist$genes$ProbeName)
 
     # transfer to eset
-    fData(eset) <- merge_fdata(fData(eset), data$genes)
-    eset <- ExpressionSet(data$E,
+    eset <- ExpressionSet(elist$E,
                           phenoData = phenoData(eset),
-                          featureData = featureData(eset),
+                          featureData = as(elist$genes, 'AnnotatedDataFrame'),
                           annotation = annotation(eset))
 
     # add SYMBOL annotation
-    eset <- symbol_annot(eset, gse_name, entrez_dir)
-
+    eset <- symbol_annot(eset, gse_name, ensql)
     return(eset)
 }
 
-
-# ------------------------
-
-
-# Set eset row names to Agilent probe ids.
-#
-# Sets eset row names to eset feature data column that best matches raw data
-# probe identifiers.
-#
-# Agilent raw data has probe identifiers (in data$genes$ProbeName). The row
-# names of the eset GSEMatrix ('ExpressionSet' object) may not use the same
-# identifiers. This is fixed by setting the eset row names to the eset feature
-# data column that best matches the raw data probe identifiers.
-#
-# @param eset Expression set from getGEO with GSEMatrix = TRUE.
-# @param data Expression set from raw data (read and processed by limma).
-#
-# @return eset with row names set to Agilent probe ids.
-
-fix_agil_features <- function(eset, data) {
-
-    # use eset fData column that best matches data probe names
-    fData(eset)$rownames <- featureNames(eset)
-
-    cols <- colnames(fData(eset))
-    matches <- sapply(cols, function(col){
-        sum(fData(eset)[, col] %in% data$genes$ProbeName)
-    })
-
-    best <- fData(eset)[, names(which.max(matches))]
-    na   <- best %in% c("", NA)
-    best <- make.unique(as.character(best))
-
-    eset <- eset[!na, ]
-    row.names(eset) <- best[!na]
-
-    fData(eset)$rownames <- NULL
-    return(eset)
-}

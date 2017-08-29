@@ -37,8 +37,7 @@ cel_dates <- function(cel_paths) {
 # @seealso \code{\link{get_raw}} to obtain raw data.
 # @return List of annotated esets (one for each unique GSE/GPL platform).
 
-load_affy <- function (gse_names, data_dir, gpl_dir, entrez_dir) {
-
+load_affy <- function (gse_names, data_dir, gpl_dir, ensql) {
 
     esets  <- list()
     errors <- c()
@@ -48,10 +47,13 @@ load_affy <- function (gse_names, data_dir, gpl_dir, entrez_dir) {
         save_name <- paste(gse_name, "eset.rds", sep = "_")
 
         # get GSEMatrix (for pheno dat)
-        eset <- getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, getGPL = FALSE)
+        eset <- NULL
+        while (is.null(eset)) {
+            eset <- try(crossmeta:::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, getGPL = FALSE))
+        }
 
         # check if have GPL
-        gpl_names <- paste0(sapply(eset, annotation), '.soft')
+        gpl_names <- paste0(sapply(eset, annotation), '.soft', collapse = "|")
         gpl_paths <- sapply(gpl_names, function(gpl_name) {
             list.files(gpl_dir, gpl_name, full.names = TRUE, recursive = TRUE, include.dirs = TRUE)[1]
         })
@@ -61,7 +63,10 @@ load_affy <- function (gse_names, data_dir, gpl_dir, entrez_dir) {
             file.copy(gpl_paths, gse_dir)
 
         # will use local GPL or download if couldn't copy
-        eset <- getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE)
+        eset <- NULL
+        while (is.null(eset)) {
+            eset <- try(crossmeta:::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE))
+        }
 
         # name esets
         if (length(eset) > 1) {
@@ -72,7 +77,7 @@ load_affy <- function (gse_names, data_dir, gpl_dir, entrez_dir) {
 
         # load eset for each platform in GSE
         eset <- lapply(eset, function(eset.gpl) {
-            tryCatch(load_affy_plat(eset.gpl, gse_dir, gse_name, entrez_dir),
+            tryCatch(load_affy_plat(eset.gpl, gse_dir, gse_name, ensql),
                      error = function(e) NA)
         })
 
@@ -108,7 +113,10 @@ load_affy <- function (gse_names, data_dir, gpl_dir, entrez_dir) {
 # @seealso \code{\link{load_affy}}.
 # @return Annotated eset with scan_date in pData slot.
 
-load_affy_plat <- function (eset, gse_dir, gse_name, entrez_dir) {
+load_affy_plat <- function (eset, gse_dir, gse_name, ensql) {
+
+    try(fData(eset)[fData(eset) == ""] <- NA)
+    try(fData(eset)[] <- lapply(fData(eset), as.character))
 
     sample_names <- sampleNames(eset)
     pattern <- paste(sample_names, ".*CEL$", collapse = "|", sep = "")
@@ -133,20 +141,20 @@ load_affy_plat <- function (eset, gse_dir, gse_name, entrez_dir) {
     gsm_names  <- stringr::str_extract(cel_paths, "GSM[0-9]+")
     cel_paths <- cel_paths[!duplicated(gsm_names)]
 
-    data <- tryCatch (
+    abatch <- tryCatch (
         {
-            raw_data <- affy::ReadAffy(filenames = cel_paths)
-            affy::rma(raw_data)
+            raw_abatch <- affy::ReadAffy(filenames = cel_paths)
+            affy::rma(raw_abatch)
         },
         warning = function(c) {
             # is the warning to use oligo/xps?
             if (grepl("oligo", c$message)) {
-                raw_data <- oligo::read.celfiles(cel_paths)
-                return (oligo::rma(raw_data))
+                raw_abatch <- oligo::read.celfiles(cel_paths)
+                return(oligo::rma(raw_abatch))
                 # if not, use affy
             } else {
-                raw_data <- affy::ReadAffy(filenames = cel_paths)
-                return(affy::rma(raw_data))
+                raw_abatch <- affy::ReadAffy(filenames = cel_paths)
+                return(affy::rma(raw_abatch))
             }
         },
         error = function(c) {
@@ -155,34 +163,64 @@ load_affy_plat <- function (eset, gse_dir, gse_name, entrez_dir) {
                 # exclude corrupted and try again
                 corrupted <- stringr::str_extract(c$message, 'GSM\\d+')
                 cel_paths <- cel_paths[!grepl(corrupted, cel_paths)]
-                raw_data  <- affy::ReadAffy(filenames = cel_paths)
-                affy::rma(raw_data)
+                raw_abatch  <- affy::ReadAffy(filenames = cel_paths)
+                return(affy::rma(raw_abatch))
+
             } else {
-                raw_data <- oligo::read.celfiles(cel_paths)
-                return (oligo::rma(raw_data))
+                raw_abatch <- tryCatch(oligo::read.celfiles(cel_paths),
+                                       error = function(d) {
+                                           if (grepl('pd.huex.1.0.st.v1', d$message))
+                                               return(oligo::read.celfiles(cel_paths, pkgname = 'pd.huex.1.0.st.v2'))
+                                           if (grepl('pd.hugene.2.0.st.v1', d$message))
+                                               return(oligo::read.celfiles(cel_paths, pkgname = 'pd.hugene.2.0.st'))
+                                           if (grepl('pd.mogene.2.0.st.v1', d$message))
+                                               return(oligo::read.celfiles(cel_paths, pkgname = 'pd.mogene.2.0.st'))
+                                       })
+                return (oligo::rma(raw_abatch))
             }
         }
     )
-    # rename samples in data
-    sampleNames(data) <- stringr::str_extract(sampleNames(data), "GSM[0-9]+")
+    # rename samples in abatch
+    sampleNames(abatch) <- stringr::str_extract(sampleNames(abatch), "GSM[0-9]+")
 
-    # transfer exprs from data to eset (maintaining eset sample order)
-    sample_order <- sampleNames(eset)[sampleNames(eset) %in% sampleNames(data)]
+    # transfer exprs from abatch to eset (maintaining eset sample order)
+    sample_order <- sampleNames(eset)[sampleNames(eset) %in% sampleNames(abatch)]
 
     eset <- eset[, sample_order]
-    data <- data[, sample_order]
-    assayData(eset) <- assayData(data)
+    abatch <- abatch[, sample_order]
+    assayData(eset) <- assayData(abatch)
 
     # transfer merged fdata
-    fData(eset) <- merge_fdata(fData(eset), fData(data))
-
-    # add scan dates to pheno data (maintaining eset sample order)
-    scan_dates <- cel_dates(cel_paths)
-    names(scan_dates) <- sampleNames(data)
-    pData(eset)$scan_date <- scan_dates[sample_order]
+    fData(eset) <- crossmeta:::merge_fdata(fData(eset), fData(abatch))
 
     # add SYMBOL annotation
-    eset <- symbol_annot(eset, gse_name, entrez_dir)
+    eset <- crossmeta:::symbol_annot(eset, gse_name, ensql)
 
     return(eset)
+}
+
+# ----
+
+# Merge feature data from eset and raw data.
+#
+# Merges feature data from eset GSEMatrix and raw data.
+#
+# Data.frames are merged on feature names. Result has same row names as raw
+# feature data. NAs are added where eset feature data is missing a feature
+# in raw data.
+#
+# @param efdat data.frame with eset feature data (fData).
+# @param dfdat data.frame with raw feature data (varies).
+#
+# @return Data.frame with all columns present in efdat and dfdat. Row names
+#    are same as dfdat.
+
+merge_fdata <- function(eset_fdata, abatch_fdata) {
+
+    # merge feature data from raw data and eset
+    abatch_fdata$ID <- row.names(abatch_fdata)
+    abatch_fdata <- merge(abatch_fdata, eset_fdata, by = "ID", all.x = TRUE, sort = FALSE)
+    row.names(abatch_fdata) <- make.unique(abatch_fdata$ID)
+    abatch_fdata[] <- lapply(abatch_fdata, as.character)
+    return(abatch_fdata)
 }

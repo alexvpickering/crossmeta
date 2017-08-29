@@ -22,6 +22,7 @@ get_raw <- function (gse_names, data_dir = getwd()) {
         # get raw data
         if (!file.exists(gse_dir)) {
             crossmeta:::getGEOSuppFiles(gse_name, baseDir = data_dir)
+            Sys.sleep(10)
         }
 
         # untar
@@ -30,6 +31,7 @@ get_raw <- function (gse_names, data_dir = getwd()) {
             setwd(gse_dir)
             tryCatch(utils::untar(tar_names),
                      error = function(e) setwd(work_dir))
+            Sys.sleep(10)
             setwd(work_dir)
         }
         # unzip
@@ -61,7 +63,7 @@ get_raw <- function (gse_names, data_dir = getwd()) {
 #' eset <- load_raw("GSE9601", data_dir = data_dir)
 
 
-load_raw <- function(gse_names, data_dir = getwd(), gpl_dir = '..', overwrite = FALSE, entrez_dir = NULL) {
+load_raw <- function(gse_names, data_dir = getwd(), gpl_dir = '..', overwrite = FALSE, ensql = NULL) {
 
     # no duplicates allowed (causes mismatched names/esets)
     gse_names <- unique(gse_names)
@@ -87,18 +89,17 @@ load_raw <- function(gse_names, data_dir = getwd(), gpl_dir = '..', overwrite = 
         # determine platform (based on filenames)
         affy  <- list.files(gse_dir, ".CEL$", ignore.case = TRUE)
         agil  <- list.files(gse_dir, "^GSM.*txt$", ignore.case = TRUE)
-        illum <- list.files(gse_dir, "non.norm.*txt$|raw.*txt$|nonorm.*txt$", ignore.case = TRUE)
+        illum <- list.files(gse_dir, "non.*norm.*txt$|raw.*txt$|nonorm.*txt$", ignore.case = TRUE)
 
         # add to appropriate names vector
         if (length(affy) != 0) {
             affy_names  <- c(affy_names, gse_name)
-
+        } else if (length(illum) != 0) {
+            illum_names <- c(illum_names, gse_name)
         } else if  (length(agil) != 0) {
             agil_names  <- c(agil_names, gse_name)
 
-        } else if (length(illum) != 0) {
-            illum_names <- c(illum_names, gse_name)
-        } else {
+        }  else {
             errors <- c(errors, gse_name)
         }
     }
@@ -109,9 +110,9 @@ load_raw <- function(gse_names, data_dir = getwd(), gpl_dir = '..', overwrite = 
     names(saved) <- eset_names
 
     # load non-saved esets
-    affy  <- load_affy(affy_names, data_dir, gpl_dir, entrez_dir)
-    agil  <- load_agil(agil_names, data_dir, gpl_dir, entrez_dir)
-    illum <- load_illum(illum_names, data_dir, gpl_dir, entrez_dir)
+    affy  <- load_affy(affy_names, data_dir, gpl_dir, ensql)
+    agil  <- load_agil(agil_names, data_dir, gpl_dir, ensql)
+    illum <- load_illum(illum_names, data_dir, gpl_dir, ensql)
 
 
     # no raw data found
@@ -141,37 +142,6 @@ load_raw <- function(gse_names, data_dir = getwd(), gpl_dir = '..', overwrite = 
 }
 
 
-
-# Merge feature data from eset and raw data.
-#
-# Merges feature data from eset GSEMatrix and raw data.
-#
-# Data.frames are merged on feature names. Result has same row names as raw
-# feature data. NAs are added where eset feature data is missing a feature
-# in raw data.
-#
-# @param efdat data.frame with eset feature data (fData).
-# @param dfdat data.frame with raw feature data (varies).
-#
-# @return Data.frame with all columns present in efdat and dfdat. Row names
-#    are same as dfdat.
-
-merge_fdata <- function(efdat, dfdat) {
-
-    # merge feature data from raw data and eset
-    efdat$rn <- gsub('[.]\\d+$', '', row.names(efdat))
-    dfdat$rn <- gsub('[.]\\d+$', '', row.names(dfdat))
-
-    dt1 <- data.table(efdat, key = "rn")
-    dt2 <- data.table(dfdat, key = "rn")
-
-    fdat <- merge(unique(dt1), dt2, by = "rn", all.y = TRUE, allow.cartesian = TRUE)
-    fdat <- as.data.frame(fdat)
-    row.names(fdat) <- make.unique(fdat$rn)
-    fdat$rn <- NULL
-
-    return(fdat[row.names(dfdat), ])
-}
 
 # Downloads bioconductor package.
 #
@@ -210,10 +180,11 @@ get_biocpack_name <- function (gpl_name) {
     # get from gpl_bioc
     biocpack_name <- gpl_bioc[gpl_name, "bioc_package"]
 
-    # manual entry if needed
     if (is.na(biocpack_name)) biocpack_name <- ""
+    if (grepl('probeset$', biocpack_name))
+        biocpack_name <- c(biocpack_name, gsub('probeset$', 'transcriptcluster', biocpack_name))
 
-    return (paste(biocpack_name, ".db", sep = ""))
+    return (paste0(biocpack_name, ".db"))
 }
 
 
@@ -251,11 +222,11 @@ get_biocpack_name <- function (gpl_name) {
 #' # annotate eset (need if load_raw failed to annotate)
 #' eset <- symbol_annot(eset)
 
-symbol_annot <- function (eset, gse_name = "", entrez_dir = NULL) {
+symbol_annot <- function (eset, gse_name = "", ensql = NULL) {
     cat("Annotating")
 
     # get map from features to organism entrez ids and  symbols
-    map <- entrez_map(eset, entrez_dir)
+    map <- entrez_map(eset, ensql)
 
     # get map from entrez ids to homologous human entrez ids
     map <- merge(map, homologene, by = "ENTREZID", all.x = TRUE, sort = FALSE)
@@ -272,20 +243,20 @@ symbol_annot <- function (eset, gse_name = "", entrez_dir = NULL) {
             # map human entrez to gene symbol
             map$SYMBOL <- toupper(hs[map$ENTREZID_HS, SYMBOL_9606])
         }
-
     }
 
     # merge map and exprs
-    PROBE <- gsub('[.]\\d+$', '', featureNames(eset))
+    PROBE <- featureNames(eset)
     dt <- data.table(exprs(eset), PROBE, key='PROBE')
     dt <- merge(unique(dt), map, by = 'PROBE', all.x=TRUE, sort=FALSE)
     dt <- data.frame(dt, row.names = make.unique(dt$PROBE))
 
     # transfer to eset
-    ExpressionSet(as.matrix(dt[, sampleNames(eset)]),
-                  phenoData(eset),
-                  AnnotatedDataFrame(dt[, colnames(map)]),
-                  annotation = annotation(eset))
+    eset <- ExpressionSet(as.matrix(dt[, sampleNames(eset)]),
+                          phenoData(eset),
+                          AnnotatedDataFrame(dt[, colnames(map)]),
+                          annotation = annotation(eset))
+    return(eset)
 }
 
 
@@ -301,27 +272,46 @@ symbol_annot <- function (eset, gse_name = "", entrez_dir = NULL) {
 # @return Data.frame with columns 'PROBEID' and 'ENTREZID' which maps from eset
 #    feature names to corresponding entrez gene ids.
 
-entrez_map <- function(eset, entrez_dir) {
+entrez_map <- function(eset, ensql) {
 
     # default map
-    map <- data.frame(PROBE = 1:nrow(eset), ENTREZID = NA)
+    map <- data.frame(PROBE = featureNames(eset), ENTREZID = NA)
 
     # try to get ENTREZ from biocpack ----
 
-    biocpack_name <- crossmeta:::get_biocpack_name(annotation(eset))
-    ID <-  gsub('[.]\\d+$', '', featureNames(eset))
+    biocpack_names <- get_biocpack_name(annotation(eset))
+    PROBE <-  featureNames(eset)
 
     # if biocpack_name not empty, use to get entrez id
-    if (!biocpack_name %in% c("", ".db")) {
-        biocpack <- crossmeta:::get_biocpack(biocpack_name)
-        map <- tryCatch(AnnotationDbi::select(biocpack, ID, "ENTREZID"),
-                        error = function(e) return(map))
+    if (!biocpack_names[1] %in% c("", ".db")) {
 
-        #TODO: record species of all GPLs
+        for(biocpack_name in biocpack_names) {
+            # get biocpack and keys
+            biocpack <- get_biocpack(biocpack_name)
+            biockeys <- AnnotationDbi::keys(biocpack)
+
+            # find eset column that best matches biocpack keys
+            matches <- sapply(fvarLabels(eset), function(fdatacol) {
+                sum(fData(eset)[, fdatacol] %in% biockeys) / length(PROBE)
+            })
+            best <- names(which.max(matches))
+
+            if (max(matches) > 0.5) {
+                # map from feature names to best to entrezid
+                idmap  <- data.table(PROBE, fData(eset)[, best])
+                colnames(idmap) <- c('PROBE', 'PROBEID')
+
+                # get entrezid map and merge
+                map <- suppressMessages(AnnotationDbi::select(biocpack, idmap$PROBEID, "ENTREZID"))
+                map <- merge(idmap, map, by='PROBEID', all.x=TRUE, sort=FALSE)
+                map <- unique(map[, c('PROBE', 'ENTREZID')])
+            }
+        }
 
         # use biocpack species
         org   <- AnnotationDbi::species(biocpack)
         taxid <- org_taxid[org]
+
     } else {
         # use pdata species
         org_col <- grep('organism', colnames(pData(eset)))[1]
@@ -336,31 +326,38 @@ entrez_map <- function(eset, entrez_dir) {
     orgpack_exists <- !is.na(orgpack_name)
     if (orgpack_exists) orgpack <- get_biocpack(orgpack_name)
 
-    # get entrez gene map
-    entrez_path   <- file.path(entrez_dir, paste0(taxid, '.rds'))
-    entrez_exists <- file.exists(entrez_path)
-    if (entrez_exists) gene_map <- readRDS(entrez_path)
-
-
 
     # try to get ENTREZ from fdata ----
     if (fentrez < 0.2) {
 
         # check fData column for organism entrez id
         entrezcols <- grep("gene_id|^gene$|entrez",
-                          fvarLabels(eset), ignore.case = TRUE, value = TRUE)
+                           fvarLabels(eset), ignore.case = TRUE, value = TRUE)
 
-        # organism entrez ids
-        if (entrez_exists) {
-            org_entrez <- unique(gene_map$ENTREZID)
-        } else {
-            org_entrez <- AnnotationDbi::keys(orgpack, 'ENTREZID')
-        }
+
 
         if (length(entrezcols) != 0) {
+            # entrez ids
+            if (is.null(ensql)) {
+                enids <- AnnotationDbi::keys(orgpack, 'ENTREZID')
+            } else {
+                db <- DBI::dbConnect(RSQLite::SQLite(), ensql)
+            }
+
             # pick col with most organism entrez id matches (min 1/4)
             matches <- sapply(entrezcols, function(entrezcol) {
-                sum(fData(eset)[, entrezcol] %in% org_entrez) / length(ID)
+
+                colvals <- as.character(fData(eset)[, entrezcol])
+                colvals <- unlist(strsplit(colvals, "\\D+"))
+
+                if(is.null(ensql)) {
+                    sum(colvals %in% enids) / length(PROBE)
+
+                } else {
+                    enids <- paste(shQuote(colvals), collapse=', ')
+                    statement <- paste0('select count(ENTREZID) from ensql where ENTREZID in (', enids, ')')
+                    sum(DBI::dbGetQuery(db, statement)[,1] / length(PROBE))
+                }
             })
             best <- names(which.max(matches))
 
@@ -371,9 +368,10 @@ entrez_map <- function(eset, entrez_dir) {
                 rn <- sapply(seq_along(entrez),
                              function(x) rep(x, length(entrez[[x]])))
 
-                map <- data.frame(PROBE = ID[unlist(rn)],
+                map <- data.frame(PROBE = PROBE[unlist(rn)],
                                   ENTREZID = unlist(entrez), stringsAsFactors = FALSE)
             }
+            DBI::dbDisconnect(db)
         }
     }
 
@@ -398,7 +396,7 @@ entrez_map <- function(eset, entrez_dir) {
 
             # get fraction of fdata column that has a match
             matches <- sapply(fdatacols, function(fdatacol) {
-                sum(fData(eset)[, fdatacol] %in% orgkeys) / length(ID)
+                sum(fData(eset)[, fdatacol] %in% orgkeys) / length(PROBE)
             })
 
             # update best
@@ -417,7 +415,7 @@ entrez_map <- function(eset, entrez_dir) {
             suppressMessages(map <- AnnotationDbi::select(orgpack, orgkeys, "ENTREZID", best['orgcol']))
 
             # map from probe id to best fdatacol
-            idmap <- data.frame(ID, fData(eset)[, best['fdatacol']], stringsAsFactors = FALSE)
+            idmap <- data.frame(PROBE, fData(eset)[, best['fdatacol']], stringsAsFactors = FALSE)
             names(idmap) <- c('PROBEID', best['orgcol'])
 
             # merge
@@ -430,18 +428,27 @@ entrez_map <- function(eset, entrez_dir) {
 
     # get SYMBOL_taxid ----
 
-    if (!exists('gene_map')) {
+    if (is.null(ensql)) {
         # map from organism entrez id to organism symbol
-        gene_map <- suppressMessages(AnnotationDbi::select(orgpack, unique(map$ENTREZID), 'SYMBOL', 'ENTREZID'))
-        colnames(gene_map) <- c('ENTREZID', paste0('SYMBOL_', taxid))
+        entrezdt <- suppressMessages(AnnotationDbi::select(orgpack, unique(map$ENTREZID), 'SYMBOL', 'ENTREZID'))
+
+    } else {
+        db <- DBI::dbConnect(RSQLite::SQLite(), ensql)
+        map_enids <- paste(shQuote(map$ENTREZID), collapse=', ')
+        statement <- paste0('select * from ensql where ENTREZID in (', map_enids, ')')
+        entrezdt  <- DBI::dbGetQuery(db, statement)
+        DBI::dbDisconnect(db)
     }
 
     # merge with original map
-    map <- merge(map, gene_map, by='ENTREZID', all.x = TRUE, sort = FALSE)
+    colnames(entrezdt) <- c('ENTREZID', paste0('SYMBOL_', taxid))
+    entrezdt <- data.table(entrezdt, key = 'ENTREZID')
+
+    map <- data.table(map, key = 'ENTREZID')
+    map <- merge(map, entrezdt, by='ENTREZID', all.x = TRUE, sort = FALSE)
 
     # remove duplicated rows
-    map <- unique(data.table(map))
-    return(as.data.frame(map))
+    return(unique(map))
 }
 
 
