@@ -153,6 +153,7 @@ diff_expr <- function (esets, data_dir = getwd(),
 match_prev_eset <- function(eset, prev_anal) {
 
     # retain previously selected samples only
+    # TODO: keep all samples: https://support.bioconductor.org/p/73107/
     selected_samples <- row.names(prev_anal$pdata)
     eset <- eset[, selected_samples]
 
@@ -231,6 +232,7 @@ add_contrasts <- function (eset, gse_name, prev_anal) {
         group_levels <- names(sels$rows)
 
         # retain selected samples only
+        # TODO: keep all samples: https://support.bioconductor.org/p/73107/
         eset <- eset[, unique(unlist(sels$rows))]
     }
 

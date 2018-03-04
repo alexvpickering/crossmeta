@@ -23,8 +23,16 @@ load_agil <- function (gse_names, data_dir, gpl_dir, ensql) {
         # get GSEMatrix (for pheno dat)
         eset <- NULL
         while (is.null(eset)) {
-            eset <- try(crossmeta:::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, getGPL = FALSE))
+            eset <- tryCatch(crossmeta:::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, getGPL = FALSE),
+                             error=function(e) return(NULL))
         }
+
+
+        # if _ch2 in pdata => dual channel
+        pdat_names <- sapply(eset, function(x) colnames(pData(x)))
+        if (any(grepl('ch2', pdat_names))) stop('Crossmeta does not currently support dual-channel arrays.')
+
+
         # check if have GPL
         gpl_names <- paste0(sapply(eset, annotation), '.soft', collapse = "|")
         gpl_paths <- sapply(gpl_names, function(gpl_name) {

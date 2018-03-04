@@ -66,9 +66,13 @@ es_meta <- function(diff_exprs, cutoff = 0.3, by_source = FALSE) {
 
             return(es)
         }
-
+        
+        # only proceed with genes present in 2+ studies
         df <- es$filt
-
+        row_nas <- rowSums(is.na(df))
+        can_ma  <- row_nas < ncol(df) / 2
+        df <- df[can_ma, ]
+        
         dp  <- df[, seq(1, ncol(df), 2)]
         var <- df[, seq(2, ncol(df), 2)]
 

@@ -22,17 +22,16 @@ get_raw <- function (gse_names, data_dir = getwd()) {
         # get raw data
         if (!file.exists(gse_dir)) {
             crossmeta:::getGEOSuppFiles(gse_name, baseDir = data_dir)
-            Sys.sleep(10)
         }
 
         # untar
-        tar_names <- list.files(gse_dir, pattern = "\\.tar$")
+        tar_names <- list.files(gse_dir, pattern = "\\.tar$", full.names = TRUE)
         if (length(tar_names) > 0) {
-            setwd(gse_dir)
-            tryCatch(utils::untar(tar_names),
-                     error = function(e) setwd(work_dir))
-            Sys.sleep(10)
-            setwd(work_dir)
+            res <- 1; try <- 0
+            while (res != 0 & try != 3) {
+                res <- try(utils::untar(tar_names,  exdir=gse_dir))
+                if (res != 0) Sys.sleep(10); try <- try + 1
+            }
         }
         # unzip
         paths <- list.files(gse_dir, pattern = "\\.gz$",
@@ -155,7 +154,8 @@ load_raw <- function(gse_names, data_dir = getwd(), gpl_dir = '..', overwrite = 
 get_biocpack <- function(biocpack_name) {
 
     if (!requireNamespace(biocpack_name, quietly = TRUE)) {
-        BiocInstaller::biocLite(biocpack_name, suppressUpdates = TRUE)
+        source("https://bioconductor.org/biocLite.R")
+        biocLite(biocpack_name, suppressAutoUpdate = TRUE, suppressUpdates = TRUE)
     }
     db <- get(biocpack_name, getNamespace(biocpack_name))
     return (db)
