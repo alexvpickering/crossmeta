@@ -32,7 +32,7 @@ Imports:
     AnnotationDbi (>= 1.36.2),
     Biobase (>= 2.34.0),
     BiocGenerics (>= 0.20.0),
-    BiocInstaller (>= 1.24.0),
+    BiocManager (>= 1.24.0),
     ccmap,
     DT (>= 0.2),
     data.table (>= 1.10.4),
