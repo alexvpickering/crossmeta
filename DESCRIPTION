@@ -1,6 +1,6 @@
 Package: crossmeta
 Title: Cross Platform Meta-Analysis of Microarray Data
-Version: 1.7.0
+Version: 1.7.1
 Author: Alex Pickering
 Maintainer: Alex Pickering <alexvpickering@gmail.com>
 Description: Implements cross-platform and cross-species meta-analyses of Affymentrix,

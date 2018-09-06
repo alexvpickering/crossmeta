@@ -213,7 +213,7 @@ merge_fdata <- function(efdat, dfdat) {
 get_biocpack <- function(biocpack_name) {
 
     if (!requireNamespace(biocpack_name, quietly = TRUE)) {
-        BiocInstaller::biocLite(biocpack_name, suppressUpdates = TRUE)
+        BiocManager::install(biocpack_name, suppressUpdates = TRUE)
     }
     db <- get(biocpack_name, getNamespace(biocpack_name))
     return (db)
