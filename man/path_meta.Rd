@@ -4,8 +4,8 @@
 \alias{path_meta}
 \title{Pathway p-value meta analysis.}
 \usage{
-path_meta(path_anals, ncores = parallel::detectCores(), nperm = ncores *
-  10000, by_source = FALSE)
+path_meta(path_anals, ncores = parallel::detectCores(), nperm = ncores
+  * 10000, by_source = FALSE)
 }
 \arguments{
 \item{path_anals}{Previous result of \code{\link{diff_path}}, which can

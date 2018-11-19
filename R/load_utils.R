@@ -303,7 +303,7 @@ entrez_map <- function(eset, ensql) {
 
                 # get entrezid map and merge
                 map <- suppressMessages(AnnotationDbi::select(biocpack, idmap$PROBEID, "ENTREZID"))
-                map <- merge(idmap, map, by='PROBEID', all.x=TRUE, sort=FALSE)
+                map <- merge(idmap, map, by='PROBEID', all.x=TRUE, sort=FALSE, allow.cartesian=TRUE)
                 map <- unique(map[, c('PROBE', 'ENTREZID')])
             }
         }
