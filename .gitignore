@@ -11,4 +11,5 @@ vignettes/*.R
 #directories
 inst/
 data-raw/entrezdt/
+data-raw/KEGG/hsa/*.xml
 

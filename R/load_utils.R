@@ -314,6 +314,7 @@ entrez_map <- function(eset, ensql) {
 
     } else {
         # use pdata species
+        # TODO: there is usually taxid column
         org_col <- grep('organism', colnames(pData(eset)))[1]
         org     <- unique(as.character(pData(eset)[, org_col]))
         taxid   <- org_taxid[org]

@@ -2,34 +2,42 @@
 
 # T01001  hsa     Homo sapiens (human) Eukaryotes;Animals;Vertebrates;Mammals
 
-# $ curl "http://rest.kegg.jp/list/pathway/T00041" | cut -f 1 | while read A; do  curl -o "${A}.xml" "http://rest.kegg.jp/get/${A}/kgml" ; done
+# cd ~/Documents/Batcave/GEO/crossmeta/data-raw/KEGG/hsa
+# curl "http://rest.kegg.jp/list/pathway/T01001" | cut -f 1 | while read A; do  curl -o "${A}.xml" "http://rest.kegg.jp/get/${A}/kgml" ; done
 
-# put files in /home/alex/R/library/SPIA/extdata/keggxml/hsa
+# log date downloaded
+# touch "$('%Y-%m-%d')"
 
-# open R
-
-# SPIA::makeSPIAdata('/home/alex/R/library/SPIA/extdata/keggxml/hsa', out.path = NULL)
-
-
-
+library(data.table)
 
 # KEGG database
-process_kegg <- function() {
+mapkKGML <- list.files('~/Documents/Batcave/GEO/crossmeta/data-raw/KEGG/hsa', pattern = '^path:hsa', full.names = TRUE)
+gslist <- lapply(mapkKGML, KEGGgraph::parseKGML)
 
-    mapkKGML <- list.files('/home/alex/R/library/SPIA/extdata/keggxml/hsa/', full.names = TRUE)
-    gslist <- lapply(mapkKGML, KEGGgraph::parseKGML)
+names(gslist) <- lapply(gslist, function(path) path@pathwayInfo@number)
+gs.names <- sapply(gslist, function(path) path@pathwayInfo@title)
 
-    names(gslist) <- lapply(gslist, function(path) path@pathwayInfo@number)
-    gs.names <- sapply(gslist, function(path) path@pathwayInfo@title)
+gslist <- lapply(gslist, function(path) {
+    # nodes and node types
+    nodes <- path@nodes
+    types <- sapply(nodes, function(node) node@type)
 
-    gslist <- lapply(gslist, function(path) {
-        # nodes and node types
-        nodes <- path@nodes
-        types <- sapply(nodes, function(node) node@type)
+    # get genes in pathway
+    unlist(lapply(nodes[types == 'gene'], function(node) gsub('^hsa:', '', node@name)), use.names = FALSE)
+})
 
-        # get genes in pathway
-        unlist(lapply(nodes[types == 'gene'], function(node) gsub('^hsa:', '', node@name)), use.names = FALSE)
-    })
-    return(list(gslist = gslist, gs.names=gs.names))
-}
+# get symbols
+load("~/Documents/Batcave/GEO/crossmeta/R/sysdata.rda")
+enids <- unique(unlist(gslist))
+enids <- enids[enids %in% hs$ENTREZID]
+syms <- toupper(hs[enids, SYMBOL_9606])
+names(syms) <- enids
 
+# add symbols names
+gslist <- lapply(gslist, function(path) {
+    names(path) <- syms[path]
+    return(path)
+})
+
+# save
+usethis::use_data(gslist, gs.names, overwrite = TRUE)
