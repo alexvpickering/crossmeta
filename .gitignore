@@ -3,8 +3,6 @@
 .RData
 .ipynb_checkpoints/
 .sqlite
-crossmeta.Rproj
-seafile-ignore.txt
 vignettes/*.html
 vignettes/*.R
 
