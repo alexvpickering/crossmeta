@@ -38,7 +38,6 @@ Imports:
     data.table (>= 1.10.4),
     doParallel (>= 1.0.10),
     doRNG (>= 1.6),
-    fdrtool (>= 1.2.15),
     foreach (>= 1.4.3),
     ggplot2 (>= 2.2.1),
     GEOquery (>= 2.40.0),

@@ -27,7 +27,7 @@ A list of named lists, one for each tissue source. Each list contains
    \item{mu}{Overall mean effect sizes.}
    \item{var}{Variances of overall mean effect sizes.}
    \item{z}{Overall z score = \code{mu / sqrt(var)}.}
-   \item{fdr}{False discovery rates calculated by \code{fdrtool}.}
+   \item{fdr}{False discovery rates calculated using Benjamini-Hochberg procedure.}
 }
 \description{
 Performs effect-size meta-analyses across all studies and seperately for
@@ -37,7 +37,7 @@ each tissue source.
 Builds on \code{\link[GeneMeta]{zScores}} function from GeneMeta by allowing for genes
 that were not measured in all studies. This implementation also uses moderated unbiased
 effect sizes calculated by \code{\link[metaMA]{effectsize}} from metaMA and determines
-false discovery rates using \code{\link[fdrtool]{fdrtool}}.
+false discovery rates using the Benjamini-Hochberg procedure.
 }
 \examples{
 

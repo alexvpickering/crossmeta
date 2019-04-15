@@ -286,8 +286,7 @@ es_res <- es_meta(anals, by_source = TRUE)
 ```
 
 The meta-analysis method was adapted from `GeneMeta`. Differences include the
-use of moderated unbiased effect sizes calculated by `metaMA`, the calculation 
-of false discovery rates by `fdrtool`, and the allowance for genes measured in 
+use of moderated unbiased effect sizes calculated by `metaMA` and the allowance for genes measured in 
 only a fraction of studies.
 
 -----------------
