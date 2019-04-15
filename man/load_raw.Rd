@@ -15,6 +15,8 @@ load_raw(gse_names, data_dir = getwd(), gpl_dir = "..",
 \item{gpl_dir}{String specifying parent directory to search for previously downloaded GPL.soft files.}
 
 \item{overwrite}{Do you want to overwrite saved esets from previous \code{load_raw}?}
+
+\item{ensql}{For development. Path to sqlite file with ENTREZID and SYMBOL columns created in data-raw/entrezdt.}
 }
 \value{
 List of annotated esets.

@@ -53,6 +53,7 @@ get_raw <- function (gse_names, data_dir = getwd()) {
 #' @param data_dir  String specifying directory with GSE folders.
 #' @param gpl_dir   String specifying parent directory to search for previously downloaded GPL.soft files.
 #' @param overwrite Do you want to overwrite saved esets from previous \code{load_raw}?
+#' @param ensql For development. Path to sqlite file with ENTREZID and SYMBOL columns created in data-raw/entrezdt.
 #'
 #' @return List of annotated esets.
 #' @export
