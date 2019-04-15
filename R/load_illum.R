@@ -249,8 +249,8 @@ match_samples <- function(eset, elist) {
     row.names(eset)  <- make.unique(fData(eset)[[elist$esetcol]])
 
     # only include rows without missing values
-    eset   <- eset[complete.cases(exprs(eset)), ]
-    elist  <- elist[complete.cases(elist$E), ]
+    eset   <- eset[stats::complete.cases(exprs(eset)), ]
+    elist  <- elist[stats::complete.cases(elist$E), ]
 
     qres   <- list()
     ngenes <- min(nrow(eset), nrow(elist))

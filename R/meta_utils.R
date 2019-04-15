@@ -91,7 +91,7 @@ es_meta <- function(diff_exprs, cutoff = 0.3, by_source = FALSE) {
 
         # get z-score and fdr
         df$z   <- df$mu/sqrt(df$var)
-        df$fdr <- p.adjust(2*pnorm(-abs(df$z)), 'BH')
+        df$fdr <- stats::p.adjust(2*stats::pnorm(-abs(df$z)), 'BH')
         # df$fdr <- fdrtool::fdrtool(df$z, plot = FALSE, verbose = FALSE)$qval
 
         es$filt <- df[order(df$fdr), ]
