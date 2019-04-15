@@ -7,7 +7,7 @@
 #' Builds on \code{\link[GeneMeta]{zScores}} function from GeneMeta by allowing for genes
 #' that were not measured in all studies. This implementation also uses moderated unbiased
 #' effect sizes calculated by \code{\link[metaMA]{effectsize}} from metaMA and determines
-#' false discovery rates using the Benjamini-Hochberg procedure.
+#' false discovery rates using \code{\link[fdrtool]{fdrtool}}.
 #'
 #' @param diff_exprs Previous result of \code{\link{diff_expr}}, which can
 #'    be reloaded using \code{\link{load_diff}}.
@@ -26,7 +26,7 @@
 #'    \item{mu}{Overall mean effect sizes.}
 #'    \item{var}{Variances of overall mean effect sizes.}
 #'    \item{z}{Overall z score = \code{mu / sqrt(var)}.}
-#'    \item{fdr}{False discovery rates calculated using Benjamini-Hochberg procedure.}
+#'    \item{fdr}{False discovery rates calculated using fdrtool.}
 #'
 #' @export
 #'
@@ -91,8 +91,8 @@ es_meta <- function(diff_exprs, cutoff = 0.3, by_source = FALSE) {
 
         # get z-score and fdr
         df$z   <- df$mu/sqrt(df$var)
-        df$fdr <- stats::p.adjust(2*stats::pnorm(-abs(df$z)), 'BH')
-        # df$fdr <- fdrtool::fdrtool(df$z, plot = FALSE, verbose = FALSE)$qval
+        # df$fdr <- stats::p.adjust(2*stats::pnorm(-abs(df$z)), 'BH')
+        df$fdr <- fdrtool::fdrtool(df$z, plot = FALSE, verbose = FALSE)$qval
 
         es$filt <- df[order(df$fdr), ]
 
