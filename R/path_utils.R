@@ -172,9 +172,9 @@ padog <- function (esetm = NULL, group = NULL, paired = FALSE, block = NULL,
 
 
 
-    stopifnot(class(esetm) == "matrix")
+    stopifnot(is(esetm, "matrix"))
     # stopifnot(all(dim(esetm) > 4))
-    stopifnot(class(group) %in% c("factor", "character"))
+    stopifnot(is(group, "factor") | is(group, "character"))
     stopifnot(length(group) == dim(esetm)[2])
     stopifnot(all(group %in% c("c", "d")))
     # stopifnot(all(table(group) > 2))
@@ -182,12 +182,12 @@ padog <- function (esetm = NULL, group = NULL, paired = FALSE, block = NULL,
         stopifnot(length(block) == length(group))
         stopifnot(all(table(block) == 2))
     }
-    stopifnot(class(gslist) == "list")
+    stopifnot(is(gslist, "list"))
     stopifnot(length(gslist) >= 3)
     if (!is.null(gs.names)) {
         stopifnot(length(gslist) == length(gs.names))
     }
-    stopifnot(class(NI) == "numeric")
+    stopifnot(is(NI, "numeric"))
     stopifnot(NI > 5)
 
 
@@ -233,8 +233,8 @@ padog <- function (esetm = NULL, group = NULL, paired = FALSE, block = NULL,
                   Nmin, " or more genes!", sep = ""))
         cat("\n")
     }
-    if (!is.null(dseed))
-        set.seed(dseed)
+    # if (!is.null(dseed))
+    #     set.seed(dseed)
     G = factor(group)
     Glen = length(G)
     tab = table(G)

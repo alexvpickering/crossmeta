@@ -5,8 +5,7 @@ org_pkg <- org_pkg$V1[org_pkg$V2 == 'Bioconductor Package Maintainer']
 
 # get packages
 ## try http:// if https:// URLs are not supported
-source("https://bioconductor.org/biocLite.R")
-biocLite(org_pkg)
+BiocManager::install(org_pkg)
 
 package_organisms <- c()
 

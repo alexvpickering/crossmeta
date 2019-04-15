@@ -154,8 +154,7 @@ load_raw <- function(gse_names, data_dir = getwd(), gpl_dir = '..', overwrite = 
 get_biocpack <- function(biocpack_name) {
 
     if (!requireNamespace(biocpack_name, quietly = TRUE)) {
-        source("https://bioconductor.org/biocLite.R")
-        biocLite(biocpack_name, suppressAutoUpdate = TRUE, suppressUpdates = TRUE)
+        BiocManager::install(biocpack_name, update=FALSE)
     }
     db <- get(biocpack_name, getNamespace(biocpack_name))
     return (db)
@@ -590,7 +589,7 @@ getDirListing <- function(url) {
     ## where the ftp index was converted to html content
     ## The IF statement here is his fix--harmless for the rest
     ## of us.
-    if( grepl("<HTML", a, ignore.case=T) ){ # process HTML content
+    if( grepl("<HTML", a, ignore.case=TRUE) ){ # process HTML content
         doc <- XML::htmlParse(a)
         links <- XML::xpathSApply(doc, "//a/@href")
         XML::free(doc)
