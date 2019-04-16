@@ -27,7 +27,8 @@ A list of named lists, one for each tissue source. Each list contains
    \item{mu}{Overall mean effect sizes.}
    \item{var}{Variances of overall mean effect sizes.}
    \item{z}{Overall z score = \code{mu / sqrt(var)}.}
-   \item{fdr}{False discovery rates calculated using fdrtool.}
+   \item{fdr}{False discovery rates calculated from column \code{z} using fdrtool.}
+   \item{pval}{p-values calculated from column \code{z} using fdrtool.}
 }
 \description{
 Performs effect-size meta-analyses across all studies and seperately for
