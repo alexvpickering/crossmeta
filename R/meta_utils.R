@@ -92,7 +92,7 @@ es_meta <- function(diff_exprs, cutoff = 0.3, by_source = FALSE) {
 
         # get z-score and fdr
         df$z    <- df$mu/sqrt(df$var)
-        fdr     <- fdrtool(df$z, plot = FALSE, verbose = FALSE)
+        fdr     <- fdrtool::fdrtool(df$z, plot = FALSE, verbose = FALSE)
         df$pval <- fdr$pval
         df$fdr  <- fdr$qval
 
