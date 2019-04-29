@@ -18,7 +18,7 @@ test_that("match_samples correctly orders data when sample names are eset pdata 
 
     # reorder and rename
     eset <- eset[, res$eset_order]
-    data <- data[, res$data_order]
+    data <- data[, res$elist_order]
     colnames(data) <- colnames(eset)
     expect_equal(eset, data)
 
@@ -29,7 +29,7 @@ test_that("match_samples correctly orders data when sample names are eset pdata 
     # see if recovers
     res <- crossmeta:::match_samples(eset, data)
     eset <- eset[, res$eset_order]
-    data <- data[, res$data_order]
+    data <- data[, res$elist_order]
     colnames(data) <- colnames(eset)
     expect_equal(eset, data)
 })
@@ -41,7 +41,7 @@ test_that("match_samples correctly order data when fewer data samples than eset 
     data <- data[, sample(3)]
     res <- crossmeta:::match_samples(eset, data)
     eset <- eset[, res$eset_order]
-    data <- data[, res$data_order]
+    data <- data[, res$elist_order]
     colnames(data) <- colnames(eset)
     expect_equal(eset, data)
 
@@ -51,7 +51,7 @@ test_that("match_samples correctly order data when fewer data samples than eset 
     data <- data[, sample(3)]
     res <- crossmeta:::match_samples(eset, data)
     eset <- eset[, res$eset_order]
-    data <- data[, res$data_order]
+    data <- data[, res$elist_order]
     colnames(data) <- colnames(eset)
     expect_equal(eset, data)
 })
@@ -66,7 +66,7 @@ test_that("match_samples correctly order data when fewer eset samples than data 
     eset <- eset[, sample(3)]
     res <- crossmeta:::match_samples(eset, data)
     eset <- eset[, res$eset_order]
-    data <- data[, res$data_order]
+    data <- data[, res$elist_order]
     colnames(data) <- colnames(eset)
     expect_equal(eset, data)
 
@@ -76,12 +76,12 @@ test_that("match_samples correctly order data when fewer eset samples than data 
     eset <- eset[, sample(3)]
     res <- crossmeta:::match_samples(eset, data)
     eset <- eset[, res$eset_order]
-    data <- data[, res$data_order]
+    data <- data[, res$elist_order]
     colnames(data) <- colnames(eset)
     expect_equal(eset, data)
 })
 
-testthat("match_samples correctly order data when sample names are contained in pdata column", {
+test_that("match_samples correctly order data when sample names are contained in pdata column", {
 
     # sample sample number
     pdata$col1 <- paste('condition: treatment', 1:5)
@@ -90,7 +90,7 @@ testthat("match_samples correctly order data when sample names are contained in 
     data <- data[, sample(5)]
     res <- crossmeta:::match_samples(eset, data)
     eset <- eset[, res$eset_order]
-    data <- data[, res$data_order]
+    data <- data[, res$elist_order]
     colnames(data) <- colnames(eset)
     expect_equal(eset, data)
 
@@ -100,7 +100,7 @@ testthat("match_samples correctly order data when sample names are contained in 
     data <- data[, sample(3)]
     res <- crossmeta:::match_samples(eset, data)
     eset <- eset[, res$eset_order]
-    data <- data[, res$data_order]
+    data <- data[, res$elist_order]
     colnames(data) <- colnames(eset)
     expect_equal(eset, data)
 
@@ -110,7 +110,7 @@ testthat("match_samples correctly order data when sample names are contained in 
     eset <- eset[, sample(3)]
     res <- crossmeta:::match_samples(eset, data)
     eset <- eset[, res$eset_order]
-    data <- data[, res$data_order]
+    data <- data[, res$elist_order]
     colnames(data) <- colnames(eset)
     expect_equal(eset, data)
 })

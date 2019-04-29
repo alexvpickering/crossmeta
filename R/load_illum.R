@@ -206,7 +206,7 @@ match_samples <- function(eset, elist) {
     if (!is.null(colnames(elist))) {
 
         # matrix of positions of matches for elist colnames among those for each pdata column
-        matches <- sapply(pData(eset), function(col) {
+        matches <- sapply(Biobase::pData(eset), function(col) {
             fuzzy_pmatch(colnames(elist), col)
         })
 

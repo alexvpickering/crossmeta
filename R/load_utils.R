@@ -372,7 +372,7 @@ entrez_map <- function(eset, ensql) {
                 map <- data.frame(PROBE = PROBE[unlist(rn)],
                                   ENTREZID = unlist(entrez), stringsAsFactors = FALSE)
             }
-            DBI::dbDisconnect(db)
+            if (exists('db')) DBI::dbDisconnect(db)
         }
     }
 

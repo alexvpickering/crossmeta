@@ -33,54 +33,12 @@ set.seed(0)
 expr <- matrix(abs(rnorm(12, 0, 0.2)), nrow = 3, ncol = 4)
 expr[, 3:4] <- expr[, 3:4] + 1
 
-eset <- ExpressionSet(expr, featureData = AnnotatedDataFrame(efdat))
+eset <- ExpressionSet(expr, featureData = AnnotatedDataFrame(efdat), phenoData = AnnotatedDataFrame(data.frame(organism = rep('Homo sapiens', 4))))
 data <- list(genes = dfdat)
 
 
 # set annotation to platform without bioconductor annotation data package
 annotation(eset) <- "GPL4032"
-
-
-
-# Fix Agil Features -------------------
-
-
-test_that("fix_agil_features: eset rownames to best match for data ProbeName", {
-
-    #change eset row names to gene symbols
-    row.names(eset) <- fData(eset)$GeneSymbol
-    eset <- crossmeta:::fix_agil_features(eset, data)
-
-    expect_equal(row.names(eset), fData(eset)$ID)
-
-
-    #change data ProbeName to Symbol
-    data$genes$ProbeName <- data$genes$Symbol
-    eset <- crossmeta:::fix_agil_features(eset, data)
-
-    expect_equal(row.names(eset), fData(eset)$GeneSymbol)
-})
-
-
-
-#  Fix Illum Features -------------------
-
-
-test_that("fix_illum_features: maps data rownames to eset rownames", {
-
-    #change eset row names to gene
-    row.names(eset) <- fData(eset)$GeneSymbol
-    dfdat <- crossmeta:::fix_illum_features(eset, dfdat)
-
-    expect_equal(sum(row.names(dfdat) %in% row.names(eset)), 3)
-
-    #restore eset row names to probe id
-    row.names(eset) <- fData(eset)$ID
-    dfdat <- crossmeta:::fix_illum_features(eset, dfdat)
-
-    expect_equal(sum(row.names(dfdat) %in% row.names(eset)), 3)
-
-})
 
 
 
@@ -104,109 +62,3 @@ test_that("merge_fdata merges on rownames, preserving data nrow and order", {
 
 
 })
-
-
-# Symbol Annotation -------------------
-
-
-test_that("symbol_annot finds entrez in eset fData and maps to hgnc symbol", {
-
-    # gets correct hgnc symbol
-    eset <- crossmeta:::symbol_annot(eset, "GSE1")
-
-    expect_equal(fData(eset)$GeneSymbol, fData(eset)$SYMBOL)
-
-
-    # Gene_ID is column being used
-    fData(eset)$Gene_ID <- fData(eset)$Gene_ID[3:1]
-    eset <- crossmeta:::symbol_annot(eset, "GSE1")
-
-    expect_equal(fData(eset)$GeneSymbol, fData(eset)$SYMBOL[3:1])
-})
-
-
-
-#  Differential Expression -------------------
-
-# Setup
-
-dir.create("GSE1")
-
-# annotated eset
-pData(eset)$title <- c("VEH", "VEH", "FOO", "FOO")
-eset  <- crossmeta:::symbol_annot(eset, hgene)
-esets <- list(GSE1 = eset)
-
-# previous analysis mimic
-pData(eset)$treatment <- c("ctrl", "ctrl", "test", "test")
-pData(eset)$group     <- c("VEH", "VEH", "FOO", "FOO")
-pData(eset)$pairs     <- NA
-
-contrasts <- limma::makeContrasts("FOO-VEH", levels = c("VEH", "FOO"))
-
-prev <- list(GSE1 = list(pdata = pData(eset),
-                         ebayes_sv = list(contrasts = contrasts)))
-
-# run analysis on eset, using previous mimic
-anals <- diff_expr(esets, prev_anals = prev)
-
-
-
-# Tests
-
-test_that("diff_expr: test group has higher expression", {
-
-    # check t-statistics
-    t <- anals$GSE1$top_tables$`GSE1_FOO-VEH`$t
-    expect_equal(sign(t), c(1, 1, 1))
-})
-
-
-test_that("sva not affected by replicate rows", {
-
-    # replicate each feature
-    esets[[1]] <- esets[[1]][rep(1:3, 100), ]
-
-    # re-run and test
-    anals2 <- diff_expr(esets, prev_anals = prev)
-    expect_equal(anals, anals2)
-})
-
-
-test_that("setup_prev works", {
-
-    # no 'group' should result in error
-    expect_error(setup_prev(esets, "FOO-VEH"), "'group' column missing")
-
-    # add 'group' to pData
-    esets2 <- esets
-    pData(esets2$GSE1)$group <- pData(esets2$GSE1)$title
-
-    prev <- setup_prev(esets2, "FOO-VEH")
-    anals2 <- diff_expr(esets, prev_anal = prev)
-
-    # outcome should be same with setup_prev
-    expect_equal(anals, anals2)
-})
-
-# test_that("diff_expr skips GSE if modeling not possible", {
-#
-#     # add 'group' to pData
-#     esets2 <- esets
-#     pData(esets2$GSE1)$group <- pData(esets2$GSE1)$title
-#
-#     # add confounded 'pairs' to pData
-#     pData(esets2$GSE1)$pairs <- c(1, 1, 2, 2)
-#
-#     prev <- setup_prev(esets2, "FOO-VEH")
-#     expect_message(diff_expr(esets, prev_anal = prev), "couldn't fit model")
-# })
-
-
-
-# Cleanup -----------------
-
-rm(hgene, dfdat, efdat, expr, eset, data, esets, prev, anals, contrasts)
-
-unlink("GSE1", recursive = TRUE)
-
