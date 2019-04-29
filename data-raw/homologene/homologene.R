@@ -1,4 +1,4 @@
-# homologene.data available from http://1.usa.gov/1TGoIy7
+# homologene.data available from ftp://ftp.ncbi.nih.gov/pub/HomoloGene/current/homologene.data
 
 # Get homologene data frame.
 #
@@ -38,6 +38,7 @@ get_homologene <- function(homologene_path) {
                                  by = V3]
 
         homologene <- as.data.frame(homologene)
+        colnames(homologene) <- c("ENTREZID", "ENTREZID_HS")
 
         # remove rows where entrez id is human (creates 1:many issue)
         #
@@ -47,7 +48,6 @@ get_homologene <- function(homologene_path) {
         utils::write.table(homologene, file = homologene_path,
                            sep = "\t", row.names = FALSE, col.names = FALSE)
     }
-    colnames(homologene) <- c("ENTREZID", "ENTREZID_HS")
 
     # add single entry for human entrez id (used to lookup entrez fData column)
     #
@@ -60,6 +60,12 @@ get_homologene <- function(homologene_path) {
 
     return(data.table(homologene, key='ENTREZID'))
 }
+
+setwd('data-raw/homologene')
+curl::curl_download('ftp://ftp.ncbi.nih.gov/pub/HomoloGene/current/homologene.data', 'homologene.data')
+curl::curl_download('ftp://ftp.ncbi.nih.gov/pub/HomoloGene/current/RELEASE_NUMBER', 'RELEASE_NUMBER')
+
+homologene <- get_homologene('homologene.data')
 
 devtools::use_data(homologene, gpl_bioc, hs, sources, org_pkg, org_taxid, token, internal = TRUE, overwrite = TRUE)
 
