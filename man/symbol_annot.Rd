@@ -10,6 +10,8 @@ symbol_annot(eset, gse_name = "", ensql = NULL)
 \item{eset}{Expression set to annotate.}
 
 \item{gse_name}{GSE name for eset.}
+
+\item{ensql}{For development. Path to sqlite file with ENTREZID and SYMBOL columns created in data-raw/entrezdt.}
 }
 \value{
 Expression set with hgnc symbols ("SYMBOL") and row names ("PROBE")

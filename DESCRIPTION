@@ -1,6 +1,6 @@
 Package: crossmeta
 Title: Cross Platform Meta-Analysis of Microarray Data
-Version: 1.9.8
+Version: 1.9.9
 Author: Alex Pickering
 Maintainer: Alex Pickering <alexvpickering@gmail.com>
 Description: Implements cross-platform and cross-species meta-analyses of Affymentrix,
@@ -35,6 +35,7 @@ Imports:
     BiocManager (>= 1.30.4),
     ccmap,
     DT (>= 0.2),
+    DBI (>= 1.0.0),
     data.table (>= 1.10.4),
     doParallel (>= 1.0.10),
     doRNG (>= 1.6),
@@ -52,11 +53,14 @@ Imports:
     reshape (>= 0.8.6),
     reader(>= 1.0.6),
     RColorBrewer (>= 1.1.2),
+    RCurl (>= 1.95.4.11),
+    RSQLite (>= 2.1.1),
     rdrop2 (>= 0.7.0),
     stringr (>= 1.2.0),
     sva (>= 3.22.0),
     shiny (>= 1.0.0),
-    stats (>= 3.3.3)
+    stats (>= 3.3.3),
+    XML (>= 3.98.1.17),
 biocViews:
     GeneExpression,
     Transcription,

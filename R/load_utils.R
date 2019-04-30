@@ -203,6 +203,7 @@ get_biocpack_name <- function (gpl_name) {
 #'
 #' @param eset Expression set to annotate.
 #' @param gse_name GSE name for eset.
+#' @inheritParams load_raw
 #'
 #' @export
 #' @seealso \code{\link{load_raw}}.
@@ -273,14 +274,14 @@ symbol_annot <- function (eset, gse_name = "", ensql = NULL) {
 #    feature names to corresponding entrez gene ids.
 
 entrez_map <- function(eset, ensql) {
-
+  
     # default map
-    map <- data.frame(PROBE = featureNames(eset), ENTREZID = NA)
+    map <- data.frame(PROBE = Biobase::featureNames(eset), ENTREZID = NA)
 
     # try to get ENTREZ from biocpack ----
 
-    biocpack_names <- get_biocpack_name(annotation(eset))
-    PROBE <-  featureNames(eset)
+    biocpack_names <- get_biocpack_name(Biobase::annotation(eset))
+    PROBE <-  Biobase::featureNames(eset)
 
     # if biocpack_name not empty, use to get entrez id
     if (!biocpack_names[1] %in% c("", ".db")) {
@@ -291,14 +292,15 @@ entrez_map <- function(eset, ensql) {
             biockeys <- AnnotationDbi::keys(biocpack)
 
             # find eset column that best matches biocpack keys
-            matches <- sapply(fvarLabels(eset), function(fdatacol) {
-                sum(fData(eset)[, fdatacol] %in% biockeys) / length(PROBE)
+            matches <- sapply(Biobase::fvarLabels(eset), function(fdatacol) {
+                sum(Biobase::fData(eset)[, fdatacol] %in% biockeys) / length(PROBE)
             })
             best <- names(which.max(matches))
 
             if (max(matches) > 0.5) {
                 # map from feature names to best to entrezid
-                idmap  <- data.table(PROBE, fData(eset)[, best])
+                idmap  <- data.table::data.table(PROBE, Biobase::fData(eset)[, best])
+                idmap[] <- lapply(idmap, as.character)
                 colnames(idmap) <- c('PROBE', 'PROBEID')
 
                 # get entrezid map and merge
@@ -514,7 +516,7 @@ getGEO <- function(GEO=NULL,
         }
         filename <- GEOquery::getGEOfile(GEO,destdir=destdir,AnnotGPL=AnnotGPL)
     }
-    ret <- GEOquery:::parseGEO(filename,GSElimits,destdir,AnnotGPL=AnnotGPL,getGPL=getGPL)
+    ret <- GEOquery::parseGEO(filename,GSElimits,destdir,AnnotGPL=AnnotGPL,getGPL=getGPL)
     return(ret)
 }
 
