@@ -38,7 +38,7 @@ effect-size.
 The top drugs for the full signature in a given tissue (top right dropdown box, red points) and
 just the pathway genes (bottom right dropdown box, blue points) are orderered by decreasing
 (if \code{type} is 'both' or 'mimic') or increasing (if \code{type} is 'reverse') similarity.
-Positive and negative cosine similarities correspond to drugs that, respectively, mimic and
+Positive and negative pearson correlations correspond to drugs that, respectively, mimic and
 reverse the query signature.
 
 Drug effect sizes can be made visible by either clicking the legend entries (top left of plot) or

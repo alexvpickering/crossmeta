@@ -16,7 +16,7 @@
 #' The top drugs for the full signature in a given tissue (top right dropdown box, red points) and
 #' just the pathway genes (bottom right dropdown box, blue points) are orderered by decreasing
 #' (if \code{type} is 'both' or 'mimic') or increasing (if \code{type} is 'reverse') similarity.
-#' Positive and negative cosine similarities correspond to drugs that, respectively, mimic and
+#' Positive and negative pearson correlations correspond to drugs that, respectively, mimic and
 #' reverse the query signature.
 #'
 #' Drug effect sizes can be made visible by either clicking the legend entries (top left of plot) or
@@ -100,7 +100,7 @@ explore_paths <- function(es_res, path_res, drug_info = NULL, type = c('both', '
             top_path <- c(utils::head(all_path, 25), utils::tail(all_path, 25))
         }
 
-        # construct names as Drug (full cos, path cos)
+        # construct names as Drug (full cor, path cor)
         full_names <- paste0(names(top_full), ' (',
                              round(top_full, 2), ', ',
                              round(all_path[names(top_full)], 2), ')')
@@ -145,12 +145,12 @@ explore_paths <- function(es_res, path_res, drug_info = NULL, type = c('both', '
                    selectInput('path', '', choices = paths, selected = paths[1], width = '75%')
             ),
             column(6, align = 'center',
-                   HTML("<strong>Top Drugs for Full Signature (cos &theta;<sub>full</sub>, cos &theta;<sub>path</sub>):</strong>"),
+                   HTML("<strong>Top Drugs for Full Signature (&rho;<sub>full</sub>, &rho;<sub>path</sub>):</strong>"),
                    selectInput('drug1', '', top_drugs$full, top_drugs$full[1], width = '75%'),
                    br(),
                    hr(),
                    br(),
-                   HTML("<strong>Top Drugs for Pathway Genes Only (cos &theta;<sub>full</sub>, cos &theta;<sub>path</sub>):</strong>"),
+                   HTML("<strong>Top Drugs for Pathway Genes Only (&rho;<sub>full</sub>, &rho;<sub>path</sub>):</strong>"),
                    selectInput('drug2', '', top_drugs$path, top_drugs$path[1], width = '75%')
             )
         ),
