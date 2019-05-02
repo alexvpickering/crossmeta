@@ -461,12 +461,12 @@ add_sources <- function(diff_exprs, data_dir = getwd()) {
 
         # save diff_exprs
         gse_folder <- strsplit(gse_name, "\\.")[[1]][1]  # name can be "GSE.GPL"
-        gse_dir <- paste(data_dir, gse_folder, sep = "/")
+        gse_dir <- file.path(data_dir, gse_folder)
 
         save_name <- paste(gse_name, "diff_expr", tolower(diff_exprs[[i]]$annot), sep = "_")
         save_name <- paste0(save_name, ".rds")
 
-        saveRDS(diff_exprs[[i]], file = paste(gse_dir, save_name, sep = "/"))
+        saveRDS(diff_exprs[[i]], file.path(gse_dir, save_name))
     }
     return(diff_exprs)
 }

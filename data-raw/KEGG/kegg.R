@@ -39,5 +39,10 @@ gslist <- lapply(gslist, function(path) {
     return(path)
 })
 
+# pathways in both only
+inboth <- intersect(names(gslist), names(gs.names))
+gslist <- gslist[inboth]
+gs.names <- gs.names[inboth]
+
 # save
 usethis::use_data(gslist, gs.names, overwrite = TRUE)

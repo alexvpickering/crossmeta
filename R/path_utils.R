@@ -74,7 +74,7 @@ diff_path <- function(esets, prev_anals, data_dir = getwd()) {
         cat('Working on', paste0(gse_name, ':'), '\n')
 
         gse_folder <- strsplit(gse_name, "\\.")[[1]][1]  # name can be "GSE.GPL"
-        gse_dir <- paste(data_dir, gse_folder, sep = "/")
+        gse_dir <- file.path(data_dir, gse_folder)
 
         # select contrasts
         cons <- add_contrasts(eset, gse_name, prev_anal)
@@ -123,7 +123,7 @@ diff_path <- function(esets, prev_anals, data_dir = getwd()) {
         # save to disk
         save_name <- paste(gse_name, "diff_path", sep = "_")
         save_name <- paste0(save_name, ".rds")
-        saveRDS(anal, file = paste(gse_dir, save_name, sep = "/"))
+        saveRDS(anal, file.path(gse_dir, save_name))
 
         anals[[gse_name]] <- anal
     }

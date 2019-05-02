@@ -16,7 +16,7 @@ get_raw <- function (gse_names, data_dir = getwd()) {
 
     for (gse_name in gse_names) {
 
-        gse_dir <- paste(data_dir, gse_name, sep = "/")
+        gse_dir <- file.path(data_dir, gse_name)
         work_dir  <- getwd()
 
         # get raw data
@@ -76,7 +76,7 @@ load_raw <- function(gse_names, data_dir = getwd(), gpl_dir = '..', overwrite = 
     saved <- list()
     for (gse_name in gse_names) {
 
-        gse_dir   <- paste(data_dir, gse_name, sep = "/")
+        gse_dir   <- file.path(data_dir, gse_name)
         save_name <- paste(gse_name, "eset.rds", sep = "_")
         eset_path <- list.files(gse_dir, save_name, full.names = TRUE)
 
