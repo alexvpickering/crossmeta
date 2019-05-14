@@ -32,7 +32,8 @@
 #' @param path_res Result of call to \code{\link{path_meta}}.
 #' @param drug_info Matrix of differential expression values for drugs (rows are genes, columns are drugs).
 #'    If NULL (default), \code{\link[ccdata]{cmap_es}} is used.
-#' @param type Desired direction of drug action on query signature (see details).
+#' @param type Desired direction of drug action on query signature (see details). One of either \code{'both'} (Default), 
+#'   \code{'mimic'}, or \code{'reverse'}.
 #'
 #' @return None
 #' @export

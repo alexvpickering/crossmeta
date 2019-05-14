@@ -15,7 +15,8 @@ explore_paths(es_res, path_res, drug_info = NULL, type = c("both",
 \item{drug_info}{Matrix of differential expression values for drugs (rows are genes, columns are drugs).
 If NULL (default), \code{\link[ccdata]{cmap_es}} is used.}
 
-\item{type}{Desired direction of drug action on query signature (see details).}
+\item{type}{Desired direction of drug action on query signature (see details). One of either \code{'both'} (Default), 
+\code{'mimic'}, or \code{'reverse'}.}
 }
 \value{
 None
