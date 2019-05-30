@@ -80,11 +80,11 @@ diff_expr <- function (esets, data_dir = getwd(),
 
         # set annot to Org_SYMBOL of first eset
         eset <- esets[[1]]
-        annot <- grep('^\\d+_SYMBOL$', colnames(fData(eset)), value = TRUE)
+        annot <- grep('^\\d+_SYMBOL$', colnames(Biobase::fData(eset)), value = TRUE)
     }
 
     # check for annot column
-    chk <- sapply(esets, function(x) annot %in% colnames(fData(x)))
+    chk <- sapply(esets, function(x) annot %in% colnames(Biobase::fData(x)))
 
     if (FALSE %in% chk) {
         stop(annot, " column in fData missing for esets: ",
@@ -334,23 +334,12 @@ iqr_replicates <- function (eset, mod = NULL, svobj = NULL, annot = "SYMBOL", rm
     } else {
         exprs_sva <- exprs(eset)
     }
-
-    # add inter-quartile ranges, row, and feature data to exprs data
-    data <- as.data.frame(exprs_sva)
-    data$iqrange <- matrixStats::rowIQRs(exprs_sva)
-    data$row <- 1:nrow(data)
-    data[, colnames(fData(eset))] <- fData(eset)
-
-    # remove rows with NA annot (occurs if annot is SYMBOL)
-    data <- data[!is.na(data[, annot]), ]
-
-    # for rows with same annot, keep highest IQR
-    data <- data.table(data)
-    data <- data[data[, .I[which.max(iqrange)], by = eval(annot)]$V1]
+    
+    iqr_rows <- which_max_iqr(eset, annot, exprs_sva)
 
     # use row number to keep selected features
-    eset <- eset[data$row, ]
-    exprs_sva <- exprs_sva[data$row, ]
+    eset <- eset[iqr_rows, ]
+    exprs_sva <- exprs_sva[iqr_rows, ]
 
     # use annot for feature names
     featureNames(eset) <- fData(eset)[, annot]
@@ -364,6 +353,38 @@ iqr_replicates <- function (eset, mod = NULL, svobj = NULL, annot = "SYMBOL", rm
 
     return (list(eset = eset, exprs_sva = exprs_sva))
 }
+
+#' Get row indices of maximum IQR within annotation groups
+#' 
+#' Groups by \code{group_by} and determines row with maximum IQR.
+#'
+#' @param eset \code{ExpressionSet}
+#' @param groub_by Column in \code{fData(eset)} to group by
+#' @param x \code{matrix} of expression values to use for IQR
+#'
+#' @return Integer vector of row numbers representing rows with the maximum IQR after grouping by \code{group_by}
+#' @export
+#'
+#' @examples
+which_max_iqr <- function(eset, groub_by, x = exprs(eset)) {
+    
+    # add inter-quartile ranges, row, and feature data to exprs data
+    data <- as.data.frame(x)
+    data$iqrange <- matrixStats::rowIQRs(x)
+    data$row <- 1:nrow(data)
+    data[, colnames(Biobase::fData(eset))] <- Biobase::fData(eset)
+    
+    # remove rows with NA groub_by (occurs if groub_by is SYMBOL)
+    data <- data[!is.na(data[, groub_by]), ]
+    
+    # for rows with same groub_by, keep highest IQR
+    data <- data.table(data)
+    data <- data[data[, .I[which.max(iqrange)], by = eval(groub_by)]$V1]
+    
+    return(data$row)
+}
+
+
 
 
 # ------------------------
