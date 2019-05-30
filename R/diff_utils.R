@@ -38,6 +38,7 @@
 #' @param prev_anals Previous result of \code{\link{diff_expr}}, which can
 #'    be reloaded using \code{\link{load_diff}}. If present, previous
 #'   selections, names, and pairs will be reused.
+#' @param svanal Use surrogate variable analysis? Default is \code{TRUE}.
 #'
 #' @export
 #'
@@ -73,7 +74,7 @@
 
 
 diff_expr <- function (esets, data_dir = getwd(),
-                       annot = "SYMBOL", prev_anals = list(NULL)) {
+                       annot = "SYMBOL", prev_anals = list(NULL), svanal = TRUE) {
 
     # within organism symbol
     if (annot == 'SPECIES') {
@@ -101,13 +102,196 @@ diff_expr <- function (esets, data_dir = getwd(),
 
         gse_folder <- strsplit(gse_name, "\\.")[[1]][1]  # name can be "GSE.GPL"
         gse_dir <- file.path(data_dir, gse_folder)
-
+        diff_expr <- function (esets, data_dir = getwd(),
+                               annot = "SYMBOL", prev_anals = list(NULL), svanal = TRUE) {
+          
+          # within organism symbol
+          if (annot == 'SPECIES') {
+            
+            # set annot to Org_SYMBOL of first eset
+            eset <- esets[[1]]
+            annot <- grep('^\\d+_SYMBOL$', colnames(fData(eset)), value = TRUE)
+          }
+          
+          # check for annot column
+          chk <- sapply(esets, function(x) annot %in% colnames(fData(x)))
+          
+          if (FALSE %in% chk) {
+            stop(annot, " column in fData missing for esets: ",
+                 paste(names(which(!chk)), collapse = ", "))
+          }
+          
+          prev_anals <- prev_anals[names(esets)]
+          anals <- list()
+          for (i in seq_along(esets)) {
+            
+            eset <- esets[[i]]
+            gse_name <- names(esets)[i]
+            prev_anal <- prev_anals[[i]]
+            
+            gse_folder <- strsplit(gse_name, "\\.")[[1]][1]  # name can be "GSE.GPL"
+            gse_dir <- file.path(data_dir, gse_folder)
+            
+            # select contrasts
+            cons <- add_contrasts(eset, gse_name, prev_anal)
+            if (is.null(cons)) next
+            
+            # setup for differential expression
+            setup <- diff_setup(cons$eset, cons$levels, gse_name)
+            
+            
+            # remove rows with duplicated/NA annot (SYMBOL or ENTREZID)
+            dups <- tryCatch (
+              {iqr_replicates(cons$eset, setup$mod, setup$svobj, annot)},
+              
+              error = function(c) {
+                message(gse_name, ": couldn't fit model - skipping GSE.",
+                        " Could try non-GUI selection (see ?setup_prev).")
+                return(c)
+              })
+            if(inherits(dups, "error")) next
+            
+            # differential expression
+            anal <- diff_anal(dups$eset, dups$exprs_sva, cons$contrasts, cons$levels,
+                              setup$modsv, gse_dir, gse_name, annot)
+            
+            anals[[gse_name]] <- anal
+          }
+          return (anals)
+        }
+        
+        
+        # ---------------------
+        
+        
+        # Reuse contrast selections from previous analysis.
+        #
+        # Transfers user-supplied selections from previous call of diff_expr.
+        #
+        # @param eset Annotated eset. Created by \code{load_raw}.
+        # @param prev_anal One item (for eset) from previous result of \code{diff_expr}.
+        #    If present, previous selections and names will be reused.
+        #
+        # @seealso \code{\link{diff_expr}}
+        # @return Expression set with samples and pData as in prev_anal.
+        
+        match_prev_eset <- function(eset, prev_anal) {
+          
+          # retain previously selected samples only
+          # TODO: keep all samples: https://support.bioconductor.org/p/73107/
+          selected_samples <- row.names(prev_anal$pdata)
+          eset <- eset[, selected_samples]
+          
+          # transfer previous treatment, group, and pairs to eset
+          pData(eset)$treatment <- prev_anal$pdata$treatment
+          pData(eset)$group     <- prev_anal$pdata$group
+          pData(eset)$pairs     <- NA
+          
+          if ("pairs" %in% colnames(prev_anal$pdata)) {
+            pData(eset)$pairs <- prev_anal$pdata$pairs
+          }
+          
+          return (eset)
+        }
+        
+        
+        # ------------------------
+        
+        
+        # Select contrasts for each GSE.
+        #
+        # Function is used by \code{diff_expr} to get sample selections for each
+        # contrast from user.
+        #
+        # @inheritParams match_prev_eset
+        # @param gse_name String specifying GSE name for eset.
+        #
+        # @seealso \code{\link{diff_expr}}
+        # @return List with
+        #    \item{eset}{Expression set with selected samples only.}
+        #    \item{contrasts}{Character vector of contrast names.}
+        #    \item{levels}{Character vector of group variable names.
+        
+        
+        add_contrasts <- function (eset, gse_name, prev_anal) {
+          
+          if (!is.null(prev_anal)) {
+            # re-use selections/sample labels from previous analysis
+            eset <- match_prev_eset(eset, prev_anal)
+            
+            # get contrast info from previous analysis
+            contrasts    <- colnames(prev_anal$ebayes_sv$contrasts)
+            group_levels <- unique(prev_anal$pdata$group)
+            
+            
+          } else {
+            # get contrast info from user input
+            sels <- select_contrasts(gse_name, eset)
+            
+            # add pairs info to pheno data
+            pData(eset)$pairs <- sels$pairs
+            
+            if (length(sels$cons$Control) ==  0) return(NULL)
+            
+            # setup data for each contrast
+            for (i in seq_along(sels$cons$Control)) {
+              # get group names
+              cgrp <- sels$cons[i, "Control"]
+              tgrp <- sels$cons[i, "Test"]
+              
+              # get sample names
+              ctrl <- sampleNames(eset)[ sels$rows[[cgrp]] ]
+              test <- sampleNames(eset)[ sels$rows[[tgrp]] ]
+              
+              # add treatment/group labels to pheno
+              pData(eset)[ctrl, "treatment"] <- "ctrl"
+              pData(eset)[test, "treatment"] <- "test"
+              
+              pData(eset)[ctrl, "group"] <- cgrp
+              pData(eset)[test, "group"] <- tgrp
+            }
+            # create contrast names
+            contrasts <- paste(sels$cons$Test, sels$cons$Control, sep = "-")
+            
+            # store levels for group name variable
+            group_levels <- names(sels$rows)
+            
+            # retain selected samples only
+            # TODO: keep all samples: https://support.bioconductor.org/p/73107/
+            eset <- eset[, unique(unlist(sels$rows))]
+          }
+          
+          # put data together
+          contrast_data <- list(eset = eset, contrasts = contrasts, levels = group_levels)
+          
+          return (contrast_data)
+        }
+        
+        
+        
+        # ------------------------
+        
+        
+        # Generate model matrix with surrogate variables.
+        #
+        # Used by \code{diff_expr} to create model matrix with surrogate variables
+        # in order to run \code{diff_anal}.
+        #
+        # @param eset Annotated eset with samples selected during \code{add_contrasts}.
+        # @param group_levels Character vector of unique group names created by
+        #    \code{add_contrasts}.
+        #
+        # @seealso \code{\link{add_contrasts}}, \code{\link{diff_expr}}.
+        # @return List with model matrix(mod), model matrix with surrogate
+        #         variables(modsv), and result of \code{sva} function.
+        
+        
         # select contrasts
         cons <- add_contrasts(eset, gse_name, prev_anal)
         if (is.null(cons)) next
 
         # setup for differential expression
-        setup <- diff_setup(cons$eset, cons$levels, gse_name)
+        setup <- diff_setup(cons$eset, cons$levels, gse_name, svanal)
 
 
         # remove rows with duplicated/NA annot (SYMBOL or ENTREZID)

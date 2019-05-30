@@ -5,7 +5,7 @@
 \title{Differential expression analysis of esets.}
 \usage{
 diff_expr(esets, data_dir = getwd(), annot = "SYMBOL",
-  prev_anals = list(NULL))
+  prev_anals = list(NULL), svanal = TRUE)
 }
 \arguments{
 \item{esets}{List of annotated esets. Created by \code{\link{load_raw}}.}
@@ -21,6 +21,8 @@ from the same platform, "PROBE" (for probe level analysis).}
 \item{prev_anals}{Previous result of \code{\link{diff_expr}}, which can
  be reloaded using \code{\link{load_diff}}. If present, previous
 selections, names, and pairs will be reused.}
+
+\item{svanal}{Use surrogate variable analysis? Default is \code{TRUE}.}
 }
 \value{
 List of named lists, one for each GSE. Each named list contains:
