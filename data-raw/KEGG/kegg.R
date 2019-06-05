@@ -47,3 +47,6 @@ gs.names <- gs.names[inboth]
 # save
 saveRDS(gslist, 'data-raw/KEGG/gslist.rds')
 saveRDS(gs.names, 'data-raw/KEGG/gs.names.rds')
+
+# save for use by other packages (ccmap)
+usethis::use_data(gslist, gs.names, overwrite = TRUE)
