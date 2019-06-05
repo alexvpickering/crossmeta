@@ -53,6 +53,9 @@ select_contrasts <- function(gse_name, eset, data_dir = getwd()) {
 
 
     ui <- miniPage(
+        shiny::tags$head(
+            shiny::tags$style("#pdata {white-space: nowrap;}") # table text on 1 line
+        ),
         # title bar
         gadgetTitleBar("Select Contrasts", left = miniTitleBarButton("geo", "GEO")),
         miniTabstripPanel(
