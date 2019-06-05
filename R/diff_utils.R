@@ -569,8 +569,6 @@ which_max_iqr <- function(eset, groub_by, x = exprs(eset)) {
 }
 
 
-
-
 # ------------------------
 
 

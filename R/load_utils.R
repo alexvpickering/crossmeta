@@ -225,7 +225,7 @@ get_biocpack_name <- function (gpl_name) {
 
 symbol_annot <- function (eset, gse_name = "", ensql = NULL) {
     cat("Annotating")
-
+  
     # get map from features to organism entrez ids and  symbols
     map <- entrez_map(eset, ensql)
 
@@ -445,9 +445,9 @@ entrez_map <- function(eset, ensql) {
 
     # merge with original map
     colnames(entrezdt) <- c('ENTREZID', paste0('SYMBOL_', taxid))
-    entrezdt <- data.table(entrezdt, key = 'ENTREZID')
+    entrezdt <- data.table::data.table(entrezdt, key = 'ENTREZID')
 
-    map <- data.table(map, key = 'ENTREZID')
+    map <- data.table::data.table(map, key = 'ENTREZID')
     map <- merge(map, entrezdt, by='ENTREZID', all.x = TRUE, sort = FALSE)
 
     # remove duplicated rows

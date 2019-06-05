@@ -53,7 +53,7 @@ load_affy <- function (gse_names, data_dir, gpl_dir, ensql) {
         }
 
         # check if have GPL
-        gpl_names <- paste0(sapply(eset, annotation), '.soft', collapse = "|")
+        gpl_names <- paste0(sapply(eset, Biobase::annotation), '.soft', collapse = "|")
         gpl_paths <- sapply(gpl_names, function(gpl_name) {
             list.files(gpl_dir, gpl_name, full.names = TRUE, recursive = TRUE, include.dirs = TRUE)[1]
         })
@@ -70,7 +70,7 @@ load_affy <- function (gse_names, data_dir, gpl_dir, ensql) {
 
         # name esets
         if (length(eset) > 1) {
-            names(eset) <- paste(gse_name, sapply(eset, annotation), sep='.')
+            names(eset) <- paste(gse_name, sapply(eset, Biobase::annotation), sep='.')
         } else {
             names(eset) <- gse_name
         }
@@ -115,10 +115,10 @@ load_affy <- function (gse_names, data_dir, gpl_dir, ensql) {
 
 load_affy_plat <- function (eset, gse_dir, gse_name, ensql) {
 
-    try(fData(eset)[fData(eset) == ""] <- NA)
-    try(fData(eset)[] <- lapply(fData(eset), as.character))
+    try(Biobase::fData(eset)[Biobase::fData(eset) == ""] <- NA)
+    try(Biobase::fData(eset)[] <- lapply(Biobase::fData(eset), as.character))
 
-    sample_names <- sampleNames(eset)
+    sample_names <- Biobase::sampleNames(eset)
     pattern <- paste(sample_names, ".*CEL$", collapse = "|", sep = "")
 
     cel_paths <- tryCatch (
@@ -181,20 +181,20 @@ load_affy_plat <- function (eset, gse_dir, gse_name, ensql) {
         }
     )
     # rename samples in abatch
-    sampleNames(abatch) <- stringr::str_extract(sampleNames(abatch), "GSM[0-9]+")
+    Biobase::sampleNames(abatch) <- stringr::str_extract(Biobase::sampleNames(abatch), "GSM[0-9]+")
 
     # transfer exprs from abatch to eset (maintaining eset sample order)
-    sample_order <- sampleNames(eset)[sampleNames(eset) %in% sampleNames(abatch)]
+    sample_order <- Biobase::sampleNames(eset)[Biobase::sampleNames(eset) %in% Biobase::sampleNames(abatch)]
 
     eset <- eset[, sample_order]
     abatch <- abatch[, sample_order]
-    assayData(eset) <- assayData(abatch)
+    Biobase::assayData(eset) <- Biobase::assayData(abatch)
 
     # transfer merged fdata
-    fData(eset) <- crossmeta:::merge_fdata(fData(eset), fData(abatch))
+    Biobase::fData(eset) <- merge_fdata(Biobase::fData(eset), Biobase::fData(abatch))
 
     # add SYMBOL annotation
-    eset <- crossmeta:::symbol_annot(eset, gse_name, ensql)
+    eset <- symbol_annot(eset, gse_name, ensql)
 
     return(eset)
 }
