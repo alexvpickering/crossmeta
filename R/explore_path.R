@@ -124,7 +124,7 @@ explore_paths <- function(es_res, path_res, drug_info = NULL, type = c('both', '
 
     sources      <- names(es_res)
     paths        <- row.names(path_res[[1]])
-    names(paths) <- paste0(paths, ' (', format(signif(path_res[[1]][, 'fdr'], 2), scientific = TRUE), ')')
+    names(paths) <- paste0(paths, ' (', format_fdrs(path_res[[1]][, 'fdr']), ')')
     top_drugs    <- fullpath(dprimes[[1]]$meta, drug_info, paths[1], type[1])
 
 
@@ -483,5 +483,35 @@ get_dfs <- function(path, es_res, drug_info, drugs, gslist, gs.names) {
     return(list(drug_df  = drug_df,
                 query_df = query_df,
                 sumry_df = sumry_df))
+}
+
+#' Make FDR values readable
+#' 
+#' Used by \code{\link{explore_paths}} to make pathway FDR values readable
+#'
+#' @param fdrs Numeric vector of false discovery rates
+#' @keywords internal
+#'
+#' @return Character vector of formated false discovery rates.
+#' @export
+#'
+#' @examples
+#' 
+#' fdrs <- c(0.011, 0.00111, 0.000001111, 0.10000001, 1, 1.00000)
+#' format_fdrs(fdrs)
+format_fdrs <- function(fdrs) {
+    
+    # two significant digits
+    fdrs <- signif(fdrs, 2)
+    fdrs <- format(fdrs, scientific = FALSE)
+    
+    # dont get too specific when very small
+    lt_min <- fdrs < 0.001
+    fdrs[lt_min] <- '< 0.001'
+    
+    # remove trailing zeros
+    fdrs <- gsub('\\.?0+$', '', fdrs)
+    
+    return(fdrs)
 }
 
