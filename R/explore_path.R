@@ -351,7 +351,7 @@ explore_paths <- function(es_res, path_res, drug_info = NULL, type = c('both', '
 
             drugs <- levels(dfs$drug_df$drug)
             drug_ids <- seq_along(unique(drugs))+2
-
+            
             g <-  ggplot2::ggplot(data = dfs$sumry_df,
                                   ggplot2::aes_string(x = 'gene', y = 'mus')) +
                 ggplot2::geom_point(ggplot2::aes_string('gene', 'dprime', alpha = 'sdinv'),
@@ -374,13 +374,13 @@ explore_paths <- function(es_res, path_res, drug_info = NULL, type = c('both', '
 
 
             # adjust margins and ranges
-            ymin <- max(-8, min(dfs$query_df$dprime, na.rm = TRUE))
-            ymax <- min(8, max(dfs$query_df$dprime, na.rm = TRUE))
+            # ymin <- max(-8, min(dfs$query_df$dprime, na.rm = TRUE))
+            # ymax <- min(8, max(dfs$query_df$dprime, na.rm = TRUE))
 
             pl$x$layout$margin$b <- 90
             nsyms <- nrow(dfs$sumry_df)
-            pl$x$layout$xaxis$range <- c(0.5, min(30, nsyms+0.5))
-            pl$x$layout$yaxis$range <- c(ymin, ymax)
+            pl$x$layout$xaxis$range <- c(0.5, min(50.5, nsyms+0.5))
+            # pl$x$layout$yaxis$range <- c(ymin, ymax)
 
             # hide modebar
             pl$x$config$displayModeBar <- FALSE
