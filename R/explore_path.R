@@ -129,30 +129,34 @@ explore_paths <- function(es_res, path_res, drug_info = NULL, type = c('both', '
 
 
     ui <- shinyUI(fluidPage(
-
+        tags$head(
+            shiny::tags$style("#kegg {border-top-left-radius: 0; border-bottom-left-radius: 0; position: relative; z-index: 2; margin-left: -8px; margin-top: -26px;}")
+        ),
         title = "Pathway Explorer",
-
         br(),
 
         fluidRow(
             column(6, align = 'center',
                    strong("Source:"),
-                   selectInput('source', '', choices = sources, selected = sources[1], width = '75%'),
+                   selectInput('source', '', choices = sources, selected = sources[1], width = '400px'),
                    tags$style(type='text/css', ".selectize-dropdown-content {max-height: 180px; }"),
                    br(),
                    hr(),
                    br(),
                    strong("Pathway (FDR):"),
-                   selectInput('path', '', choices = paths, selected = paths[1], width = '75%')
+                   tags$div(
+                       tags$div(style = "display:inline-block;", selectInput('path', '', choices = paths, selected = paths[1], width = '359.5px')),
+                       shinyBS::bsButton('kegg', label = '', icon = icon('external-link-alt', 'fa-fw'), style='default', title = 'Go to KEGG')
+                   )
             ),
             column(6, align = 'center',
                    HTML("<strong>Top Drugs for Full Signature (&rho;<sub>full</sub>, &rho;<sub>path</sub>):</strong>"),
-                   selectInput('drug1', '', top_drugs$full, top_drugs$full[1], width = '75%'),
+                   selectInput('drug1', '', top_drugs$full, top_drugs$full[1], width = '400px'),
                    br(),
                    hr(),
                    br(),
                    HTML("<strong>Top Drugs for Pathway Genes Only (&rho;<sub>full</sub>, &rho;<sub>path</sub>):</strong>"),
-                   selectInput('drug2', '', top_drugs$path, top_drugs$path[1], width = '75%')
+                   selectInput('drug2', '', top_drugs$path, top_drugs$path[1], width = '400px')
             )
         ),
 
@@ -346,9 +350,8 @@ explore_paths <- function(es_res, path_res, drug_info = NULL, type = c('both', '
 
 
         output$trendPlot <- renderPlotly({
-
+            
             dfs <- dataset()
-
             drugs <- levels(dfs$drug_df$drug)
             drug_ids <- seq_along(unique(drugs))+2
             
@@ -423,13 +426,24 @@ explore_paths <- function(es_res, path_res, drug_info = NULL, type = c('both', '
 
             pl
         })
+        
+        # link to KEGG pathway ----
+        kegg_link <- shiny::reactive({
+            path_num <- names(gs.names[which(gs.names == input$path)])
+            kegg_link <- paste0('https://www.genome.jp/kegg-bin/show_pathway?map', path_num)
+        })
+        
+        # Click link out to Wikipedia ----
+        shiny::observeEvent(input$kegg, {
+            utils::browseURL(kegg_link())
+        })
     }
     shinyApp(ui, server)
 }
 
 
 # used by explore_paths
-get_dfs <- function(path, es_res, drug_info, drugs, gslist, gs.names) {
+get_dfs <- function(path, es_res, drug_info, drugs, gslist, gs.names, topn = 50) {
 
     drugs <- unique(drugs)
 
@@ -479,10 +493,13 @@ get_dfs <- function(path, es_res, drug_info, drugs, gslist, gs.names) {
                            'mus'  = qes$mu,
                            'high' = qes$mu + sds,
                            'low'  = qes$mu - sds)
-
-    return(list(drug_df  = drug_df,
-                query_df = query_df,
-                sumry_df = sumry_df))
+    
+    
+    dfs <- list(drug_df  = drug_df[drug_df$gene %in% head(query_df$gene, topn), ],
+                query_df = head(query_df, topn),
+                sumry_df = head(sumry_df, topn))
+    
+    return(dfs)
 }
 
 #' Make FDR values readable
