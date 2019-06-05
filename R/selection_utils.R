@@ -28,8 +28,13 @@ select_contrasts <- function(gse_name, eset, data_dir = getwd()) {
                         row.names = 1:ncol(eset))
 
     # remove accession numbers if Illumina
-    if ('illum' %in% colnames(pData(eset)))
+    if ('illum' %in% colnames(pData(eset))) {
         pdata$Accession <- NULL
+        
+    } else {
+        add_cols <- setdiff(colnames(pData(eset)), c('title', 'geo_accession'))
+        pdata <- cbind(pdata, pData(eset)[, add_cols])
+    }
 
 
     contrasts <- data.frame(Control = character(0),
