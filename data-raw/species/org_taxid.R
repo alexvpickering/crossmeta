@@ -14,4 +14,4 @@ row.names(speciesMap) <- speciesMap$species
 org_taxid <- c(ens_spcs$taxon_id, speciesMap[species, 'taxon'])
 names(org_taxid) <- c(ens_spcs$scientific_name, species)
 
-devtools::use_data(gpl_bioc, homologene, sources, token, org_pkg, org_taxid, internal = TRUE, overwrite = TRUE)
+saveRDS(org_taxid, 'data-raw/species/org_taxid.rds')

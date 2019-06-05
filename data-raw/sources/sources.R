@@ -347,8 +347,5 @@ sources <- list(
    	)
 
 
-
-setwd("~/Documents/Batcave/GEO/crossmeta")
-load("~/Documents/Batcave/GEO/crossmeta/R/sysdata.rda")
-devtools::use_data(gpl_bioc, homologene, token, sources, internal = TRUE, overwrite = TRUE)
+saveRDS(sources, 'data-raw/sources/sources.rds')
 

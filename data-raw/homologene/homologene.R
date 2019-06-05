@@ -61,11 +61,8 @@ get_homologene <- function(homologene_path) {
     return(data.table(homologene, key='ENTREZID'))
 }
 
-setwd('data-raw/homologene')
 curl::curl_download('ftp://ftp.ncbi.nih.gov/pub/HomoloGene/current/homologene.data', 'homologene.data')
 curl::curl_download('ftp://ftp.ncbi.nih.gov/pub/HomoloGene/current/RELEASE_NUMBER', 'RELEASE_NUMBER')
 
 homologene <- get_homologene('homologene.data')
-
-devtools::use_data(homologene, gpl_bioc, hs, sources, org_pkg, org_taxid, token, internal = TRUE, overwrite = TRUE)
-
+saveRDS(homologene, 'data-raw/homologene/homologene.rds')

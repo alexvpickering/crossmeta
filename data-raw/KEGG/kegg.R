@@ -45,4 +45,5 @@ gslist <- gslist[inboth]
 gs.names <- gs.names[inboth]
 
 # save
-usethis::use_data(gslist, gs.names, overwrite = TRUE)
+saveRDS(gslist, 'data-raw/KEGG/gslist.rds')
+saveRDS(gs.names, 'data-raw/KEGG/gs.names.rds')

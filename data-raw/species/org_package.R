@@ -16,7 +16,4 @@ for (package_name in org_pkg) {
 }
 
 names(org_pkg) <- package_organisms
-
-devtools::use_data(gpl_bioc, homologene, sources, token, org_pkg, internal = TRUE, overwrite = TRUE)
-
-
+saveRDS(org_pkg, 'data-raw/species/org_pkg.rds')
