@@ -64,7 +64,7 @@
 #'
 explore_paths <- function(es_res, path_res, drug_info = NULL, type = c('both', 'mimic', 'reverse')) {
     # global binding to pass CHK
-    cmap_es = drug_info = NULL
+    cmap_es = NULL
 
     if (is.null(drug_info)) {
         utils::data('cmap_es', package = "ccdata", envir = environment())
@@ -180,7 +180,7 @@ explore_paths <- function(es_res, path_res, drug_info = NULL, type = c('both', '
 
             # update top drugs for new source
             paths        <<- row.names(path_res[[new_src]])
-            names(paths) <<- paste0(paths, ' (', format(signif(path_res[[new_src]][, 'fdr'], 2), scientific = TRUE), ')')
+            names(paths) <<- paste0(paths, ' (', format_fdrs(path_res[[new_src]][, 'fdr']), ')')
             top_drugs    <<- fullpath(dprimes[[new_src]]$meta, drug_info, paths[1], type[1])
 
             # don't re-update top drugs
