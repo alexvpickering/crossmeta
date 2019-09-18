@@ -131,8 +131,6 @@ diff_path <- function(esets, prev_anals, data_dir = getwd()) {
 }
 
 
-# -------------------
-
 
 # Pathway Analysis with Down-weighting of Overlapping Genes (PADOG)
 #
@@ -412,8 +410,6 @@ padog <- function (esetm = NULL, group = NULL, paired = FALSE, block = NULL,
 }
 
 
-# --------------------------
-
 
 #' Load previous pathway analyses.
 #'
@@ -459,7 +455,6 @@ load_path <- function(gse_names, data_dir = getwd()) {
 }
 
 
-# -------------------
 
 
 #' Pathway p-value meta analysis.
