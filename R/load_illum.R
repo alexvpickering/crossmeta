@@ -52,7 +52,7 @@ load_illum <- function (gse_names, data_dir, gpl_dir, ensql) {
             eset <- try(crossmeta:::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE))
         }
         eset <- tryCatch(load_illum_plat(eset[[1]], gse_name, gse_dir, ensql),
-                         error = function(e) NULL)
+                         error = function(e) {message(e$message, '\n'); return(NULL)})
 
         # save to disc
         if (!is.null(eset)) {

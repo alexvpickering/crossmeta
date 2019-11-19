@@ -9,7 +9,7 @@
 # @return Factor vector of CEL scan dates.
 
 cel_dates <- function(cel_paths) {
-
+    
     scan_dates <- c()
     for (i in seq_along(cel_paths)) {
         datheader <- affxparser::readCelHeader(cel_paths[i])$datheader
@@ -38,58 +38,59 @@ cel_dates <- function(cel_paths) {
 # @return List of annotated esets (one for each unique GSE/GPL platform).
 
 load_affy <- function (gse_names, data_dir, gpl_dir, ensql) {
-
+    
     esets  <- list()
     errors <- c()
     for (gse_name in gse_names) {
-
+        
         gse_dir <- file.path(data_dir, gse_name)
         save_name <- paste(gse_name, "eset.rds", sep = "_")
-
+        
         # get GSEMatrix (for pheno dat)
         eset <- NULL
         while (is.null(eset)) {
             eset <- try(crossmeta:::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, getGPL = FALSE))
         }
-
+        
         # check if have GPL
         gpl_names <- paste0(sapply(eset, Biobase::annotation), '.soft', collapse = "|")
         gpl_paths <- sapply(gpl_names, function(gpl_name) {
             list.files(gpl_dir, gpl_name, full.names = TRUE, recursive = TRUE, include.dirs = TRUE)[1]
         })
-
+        
         # copy over GPL
         if (length(gpl_paths) > 0)
             file.copy(gpl_paths, gse_dir)
-
+        
         # will use local GPL or download if couldn't copy
         eset <- NULL
         while (is.null(eset)) {
             eset <- try(crossmeta:::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE))
         }
-
+        
         # name esets
         if (length(eset) > 1) {
             names(eset) <- paste(gse_name, sapply(eset, Biobase::annotation), sep='.')
         } else {
             names(eset) <- gse_name
         }
-
+        
         # load eset for each platform in GSE
         eset <- lapply(eset, function(eset.gpl) {
             tryCatch(load_affy_plat(eset.gpl, gse_dir, gse_name, ensql),
-                     error = function(e) NA)
+                     error = function(e) {message(e$message, '\n'); return(NA)}
+                     )
         })
-
-
+        
+        
         # save to disc
         if (!all(is.na(eset)))
             saveRDS(eset[!is.na(eset)], file.path(gse_dir, save_name))
-
+        
         if (anyNA(eset))
             errors <- c(errors, names(eset[is.na(eset)]))
-
-
+        
+        
         if (!all(is.na(eset)))
             esets[[gse_name]] <- eset[!is.na(eset)]
     }
@@ -114,33 +115,33 @@ load_affy <- function (gse_names, data_dir, gpl_dir, ensql) {
 # @return Annotated eset with scan_date in pData slot.
 
 load_affy_plat <- function (eset, gse_dir, gse_name, ensql) {
-
+    
     try(Biobase::fData(eset)[Biobase::fData(eset) == ""] <- NA)
     try(Biobase::fData(eset)[] <- lapply(Biobase::fData(eset), as.character))
-
+    
     sample_names <- Biobase::sampleNames(eset)
     pattern <- paste(sample_names, ".*CEL$", collapse = "|", sep = "")
-
+    
     cel_paths <- tryCatch (
         list.files(gse_dir, pattern, full.names = TRUE, ignore.case = TRUE),
-
+        
         # list.files fails if too many files
         error = function(c) {
             n <- length(sample_names)
             p1 <- paste(sample_names[1:(n/2)], ".*CEL$", collapse = "|", sep = "")
             p2 <- paste(sample_names[(n/2+1):n], ".*CEL$", collapse = "|", sep = "")
-
+            
             pth1 <- list.files(gse_dir, p1, full.names = TRUE, ignore.case = TRUE)
             pth2 <- list.files(gse_dir, p2, full.names = TRUE, ignore.case = TRUE)
-
+            
             return(c(pth1, pth2))
         }
     )
-
+    
     # if multiple with same GSM, take first
     gsm_names  <- stringr::str_extract(cel_paths, "GSM[0-9]+")
     cel_paths <- cel_paths[!duplicated(gsm_names)]
-
+    
     abatch <- tryCatch (
         {
             raw_abatch <- affy::ReadAffy(filenames = cel_paths)
@@ -165,7 +166,7 @@ load_affy_plat <- function (eset, gse_dir, gse_name, ensql) {
                 cel_paths <- cel_paths[!grepl(corrupted, cel_paths)]
                 raw_abatch  <- affy::ReadAffy(filenames = cel_paths)
                 return(affy::rma(raw_abatch))
-
+                
             } else {
                 raw_abatch <- tryCatch(oligo::read.celfiles(cel_paths),
                                        error = function(d) {
@@ -182,20 +183,20 @@ load_affy_plat <- function (eset, gse_dir, gse_name, ensql) {
     )
     # rename samples in abatch
     Biobase::sampleNames(abatch) <- stringr::str_extract(Biobase::sampleNames(abatch), "GSM[0-9]+")
-
+    
     # transfer exprs from abatch to eset (maintaining eset sample order)
     sample_order <- Biobase::sampleNames(eset)[Biobase::sampleNames(eset) %in% Biobase::sampleNames(abatch)]
-
+    
     eset <- eset[, sample_order]
     abatch <- abatch[, sample_order]
     Biobase::assayData(eset) <- Biobase::assayData(abatch)
-
+    
     # transfer merged fdata
     Biobase::fData(eset) <- merge_fdata(Biobase::fData(eset), Biobase::fData(abatch))
-
+    
     # add SYMBOL annotation
     eset <- symbol_annot(eset, gse_name, ensql)
-
+    
     return(eset)
 }
 
@@ -216,7 +217,7 @@ load_affy_plat <- function (eset, gse_dir, gse_name, ensql) {
 #    are same as dfdat.
 
 merge_fdata <- function(eset_fdata, abatch_fdata) {
-
+    
     # merge feature data from raw data and eset
     abatch_fdata$ID <- row.names(abatch_fdata)
     abatch_fdata <- merge(abatch_fdata, eset_fdata, by = "ID", all.x = TRUE, sort = FALSE)
