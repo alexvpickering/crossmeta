@@ -8,6 +8,7 @@ vignettes/*.R
 
 #directories
 inst/
-data-raw/entrezdt/
+data-raw/entrezdt/*
+!data-raw/entrezdt/entrezdt.R
 data-raw/KEGG/hsa/*.xml
 
