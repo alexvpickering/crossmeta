@@ -4,8 +4,13 @@
 \alias{diff_expr}
 \title{Differential expression analysis of esets.}
 \usage{
-diff_expr(esets, data_dir = getwd(), annot = "SYMBOL",
-  prev_anals = list(NULL), svanal = TRUE)
+diff_expr(
+  esets,
+  data_dir = getwd(),
+  annot = "SYMBOL",
+  prev_anals = list(NULL),
+  svanal = TRUE
+)
 }
 \arguments{
 \item{esets}{List of annotated esets. Created by \code{\link{load_raw}}.}

@@ -4,8 +4,12 @@
 \alias{explore_paths}
 \title{Explore pathway meta analyses.}
 \usage{
-explore_paths(es_res, path_res, drug_info = NULL, type = c("both",
-  "mimic", "reverse"))
+explore_paths(
+  es_res,
+  path_res,
+  drug_info = NULL,
+  type = c("both", "mimic", "reverse")
+)
 }
 \arguments{
 \item{es_res}{Result of call to \code{\link{es_meta}}.}

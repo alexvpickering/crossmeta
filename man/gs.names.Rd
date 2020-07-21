@@ -4,7 +4,9 @@
 \name{gs.names}
 \alias{gs.names}
 \title{Map between KEGG pathway numbers and names.}
-\format{An object of class \code{character} of length 310.}
+\format{
+An object of class \code{character} of length 310.
+}
 \usage{
 data(gs.names)
 }

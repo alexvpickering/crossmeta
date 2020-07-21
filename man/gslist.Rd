@@ -4,7 +4,9 @@
 \name{gslist}
 \alias{gslist}
 \title{KEGG human pathway genes.}
-\format{An object of class \code{list} of length 310.}
+\format{
+An object of class \code{list} of length 310.
+}
 \usage{
 data(gslist)
 }

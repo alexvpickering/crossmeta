@@ -392,3 +392,50 @@ merge_elist <- function(eset, elist) {
     return(elist)
 }
 
+#' Open raw Illumina microarray files.
+#'
+#' Helper function to open raw Illumina microarray files in order to check that
+#' they are formatted correctly. For details on correct format, please see
+#' 'Checking Raw Illumina Data' in vignette.
+#'
+#' @param gse_names Character vector of Illumina GSE names to open.
+#' @param data_dir String specifying directory with GSE folders.
+#'
+#' @return Character vector of successfully formated Illumina GSE names.
+#' @export
+#'
+#' @examples
+#' library(lydata)
+#'
+#' # Illumina GSE names
+#' illum_names <- c("GSE50841", "GSE34817", "GSE29689")
+#'
+#' # location of raw data
+#' data_dir <- system.file("extdata", package = "lydata")
+#'
+#' # open raw data files with default text editor
+#' # open_raw_illum(illum_names)
+
+open_raw_illum <- function (gse_names, data_dir = getwd()) {
+    
+    out_names <- gse_names
+    for (i in seq_along(gse_names)) {
+        # get data paths
+        gse_dir <- paste(data_dir, gse_names[i], sep = "/")
+        data_paths <- list.files(gse_dir, pattern = "non.norm.*txt",
+                                 full.names = TRUE, ignore.case = TRUE)
+        data_paths <- c(data_paths, list.files(gse_dir, pattern = ".xls",
+                                               full.names = TRUE))
+        # open data file
+        for (j in seq_along(data_paths)) system2("xdg-open", data_paths[j])
+        
+        # check success
+        success <- tcltk::tk_select.list(choices = c("Yes", "No"),
+                                         title = paste(gse_names[i],
+                                                       "formated successfully?"))
+        # remove unsuccessful
+        if (success == "No") out_names <- setdiff(out_names, gse_names[i])
+    }
+    return(out_names)
+}
+

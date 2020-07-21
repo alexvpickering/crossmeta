@@ -366,7 +366,6 @@ iqr_replicates <- function (eset, mod = NULL, svobj = NULL, annot = "SYMBOL", rm
 #' @return Integer vector of row numbers representing rows with the maximum IQR after grouping by \code{group_by}
 #' @export
 #'
-#' @examples
 which_max_iqr <- function(eset, groub_by, x = exprs(eset)) {
     
     # add inter-quartile ranges, row, and feature data to exprs data
