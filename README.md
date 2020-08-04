@@ -7,7 +7,12 @@ and/or Agilent GSE numbers from [GEO](http://www.ncbi.nlm.nih.gov/geo/). All 21
 species in the current [homologene](http://1.usa.gov/1TGoIy7) build are supported. 
 See [vignette](http://bioconductor.org/packages/devel/bioc/vignettes/crossmeta/inst/doc/crossmeta-vignette.html) for detailed usage. 
 
-`crossmeta` is available through [Bioconductor](http://bioconductor.org/packages/crossmeta/).
+`crossmeta` is available through [Bioconductor](http://bioconductor.org/packages/crossmeta/). To install the latest release from github:
+
+```R
+install.packages('remotes')
+remotes::install_github('alexvpickering/crossmeta')
+```
 
 
 Basic Workflow
