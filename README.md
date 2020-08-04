@@ -28,9 +28,6 @@ anals <- diff_expr(esets)
 
 # perform meta-analysis
 es <- es_meta(anals)
-
-# contribute your results
-contribute(anals)
 ```
 
 Approach

@@ -336,16 +336,7 @@ to find drug candidates and graphically explore the results of the pathway meta-
 ?explore_paths
 ```
 
-If `crossmeta` is usefull to you, please contribute your signature! Your
-contribution will be used to build a public database of microarray meta-analyses.
-To contribute:
 
-```{r, eval=FALSE}
-# subject is the focus of the meta-analysis (e.g. drug/disease name)
-contribute(anals, subject = "LY294002")
-
-# Thank you!
-```
 ```{r}
 sessionInfo()
 ```
