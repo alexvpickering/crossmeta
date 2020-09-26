@@ -68,9 +68,10 @@ fix_illum_headers <- function(elist_paths, eset = NULL) {
 
         # fix annotation columns ----
 
-        # look for column with ILMN entries
+        # look for first column with ILMN entries
+        # error is limma::read.ilmn if more than one idcol 
         nilmn  <- apply(ex, 2, function(col) sum(grepl('ILMN_', col)))
-        idcol  <- which(nilmn > 950)
+        idcol  <- which(nilmn > 950)[1]
 
         # fix if idcol is not ID_REF
         if (length(idcol) && names(idcol) != 'ID_REF') {
