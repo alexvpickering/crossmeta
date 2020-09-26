@@ -91,6 +91,9 @@ fix_illum_headers <- function(elist_paths, eset = NULL) {
         isnum   <- unname(sapply(ex, is.numeric))
         isprobe <- unname(sapply(ex, function(col) is.integer(col) & min(col) > 10000))
         isnum   <- isnum & !isprobe
+        
+        # bug fix for GSE38012 with NAs in ENTREZ_GENE_ID column of ex
+        isnum   <- isnum & !is.na(isnum)
 
         annotation <- c(annotation, names(ex)[!isnum])
 
