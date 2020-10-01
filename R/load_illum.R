@@ -86,9 +86,13 @@ load_illum_plat <- function(eset, gse_name, gse_dir, ensql) {
 
     try(fData(eset)[fData(eset) == ""] <- NA)
     try(fData(eset)[] <- lapply(fData(eset), as.character))
+  
+    # convert .xls to txt
+    xls_paths <- list.files(gse_dir, pattern = "_supplementary_.*.xls$", full.names = TRUE, ignore.case = TRUE)
+    xls_to_txt(xls_paths)
 
     # fix header issues
-    elist_paths <- list.files(gse_dir, pattern = "non.*norm.*txt$|raw.*txt$|nonorm.*txt$", full.names = TRUE, ignore.case = TRUE)
+    elist_paths <- list.files(gse_dir, pattern = "non.*norm.*txt$|raw.*txt$|nonorm.*txt$|_supplementary_.*.txt$", full.names = TRUE, ignore.case = TRUE)
     elist_paths <- elist_paths[!grepl('fixed[.]txt$', elist_paths)]
     annotation  <- fix_illum_headers(elist_paths, eset)
 
@@ -153,6 +157,22 @@ load_illum_plat <- function(eset, gse_name, gse_dir, ensql) {
 }
 
 
+#' Covert .xls files to .txt
+#' 
+#' For converting Illumina _Supplementary_.*.xls files to .txt for load_illum_plat.
+#'
+#' @param xls_paths Paths to .xls files
+#'
+#' @return NULL
+#' @export
+#'
+xls_to_txt <- function(xls_paths) {
+  for (xls_path in xls_paths) {
+    d <- readxl::read_excel(xls_path)
+    txt_path <- gsub('.xls$', '.txt', xls_path)
+    write.table(d, txt_path, sep='\t', quote = FALSE, row.names = FALSE)
+  }
+}
 # -------------------
 
 # like base pmatch
