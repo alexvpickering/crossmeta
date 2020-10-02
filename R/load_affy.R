@@ -77,9 +77,9 @@ load_affy <- function (gse_names, data_dir, gpl_dir, ensql) {
         
         # load eset for each platform in GSE
         eset <- lapply(eset, function(eset.gpl) {
-            tryCatch(load_affy_plat(eset.gpl, gse_dir, gse_name, ensql),
-                     error = function(e) {message(e$message, '\n'); return(NA)}
-                     )
+            tryCatch(
+                {load_affy_plat(eset.gpl, gse_dir, gse_name, ensql)},
+                error = function(e) {message(e$message, '\n'); return(NA)})
         })
         
         
