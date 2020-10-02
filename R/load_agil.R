@@ -117,13 +117,13 @@ load_agil_plat <- function (eset, ch2, gse_dir, gse_name, ensql) {
     error = function(e) {
       # determine source of error
       output <- capture.output(tryCatch(
-        limma::read.maimages(elist_paths, source = "agilent", green.only = TRUE),
+        limma::read.maimages(elist_paths, source = source, green.only = !ch2),
         error = function(e) NULL))
       
       # retry with error excluded
       exclude     <- which(elist_paths == gsub('^Read| ', '', output[length(output)-1])) + 1
       elist_paths <- elist_paths[-exclude]
-      limma::read.maimages(elist_paths, source = "agilent", green.only = TRUE)
+      limma::read.maimages(elist_paths, source = source, green.only = !ch2)
     })
   
   if (ch2) {

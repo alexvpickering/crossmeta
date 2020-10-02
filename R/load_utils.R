@@ -251,12 +251,17 @@ symbol_annot <- function (eset, gse_name = "", ensql = NULL) {
     dt <- data.table(exprs(eset), PROBE, key='PROBE')
     dt <- merge(unique(dt), map, by = 'PROBE', all.x=TRUE, sort=FALSE)
     dt <- data.frame(dt, row.names = make.unique(dt$PROBE))
+    
+    # restore M slot if two channel array
+    M <- assayDataElement(eset, 'M')
 
     # transfer to eset
     eset <- ExpressionSet(as.matrix(dt[, sampleNames(eset)]),
                           phenoData(eset),
                           AnnotatedDataFrame(dt[, colnames(map)]),
                           annotation = annotation(eset))
+    
+    suppressWarnings(Biobase::assayDataElement(eset, 'M') <- M)
     return(eset)
 }
 
