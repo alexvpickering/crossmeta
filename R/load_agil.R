@@ -29,8 +29,7 @@ load_agil <- function (gse_names, data_dir, gpl_dir, ensql) {
 
 
         # if _ch2 in pdata => dual channel
-        pdat_names <- sapply(eset, function(x) colnames(pData(x)))
-        if (any(grepl('ch2', pdat_names))) stop('Crossmeta does not currently support dual-channel arrays.')
+        ch2 <- sapply(eset, function(x) any(grepl('ch2', colnames(pData(x)))))
 
 
         # check if have GPL
@@ -57,10 +56,10 @@ load_agil <- function (gse_names, data_dir, gpl_dir, ensql) {
         }
 
         # load eset for each platform in GSE
-        eset <- lapply(eset, function(eset.gpl) {
-            tryCatch(load_agil_plat(eset.gpl, gse_dir, gse_name, ensql),
-                     error = function(e) {message(e$message, '\n'); return(NA)})
-        })
+        for (i in seq_along(eset)) {
+          eset[[i]] <- tryCatch(load_agil_plat(eset[[i]], ch2[i], gse_dir, gse_name, ensql),
+                                error = function(e) {message(e$message, '\n'); return(NA)})
+        }
 
         # save to disc
         if (!all(is.na(eset)))
@@ -84,21 +83,35 @@ load_agil <- function (gse_names, data_dir, gpl_dir, ensql) {
 # ------------------------
 
 
-load_agil_plat <- function (eset, gse_dir, gse_name, ensql) {
+#' Load Agilent raw data
+#'
+#' @param eset ExpressionSet from \link{getGEO}
+#' @param ch2 Boolean indicating in two-channel array
+#' @param gse_dir Direction with Agilent raw data
+#' @param gse_name Accession name for \code{eset}.
+#' @inheritParams load_raw
+#'
+#' @return ExpressionSet
+#' 
+load_agil_plat <- function (eset, ch2, gse_dir, gse_name, ensql) {
 
     try(fData(eset)[fData(eset) == ""] <- NA)
     try(fData(eset)[] <- lapply(fData(eset), as.character))
 
     # get paths to raw files for samples in eset
-    pattern <- paste(sampleNames(eset), ".*txt", collapse = "|", sep = "")
+    pattern <- paste('^', sampleNames(eset), ".*(txt|gpr)$", collapse = "|", sep = "")
     elist_paths <- list.files(gse_dir, pattern, full.names = TRUE, ignore.case = TRUE)
 
     # if multiple with same GSM, take first
     gsm_names  <- stringr::str_extract(elist_paths, "GSM[0-9]+")
     elist_paths <- elist_paths[!duplicated(gsm_names)]
-
+    
+    # support for genepix .gpr files
+    is.genepix <- grepl('.gpr$', elist_paths[1])
+    source <- ifelse(is.genepix, 'genepix', 'agilent')
+    
     # load non-normalized txt files and normalize
-    elist <- tryCatch(limma::read.maimages(elist_paths, source = "agilent", green.only = TRUE),
+    elist <- tryCatch(limma::read.maimages(elist_paths, source = source, green.only = !ch2),
                      error = function(e) {
                          # determine source of error
                          output <- capture.output(tryCatch(
@@ -110,7 +123,16 @@ load_agil_plat <- function (eset, gse_dir, gse_name, ensql) {
                          elist_paths <- elist_paths[-exclude]
                          limma::read.maimages(elist_paths, source = "agilent", green.only = TRUE)
                      })
-    elist <- limma::neqc(elist, status = elist$genes$ControlType, negctrl = -1, regular = 0)
+    
+    if (ch2) {
+      # follows 'Separate Channel Analysis of Two-Color Data' to make as if single channel
+      elist <- limma::backgroundCorrect(elist, method="normexp", offset=50)
+      elist <- limma::normalizeWithinArrays(elist, method="loess")
+      elist <- limma::normalizeBetweenArrays(MA.p, method="Aquantile")
+      
+    } else  {
+      elist <- limma::neqc(elist, status = elist$genes$ControlType, negctrl = -1, regular = 0)
+    }
 
     # fix up sample names
     colnames(elist) <- stringr::str_match(colnames(elist), ".*(GSM\\d+).*")[, 2]
@@ -118,13 +140,33 @@ load_agil_plat <- function (eset, gse_dir, gse_name, ensql) {
 
     # merge elist and eset feature data
     elist <- merge_elist(eset, elist)
-    row.names(elist$E) <- row.names(elist$genes) <- make.unique(elist$genes$ProbeName)
+    
+    if (ch2) {
+      # not sure 'ID' is general fill-in for 'ProbeName'?
+      elist <- elist[!is.na(elist$genes$ID), ]
+      row.names(elist$M) <- row.names(elist$A) <- row.names(elist$genes) <- make.unique(elist$genes$ID)
+      
+      # transfer to eset
+      # A: average log-2 expression
+      eset <- ExpressionSet(elist$A,
+                            phenoData = phenoData(eset),
+                            featureData = as(elist$genes, 'AnnotatedDataFrame'),
+                            annotation = annotation(eset))
+      
+      # M: log-2 expression ratios
+      # used in fit_ebayes
+      Biobase::assayDataElement(eset, 'M') <- elist$M
+      
+    } else {
+      row.names(elist$E) <- row.names(elist$genes) <- make.unique(elist$genes$ProbeName)
+      
+      # transfer to eset
+      eset <- ExpressionSet(elist$E,
+                            phenoData = phenoData(eset),
+                            featureData = as(elist$genes, 'AnnotatedDataFrame'),
+                            annotation = annotation(eset))
+    }
 
-    # transfer to eset
-    eset <- ExpressionSet(elist$E,
-                          phenoData = phenoData(eset),
-                          featureData = as(elist$genes, 'AnnotatedDataFrame'),
-                          annotation = annotation(eset))
 
     # add SYMBOL annotation
     eset <- symbol_annot(eset, gse_name, ensql)

@@ -88,7 +88,7 @@ load_raw <- function(gse_names, data_dir = getwd(), gpl_dir = '..', overwrite = 
 
         # determine platform (based on filenames)
         affy  <- list.files(gse_dir, ".CEL$", ignore.case = TRUE)
-        agil  <- list.files(gse_dir, "^GSM.*txt$", ignore.case = TRUE)
+        agil  <- list.files(gse_dir, "^GSM.*txt$|^GSM.*gpr$", ignore.case = TRUE)
         illum <- list.files(gse_dir, "non.*norm.*txt$|raw.*txt$|nonorm.*txt$|_supplementary_.*.xls$", ignore.case = TRUE)
 
         # add to appropriate names vector

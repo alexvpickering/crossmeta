@@ -477,7 +477,22 @@ diff_anal <- function(eset, exprs_sva, contrasts, group_levels,
 
 fit_ebayes <- function(eset, contrasts, mod) {
     contrast_matrix <- limma::makeContrasts(contrasts = contrasts, levels = mod)
-    fit <- limma::contrasts.fit(limma::lmFit(exprs(eset), mod), contrast_matrix)
+    
+    # check for two-channel Agilent array (has M slot)
+    ch2 <- 'M' %in%  Biobase::assayDataElementNames(eset)
+    if (ch2) {
+      MA <- list(M = Biobase::assayDataElement(eset, 'M'),
+                 A = Biobase::exprs(eset))
+      
+      MA <- new('MAList', MA)
+      corfit <- limma::intraspotCorrelation(MA, mod)
+      fit <- limma::lmscFit(MA, mod, correlation=corfit$consensus)
+      
+    } else {
+      fit <- limma::lmFit(exprs(eset), mod)
+    }
+    
+    fit <- limma::contrasts.fit(fit, contrast_matrix)
     return (limma::eBayes(fit))
 }
 
