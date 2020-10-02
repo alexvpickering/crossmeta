@@ -43,7 +43,7 @@ setup_hline <- function (rawf) {
 #' 
 ilmn.nnum <- function(elist_paths) {
   nnum <- 0
-  for (path in elist_paths) {
+  for (fpath in elist_paths) {
     # fread first 1000 rows as example
     ex <- data.table::fread(fpath, sep = '\t', skip = 0, header = TRUE, nrows = 1000, fill = TRUE)
     ex <- as.data.frame(ex)
