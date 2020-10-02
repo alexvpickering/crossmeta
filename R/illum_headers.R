@@ -33,10 +33,53 @@ setup_hline <- function (rawf) {
     return(rawf)
 }
 
+#' Count numeric columns in raw Illumina data files
+#' 
+#' Excludes probe ID cols
+#'
+#' @param elist_paths Paths to raw illumina data files
+#'
+#' @return Number of numeric columns in \code{elist_paths} excluding probe ID columns.
+#' 
+ilmn.nnum <- function(elist_paths) {
+  nnum <- 0
+  for (path in elist_paths) {
+    # fread first 1000 rows as example
+    ex <- data.table::fread(fpath, sep = '\t', skip = 0, header = TRUE, nrows = 1000, fill = TRUE)
+    ex <- as.data.frame(ex)
+    
+    # remove any columns that start with V (autonamed by data.table)
+    ex[, grepl('^V\\d+$', colnames(ex))] <- NULL
+    
+    isnum   <- unname(sapply(ex, is.numeric))
+    isprobe <- unname(sapply(ex, function(col) is.integer(col) & min(col) > 10000))
+    isnum   <- isnum & !isprobe
+    
+    # bug fix for GSE38012 with NAs in ENTREZ_GENE_ID column of ex
+    isnum   <- isnum & !is.na(isnum)
+    
+    # keep tally
+    nnum <- nnum + sum(isnum)
+  }
+  return(nnum)
+}
 
+
+#' Attempts to fix Illumina raw data header
+#' 
+#' Reads raw data files and tries to fix them up so that they can be loaded by \link[limma]{read.ilmn}.
+#'
+#' @param elist_paths Path to Illumina raw data files. Usually contain patterns:
+#'   non_normalized.txt, raw.txt, or _supplementary_.txt
+#' @param eset ExpressionSet from \link{getGEO}.
+#'
+#' @return Character vector for \code{annotation} argument to \link[limma]{read.ilmn}. Fixed raw data files
+#'   are saved with filename ending in _fixed.txt
+#'
 fix_illum_headers <- function(elist_paths, eset = NULL) {
 
     annotation <- c()
+    nnum <- ilmn.nnum(elist_paths)
     for (path in elist_paths) {
         # fixed path
         fpath <- gsub(".txt", "_fixed.txt", path, fixed = TRUE)
@@ -44,7 +87,7 @@ fix_illum_headers <- function(elist_paths, eset = NULL) {
         # read raw file
         rawf <- readLines(path)
 
-        # make tab seperated if currently not
+        # make tab separated if currently not
         delim <- reader::get.delim(path, n=50, skip=100)
         if (delim != '\t') rawf <- gsub(delim, '\t', rawf)
 
@@ -84,7 +127,7 @@ fix_illum_headers <- function(elist_paths, eset = NULL) {
             rawf[1] <- paste0(names(ex), collapse = '\t')
         }
 
-        # remove any columns that start with V
+        # remove any columns that start with V (autonamed by data.table)
         ex[, grepl('^V\\d+$', colnames(ex))] <- NULL
 
 
@@ -181,12 +224,12 @@ fix_illum_headers <- function(elist_paths, eset = NULL) {
         }
 
 
-        # if num numeric columns is n samples, set Signal to numeric columns ----
+        # if num numeric columns (in all elist_paths) is n samples in eset, set Signal to numeric columns ----
 
         if (!is.null(eset)) {
             nsamp <- ncol(eset)
 
-            if (sum(isnum) == nsamp) {
+            if (nnum == nsamp) {
                 # add Signal identifier to all numeric columns
                 colnames(ex)[isnum] <- gsub('AVG_Signal-', '', colnames(ex)[isnum])
                 colnames(ex)[isnum] <- paste0('AVG_Signal-', colnames(ex)[isnum])
@@ -197,6 +240,7 @@ fix_illum_headers <- function(elist_paths, eset = NULL) {
 
         writeLines(rawf, fpath)
     }
+    # for multiple raw files
     annotation <- unique(annotation)
     if (!length(annotation) || identical(annotation, 'ID_REF')) annotation = c("TargetID", "SYMBOL", "ID_REF")
     return(annotation)
