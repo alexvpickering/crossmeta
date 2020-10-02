@@ -64,6 +64,45 @@ ilmn.nnum <- function(elist_paths) {
   return(nnum)
 }
 
+#' Run prefix on Illumina raw data files
+#'
+#' @param elist_paths Paths to raw Illumina data files
+#'
+#' @return Paths to fixed versions of \code{elist_paths}
+#' 
+prefix_illum_headers <- function(elist_paths) {
+  
+  fpaths <- c()
+  for (path in elist_paths) {
+    # fixed path
+    fpath <- gsub(".txt", "_fixed.txt", path, fixed = TRUE)
+    
+    # read raw file
+    rawf <- readLines(path)
+    
+    # make tab separated if currently not
+    delim <- reader::get.delim(path, n=50, skip=100)
+    if (delim != '\t') rawf <- gsub(delim, '\t', rawf)
+    
+    # exclude lines starting with hashtag
+    exclude <- grepl('^.?#', rawf)
+    rawf <- rawf[!exclude]
+    
+    # remove trailing tabs
+    rawf <- gsub('\t*$', '', rawf)
+    
+    # setup header line
+    rawf <- setup_hline(rawf)
+    
+    # save as will read from
+    writeLines(rawf, fpath)
+    
+    fpaths <- c(fpaths, fpath)
+  }
+  
+  return(fpaths)
+}
+
 
 #' Attempts to fix Illumina raw data header
 #' 
@@ -79,30 +118,17 @@ ilmn.nnum <- function(elist_paths) {
 fix_illum_headers <- function(elist_paths, eset = NULL) {
 
     annotation <- c()
-    nnum <- ilmn.nnum(elist_paths)
-    for (path in elist_paths) {
-        # fixed path
-        fpath <- gsub(".txt", "_fixed.txt", path, fixed = TRUE)
+    
+    # need to run for all so that can get nnum
+    fpaths <- prefix_illum_headers(elist_paths)
+    
+    # number of numeric columns in all Illumina raw data files
+    nnum <- ilmn.nnum(fpaths)
+    
+    for (fpath in fpaths) {
 
-        # read raw file
-        rawf <- readLines(path)
-
-        # make tab separated if currently not
-        delim <- reader::get.delim(path, n=50, skip=100)
-        if (delim != '\t') rawf <- gsub(delim, '\t', rawf)
-
-        # exclude lines starting with hashtag
-        exclude <- grepl('^.?#', rawf)
-        rawf <- rawf[!exclude]
-
-        # remove trailing tabs
-        rawf <- gsub('\t*$', '', rawf)
-
-        # setup header line
-        rawf <- setup_hline(rawf)
-
-        # save as will read from
-        writeLines(rawf, fpath)
+        # read prefixed raw file
+        rawf <- readLines(fpath)
 
         # fread first 1000 rows as example
         ex <- data.table::fread(fpath, sep = '\t', skip = 0, header = TRUE, nrows = 1000, fill = TRUE)
