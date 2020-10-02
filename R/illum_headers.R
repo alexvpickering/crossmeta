@@ -197,6 +197,7 @@ fix_illum_headers <- function(elist_paths, eset = NULL) {
 
         writeLines(rawf, fpath)
     }
+    annotation <- unique(annotation)
     if (!length(annotation) || identical(annotation, 'ID_REF')) annotation = c("TargetID", "SYMBOL", "ID_REF")
     return(annotation)
 }
