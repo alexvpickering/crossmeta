@@ -128,7 +128,7 @@ load_agil_plat <- function (eset, ch2, gse_dir, gse_name, ensql) {
       # follows 'Separate Channel Analysis of Two-Color Data' to make as if single channel
       elist <- limma::backgroundCorrect(elist, method="normexp", offset=50)
       elist <- limma::normalizeWithinArrays(elist, method="loess")
-      elist <- limma::normalizeBetweenArrays(MA.p, method="Aquantile")
+      elist <- limma::normalizeBetweenArrays(elist, method="Aquantile")
       
     } else  {
       elist <- limma::neqc(elist, status = elist$genes$ControlType, negctrl = -1, regular = 0)
