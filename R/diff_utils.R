@@ -153,18 +153,24 @@ diff_expr <- function (esets, data_dir = getwd(),
 
 match_prev_eset <- function(eset, prev_anal) {
 
-    # retain previously selected samples only
-    # TODO: keep all samples: https://support.bioconductor.org/p/73107/
-    selected_samples <- row.names(prev_anal$pdata)
-    eset <- eset[, selected_samples]
+    # keep all samples: https://support.bioconductor.org/p/73107/
+    prev <- prev_anal$pdata
+    unsel <- setdiff(colnames(eset), row.names(prev))
+    
+    # group any undefined samples together
+    prev[unsel, ] <- NA
+    prev[unsel, 'group'] <- 'NOT_SPECIFIED'
+    
+    # same order as eset
+    prev <- prev[colnames(eset), ]
 
     # transfer previous treatment, group, and pairs to eset
-    pData(eset)$treatment <- prev_anal$pdata$treatment
-    pData(eset)$group     <- prev_anal$pdata$group
-    pData(eset)$pairs     <- NA
+    eset$treatment <- prev$treatment
+    eset$group     <- prev$group
+    eset$pairs     <- NA
 
-    if ("pairs" %in% colnames(prev_anal$pdata)) {
-        pData(eset)$pairs <- prev_anal$pdata$pairs
+    if ("pairs" %in% colnames(prev)) {
+        eset$pairs <- prev$pairs
     }
 
     return (eset)
@@ -197,7 +203,7 @@ add_contrasts <- function (eset, gse_name, prev_anal) {
 
         # get contrast info from previous analysis
         contrasts    <- colnames(prev_anal$ebayes_sv$contrasts)
-        group_levels <- unique(prev_anal$pdata$group)
+        group_levels <- unique(eset$group)
 
 
     } else {

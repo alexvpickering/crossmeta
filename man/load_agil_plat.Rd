@@ -4,12 +4,10 @@
 \alias{load_agil_plat}
 \title{Load Agilent raw data}
 \usage{
-load_agil_plat(eset, ch2, gse_dir, gse_name, ensql)
+load_agil_plat(eset, gse_dir, gse_name, ensql)
 }
 \arguments{
 \item{eset}{ExpressionSet from \link{getGEO}}
-
-\item{ch2}{Boolean indicating in two-channel array}
 
 \item{gse_dir}{Direction with Agilent raw data}
 
