@@ -198,6 +198,34 @@ exprs.MA <- function(MA) {
   return(y)
 }
 
+#' Covert expression values to MAList
+#'
+#' @param y Expression values from two-channel agilent array in order all red then all green.
+#'
+#' @return MAList
+#' @export
+#'
+#' @examples
+#' 
+#' A <- matrix(rnorm(100), ncol = 5)
+#' M <- matrix(rnorm(100), ncol = 5)
+#' MA <- new('MAList', list(M=M, A=A))
+#' colnames(MA) <- letters[1:5]
+#' 
+#' y <- exprs.MA(MA)
+#' MA2 <- to_ma(y)
+#' colnames(MA2) <- gsub('_red|_green', '', colnames(MA2))
+#' all.equal(MA, MA2)
+#' 
+to_ma <- function(y) {
+  narray <- ncol(y)/2
+  R <- y[, 1:narray]
+  G <- y[, (narray+1):ncol(y)]
+  M <- R - G
+  A <- (R + G)/2
+  MA <- new("MAList", list(M=M, A=A))
+}
+
 #' Construct AnnotatedDataFrame from Two-Channel ExpressionSet
 #' 
 #'
