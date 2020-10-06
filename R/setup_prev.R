@@ -4,7 +4,7 @@
 #' \code{\link{diff_expr}}  error prone and time-consuming. This is often true
 #' for large clinical data sets.
 #'
-#' @param eset List containing one expression set with pData 'group' and 'pairs'
+#' @param eset List containing one expression set with pData 'group' and 'pair'
 #'    (optional) columns. Name of \code{eset} should be the GSE name.
 #' @param contrasts Character vector specifying contrasts to analyse. Each
 #'    contrast must take the form "B-A" where both "B" and "A" are present in
@@ -59,15 +59,15 @@ setup_prev <- function(eset, contrasts) {
     # remove expression and feature data
     pdata <- pData(eset)
 
-    # setup treatment and keep samples used in contrasts
+    # setup treatment 
     used <- strsplit(contrasts, "-")
     ctrl <- sapply(used, `[`, 2)
     test <- sapply(used, `[`, 1)
-    used <- c(ctrl, test)
 
     group <- pdata$group
-    pdata$treatment <- ifelse(group %in% ctrl, "ctrl", "test")
-    pdata <- pdata[group %in% used, ]
+    pdata$treatment <- NA
+    pdata$treatment[group %in% ctrl] <- 'ctrl'
+    pdata$treatment[group %in% test] <- 'test'
 
     # setup fake ebayes_sv
     eb <- list(contrasts = matrix(ncol=length(contrasts),

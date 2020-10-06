@@ -69,26 +69,41 @@ diff_path <- function(esets, prev_anals, data_dir = getwd()) {
 
         eset <- esets[[i]]
         gse_name <- names(esets)[i]
-        prev_anal <- prev_anals[[i]]
+        prev <- prev_anals[[i]]
 
         cat('Working on', paste0(gse_name, ':'), '\n')
 
         gse_folder <- strsplit(gse_name, "\\.")[[1]][1]  # name can be "GSE.GPL"
         gse_dir <- file.path(data_dir, gse_folder)
-
-        # select contrasts
-        cons <- add_contrasts(eset, gse_name, prev_anal)
-        contrasts <- cons$contrasts
-
-        # remove replicates/duplicates and annotate with human ENTREZID
-        dups <- iqr_replicates(cons$eset, annot = 'ENTREZID_HS', rm.dup = TRUE)
-        eset <- dups$eset
-
+        
+        # select groups/contrasts
+        if (is.null(prev)) prev <- select_contrasts(eset, gse_name)
+        if (is.null(prev)) next
+        
+        # add groups from selection
+        eset <- match_prev_eset(eset, prev)
+        
+        # possibly subset two-channel to be like one-channel
+        eset <- ch2_subset(eset, prev)
+        
+        # group/contrast info from previous analysis
+        cons <- colnames(prev$ebayes_sv$contrasts)
+        group_levels <- unique(eset$group)
+        
+        # run surrogate variable analysis
+        sva_mods <- get_mods(eset@phenoData)
+        svobj <- run_sva(sva_mods, eset, svanal)
+        
+        # add surrogate variable/pair adjusted ("clean") expression matrix for iqr_replicates
+        eset <- add_adjusted(eset, svobj)
+        
+        # remove rows with duplicated/NA annot (SYMBOL or ENTREZID)
+        eset <- iqr_replicates(eset, annot = 'ENTREZID_HS', rm.dup = TRUE)
         groups <- pData(eset)$group
 
         pts <- list()
         # padog for each contrast
-        for (con in contrasts) {
+        for (con in cons) {
 
             cat('    ', paste0(con, '\n'))
 
@@ -102,11 +117,11 @@ diff_path <- function(esets, prev_anals, data_dir = getwd()) {
 
             # other padog inputs
             esetm  <- exprs(eset[, incon])
-            pairs  <- pData(eset[, incon])$pairs
-            paired <- !anyNA(pairs)
+            pair   <- pData(eset[, incon])$pair
+            paired <- !anyNA(pair)
             block  <- NULL
             if (paired)
-                block <- pairs
+                block <- pair
 
             anal_name <- paste(gse_name, con, sep='_')
 
@@ -118,7 +133,7 @@ diff_path <- function(esets, prev_anals, data_dir = getwd()) {
 
         if (length(pts) == 0) next()
 
-        anal <- list(padog_tables = pts, sources = prev_anal$sources, pairs = prev_anal$pairs)
+        anal <- list(padog_tables = pts, sources = prev$sources, pair = prev$pair)
 
         # save to disk
         save_name <- paste(gse_name, "diff_path", sep = "_")

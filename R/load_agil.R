@@ -214,7 +214,6 @@ exprs.MA <- function(MA) {
 #' 
 #' y <- exprs.MA(MA)
 #' MA2 <- to_ma(y)
-#' colnames(MA2) <- gsub('_red|_green', '', colnames(MA2))
 #' all.equal(MA, MA2)
 #' 
 to_ma <- function(y) {
@@ -224,6 +223,8 @@ to_ma <- function(y) {
   M <- R - G
   A <- (R + G)/2
   MA <- new("MAList", list(M=M, A=A))
+  colnames(MA) <- gsub('_red|_green', '', colnames(MA))
+  return(MA)
 }
 
 #' Construct AnnotatedDataFrame from Two-Channel ExpressionSet

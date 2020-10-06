@@ -134,7 +134,7 @@ setup_src <- function(anals, ttype = c("top_tables", "padog_tables")) {
     con_src <- unlist(sapply(unname(anals), `[[`, 'sources'))
 
     # get added pairs
-    added_prs <- lapply(anals, function(anal) anal$pairs)
+    added_prs <- lapply(anals, function(anal) anal$pair)
     added_prs <- unique(unlist(added_prs, recursive = FALSE, use.names = FALSE))
 
     # get non-pair sources

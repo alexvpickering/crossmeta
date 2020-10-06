@@ -7,7 +7,7 @@
 setup_prev(eset, contrasts)
 }
 \arguments{
-\item{eset}{List containing one expression set with pData 'group' and 'pairs'
+\item{eset}{List containing one expression set with pData 'group' and 'pair'
 (optional) columns. Name of \code{eset} should be the GSE name.}
 
 \item{contrasts}{Character vector specifying contrasts to analyse. Each

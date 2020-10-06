@@ -24,7 +24,6 @@ colnames(MA) <- letters[1:5]
 
 y <- exprs.MA(MA)
 MA2 <- to_ma(y)
-colnames(MA2) <- gsub('_red|_green', '', colnames(MA2))
 all.equal(MA, MA2)
 
 }

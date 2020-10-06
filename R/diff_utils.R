@@ -44,7 +44,7 @@
 #'
 #' @return List of named lists, one for each GSE. Each named list contains:
 #'   \item{pdata}{data.frame with phenotype data for selected samples.
-#'      Columns \code{treatment} ('ctrl' or 'test'), \code{group}, and \code{pairs} are
+#'      Columns \code{treatment} ('ctrl' or 'test'), \code{group}, and \code{pair} are
 #'      added based on user selections.}
 #'   \item{top_tables}{List with results of \code{\link[limma]{topTable}} call (one per
 #'      contrast). These results account for the effects of nuissance variables
@@ -98,38 +98,37 @@ diff_expr <- function (esets, data_dir = getwd(),
 
         eset <- esets[[i]]
         gse_name <- names(esets)[i]
-        prev_anal <- prev_anals[[i]]
+        prev <- prev_anals[[i]]
 
         gse_folder <- strsplit(gse_name, "\\.")[[1]][1]  # name can be "GSE.GPL"
         gse_dir <- file.path(data_dir, gse_folder)
       
-        # select contrasts
-        cons <- add_contrasts(eset, gse_name, prev_anal)
-        if (is.null(cons)) next
+        # select groups/contrasts
+        if (is.null(prev)) prev <- select_contrasts(eset, gse_name)
+        if (is.null(prev)) next
+        
+        # add groups from selection
+        eset <- match_prev_eset(eset, prev)
+        
+        # possibly subset two-channel to be like one-channel
+        eset <- ch2_subset(eset, prev)
+        
+        # group/contrast info from previous analysis
+        contrasts <- colnames(prev$ebayes_sv$contrasts)
+        group_levels <- unique(eset$group)
+        
+        # run surrogate variable analysis
+        sva_mods <- get_sva_mods(eset@phenoData)
+        svobj <- run_sva(sva_mods, eset, svanal)
 
-        # setup for differential expression
-        setup <- diff_setup(cons$eset, cons$levels, gse_name, svanal)
-
+        # add surrogate variable/pair adjusted ("clean") expression matrix for iqr_replicates
+        eset <- add_adjusted(eset, svobj)
 
         # remove rows with duplicated/NA annot (SYMBOL or ENTREZID)
-        dups <- tryCatch (
-            {iqr_replicates(cons$eset, setup$mod, setup$svobj, annot)},
-
-            error = function(c) {
-                message(gse_name, ": couldn't fit model - skipping GSE.",
-                        " Could try non-GUI selection (see ?setup_prev).")
-                return(c)
-            })
-        if(inherits(dups, "error")) next
-
-        # option to not account for surrogate variables
-        # to restore add 'use_sva = TRUE' as function parameter
-
-        # if (!use_sva) setup$modsv <- setup$mod
+        eset <- iqr_replicates(eset, annot)
 
         # differential expression
-        anal <- diff_anal(dups$eset, dups$exprs_sva, cons$contrasts, cons$levels,
-                          setup$modsv, gse_dir, gse_name, annot)
+        anal <- diff_anal(eset, svobj, contrasts, group_levels, gse_dir, gse_name, annot)
 
         anals[[gse_name]] <- anal
     }
@@ -138,7 +137,32 @@ diff_expr <- function (esets, data_dir = getwd(),
 
 
 # ---------------------
-
+#' Add expression data adjusted for pairs/surrogate variables
+#'
+#' @param eset ExpressionSet
+#' @param svobj surrogate variable object
+#'
+#' @return eset with \code{adjusted} element added
+#' 
+add_adjusted <- function(eset, svobj = list(sv = NULL)) {
+  
+  # get mods with group and pair effects
+  mods <- get_sva_mods(eset@phenoData)
+  mod <- mods$mod
+  mod0 <- mods$mod0
+  
+  # remove pairs from alternative model so that get cleaned
+  pair_cols <- colnames(mod0)[-1]
+  
+  svs <- svobj$sv
+  mod <- mod[, !colnames(mod) %in% pair_cols]
+  mod.clean <- cbind(mod0[, pair_cols], svs)
+  
+  y <- Biobase::exprs(eset)
+  adj <- clean_y(y, mod, mod.clean)
+  Biobase::assayDataElement(eset, 'adjusted') <- adj
+  return(eset)
+}
 
 # Reuse contrast selections from previous analysis.
 #
@@ -152,6 +176,8 @@ diff_expr <- function (esets, data_dir = getwd(),
 # @return Expression set with samples and pData as in prev_anal.
 
 match_prev_eset <- function(eset, prev_anal) {
+    # same order as eset
+    prev_anal$pdata <- prev_anal$pdata[colnames(eset), ]
 
     # keep all samples: https://support.bioconductor.org/p/73107/
     prev <- prev_anal$pdata
@@ -161,21 +187,57 @@ match_prev_eset <- function(eset, prev_anal) {
     prev[unsel, ] <- NA
     prev[unsel, 'group'] <- 'NOT_SPECIFIED'
     
-    # same order as eset
-    prev <- prev[colnames(eset), ]
 
     # transfer previous treatment, group, and pairs to eset
     eset$treatment <- prev$treatment
     eset$group     <- prev$group
-    eset$pairs     <- NA
+    eset$pair      <- NA
 
-    if ("pairs" %in% colnames(prev)) {
-        eset$pairs <- prev$pairs
+    if ("pair" %in% colnames(prev)) {
+        eset$pair <- prev$pair
     }
 
     return (eset)
 }
 
+
+#' Subset for Paired Two-Channel ExpressionSet
+#' 
+#' Two-channel esets use intraspotCorrelation and lmscFit so can't use duplicateCorrelation.
+#' If not using one channel in contrasts (e.g. because all reference RNA) and have paired design,
+#' better to treat as single channel so that can use duplicateCorrelation.
+#'
+#' @param eset ExpressionSet
+#' @inheritParams diff_expr
+#'
+#' @return ExpressionSet. If two-channel, paired and one channel not used will subset to used channel.
+#' @export
+#'
+ch2_subset <- function(eset, prev_anal) {
+  cons <- colnames(prev_anal$ebayes_sv$contrasts)
+  gsm_names <- colnames(eset)
+  
+  # treat as single-channel if two-channel, paired, and not using both channels
+  # so that can use duplicateCorrelation
+  ch2 <- any(grepl('_red|_green', gsm_names))
+  paired <- length(unique(eset$pair)) > 1
+  
+  if (ch2 & paired) {
+    
+    sel <- strsplit(cons, '-')[[1]]
+    sel.gsm <- gsm_names[eset$group %in% sel]
+    sel.colrs <- gsub('^.+_(red|green)$', '\\1', sel.gsm)
+    sel.colrs <- unique(sel.colrs)
+    one.colr <- length(sel.colrs == 1)
+    
+    if (!one.colr) stop('two-color paired designs not implemented')
+    
+    eset <- eset[, sel.gsm]
+    colnames(eset) <- gsub('^(.+)_(red|green)$', '\\1', sel.gsm)
+  }
+  
+  return(eset)
+}
 
 # ------------------------
 
@@ -211,7 +273,7 @@ add_contrasts <- function (eset, gse_name, prev_anal) {
         sels <- select_contrasts(gse_name, eset)
 
         # add pairs info to pheno data
-        pData(eset)$pairs <- sels$pairs
+        pData(eset)$pair <- sels$pair
 
         if (length(sels$cons$Control) ==  0) return(NULL)
 
@@ -251,115 +313,127 @@ add_contrasts <- function (eset, gse_name, prev_anal) {
 
 
 
-# ------------------------
-
-
-# Generate model matrix with surrogate variables.
-#
-# Used by \code{diff_expr} to create model matrix with surrogate variables
-# in order to run \code{diff_anal}.
-#
-# @param eset Annotated eset with samples selected during \code{add_contrasts}.
-# @param group_levels Character vector of unique group names created by
-#    \code{add_contrasts}.
-#
-# @seealso \code{\link{add_contrasts}}, \code{\link{diff_expr}}.
-# @return List with model matrix(mod), model matrix with surrogate
-#         variables(modsv), and result of \code{sva} function.
-
-diff_setup <- function(eset, group_levels, gse_name, svanal = TRUE){
-
-    # incase svanal FALSE
-    svobj <- list("sv" = NULL)
-
-    # make full and null model matrix
-    group <- factor(pData(eset)$group, levels = group_levels)
-    pairs <- factor(pData(eset)$pairs)
-
-    if (length(levels(pairs)) > 1) {
-        mod <- stats::model.matrix(~0 + group + pairs)
-        mod0 <- stats::model.matrix(~1 + pairs)
-    } else {
-        mod <- stats::model.matrix(~0 + group)
-        mod0 <- stats::model.matrix(~1, data = group)
-    }
-    colnames(mod)[1:length(group_levels)] <- group_levels
-
-    if (svanal) {
-        # surrogate variable analysis
-        # remove duplicated rows (from 1:many PROBE:SYMBOL) as affect sva
-        PROBE <- fData(eset)$PROBE
-        expr  <- unique(data.table(exprs(eset), PROBE))[, PROBE:=NULL]
-        svobj <- tryCatch (
-            {utils::capture.output(svobj <- sva::sva(as.matrix(expr), mod, mod0)); svobj},
-
-            error = function(cond) {
-                message(gse_name, ": sva failed - continuing without.")
-                return(list("sv" = NULL))
-            })
-    }
-
-    if (is.null(svobj$sv) || svobj$n.sv ==  0) {
-        svobj$sv <- NULL
-        modsv <- mod
-    } else {
-        modsv <- cbind(mod, svobj$sv)
-        colnames(modsv) <- c(colnames(mod), paste("SV", 1:svobj$n.sv, sep = ""))
-    }
-    return (list("mod" = mod, "modsv" = modsv, "svobj" = svobj))
+#' Get model matrices for surrogate variable analysis
+#'
+#' Used by \code{add_adjusted} to create model matrix with surrogate variables.
+#'
+#' @param eset Annotated eset with samples selected during \code{add_contrasts}.
+#'
+#' @return List with model matrix(mod) and null model matrix (mod0) used for \code{sva}.
+#'
+get_sva_mods <- function(pdata) {
+  
+  # make full and null model matrix
+  group_levels <- setdiff(unique(pdata$group), NA)
+  group <- factor(pdata$group, levels = group_levels)
+  pair <- factor(pdata$pair)
+  
+  contrasts.fun <- function(l)lapply(l, stats::contrasts, contrasts = FALSE)
+  
+  # if pairs include in alternative and null model
+  if (length(pair)) {
+    mod <- stats::model.matrix(~0 + group + pair, contrasts.arg = contrasts.fun(list(group=group, pair=pair)))
+    mod0 <- stats::model.matrix(~1 + pair, data = group, contrasts.arg = contrasts.fun(list(pair=pair)))
+    
+  } else {
+    mod <- stats::model.matrix(~0 + group)
+    mod0 <- stats::model.matrix(~1, data = group)
+  }
+  
+  # rename group columns
+  colnames(mod)[1:length(group_levels)] <- group_levels
+  
+  if (length(pair)) {
+    # remove non matched pairs
+    pair_cols <- colnames(mod0)[-1]
+    has.pair <- colSums(mod0[, pair_cols, drop = FALSE]) >= 2
+    has.pair <- names(which(has.pair))
+    
+    # if multiple pair columns then remove first
+    if (length(has.pair) > 1) has.pair <- has.pair[-1]
+    
+    mod <- mod[, c(group_levels, has.pair), drop = FALSE]
+    mod0 <- mod0[, c("(Intercept)", has.pair), drop = FALSE]
+  }
+  
+  return(list("mod" = mod, "mod0" = mod0))
 }
 
+#' Run surrogate variable analysis
+#'
+#' @param mods result of \code{get_mods}
+#' @param eset ExpressionSet
+#' @param svanal Should surrogate variable analysis be run? If \code{FALSE}, returns dummy result.
+#'
+run_sva <- function(mods, eset, svanal) {
+  if (!svanal) return(list("sv" = NULL))
+  
+  # remove duplicated rows (from 1:many PROBE:SYMBOL) as affect sva
+  PROBE <- Biobase::fData(eset)$PROBE
+  
+  expr <- unique(data.table::data.table(Biobase::exprs(eset), PROBE))[, PROBE := NULL]
+  expr <- as.matrix(expr)
+  
+  set.seed(100)
+  svobj <- tryCatch (
+    {utils::capture.output(svobj <- sva::sva(expr, mods$mod, mods$mod0)); svobj},
+    
+    error = function(e) {
+      message(gse_name, ": sva failed - continuing without.")
+      return(list("sv" = NULL))
+    })
+  
+  return(svobj)
+}
 
 # ------------------------
-
-
-
-# Removes features with replicated annotation.
-#
-# For rows with duplicated annot, highested IQR retained.
-#
-# @inheritParams diff_expr
-# @inheritParams diff_setup
-# @param mod Model matrix without surrogate variables. generated by \code{diff_setup}.
-# @param svobj Result from \code{sva} function called during \code{diff_setup}.
-# @param annot feature to use to remove replicates.
-# @param rm.dup remove duplicates (same measure, multiple ids)?
-#
-# @return List with:
-#    \item{eset}{Expression set with unique features at probe or gene level.}
-#    \item{exprs_sva}{Expression data from eset with effect of surrogate
-#       variable removed.}
-
-iqr_replicates <- function (eset, mod = NULL, svobj = NULL, annot = "SYMBOL", rm.dup = FALSE) {
-
-    # for R CMD check
-    iqrange = SYMBOL = NULL
-
-    if (length(svobj) > 0) {
-        # get eset with surrogate variables modeled out
-        exprs_sva <- clean_y(exprs(eset), mod, svobj$sv)
-    } else {
-        exprs_sva <- exprs(eset)
-    }
+#' Removes features with replicated annotation.
+#'
+#' For rows with duplicated annot, highested IQR retained.
+#'
+#' @param mod Model matrix without surrogate variables. generated by \code{diff_setup}.
+#' @param svobj Result from \code{sva} function called during \code{diff_setup}.
+#' @param annot feature to use to remove replicates.
+#' @param rm.dup remove duplicates (same measure, multiple ids)? Used for Pathway analysis so that doesn't treat
+#'  probes that map to multiple genes as distinct measures.
+#'
+#' @return Expression set with unique features at probe or gene level.
+#' @export
+iqr_replicates <- function(eset, annot = "SYMBOL", rm.dup = FALSE) {
+  
+  # for R CMD check
+  iqrange = SYMBOL = NULL
+  
+  # do less work if possible as can take seconds
+  fdata <- fData(eset)
+  annot.all <- fData(eset)[, annot]
+  annot.na  <- is.na(annot.all)
+  annot.dup <- duplicated(annot.all[!annot.na])
+  
+  if (!any(annot.dup)) {
+    eset <- eset[!annot.na, ]
+    featureNames(eset) <- fdata[!annot.na, annot]
     
-    iqr_rows <- which_max_iqr(eset, annot, exprs_sva)
-
-    # use row number to keep selected features
+  } else {
+    # use sva adjusted to compute IQRs
+    y <- assayDataElement(eset, 'adjusted')
+    
+    iqr_rows <- which_max_iqr(eset, annot, y)
     eset <- eset[iqr_rows, ]
-    exprs_sva <- exprs_sva[iqr_rows, ]
-
+    
     # use annot for feature names
     featureNames(eset) <- fData(eset)[, annot]
-    row.names(exprs_sva)   <- fData(eset)[, annot]
-
-    if (rm.dup) {
-        not.dup <- !duplicated(exprs_sva)
-        eset <- eset[not.dup, ]
-        exprs_sva <- exprs_sva[not.dup, ]
-    }
-
-    return (list(eset = eset, exprs_sva = exprs_sva))
+  }
+  
+  # remove probes that map to multiple genes (for pathway analysis)
+  if (rm.dup) {
+    not.dup <- !duplicated(assayDataElement(eset, 'adjusted'))
+    eset <- eset[not.dup, ]
+  }
+  
+  return(eset)
 }
+
 
 #' Get row indices of maximum IQR within annotation groups
 #' 
@@ -403,13 +477,10 @@ which_max_iqr <- function(eset, groub_by, x = exprs(eset)) {
 #
 # @param eset Annotated eset created by \code{load_raw}. Replicate features and
 #   non-selected samples removed by \code{iqr_replicates}.
-# @param exprs_sva Expression data with surrogate variables removed. Created by
-#    \code{iqr_replicates}
+# @param svobj Surrogate variable analysis object returned by \code{run_sva}.
 # @param contrasts Character vector generated by \code{add_contrasts}.
 # @param group_levels Character vector of group names generated by
 #    \code{add_contrasts}.
-# @param mod, modsv Model matrix generated by \code{diff_setup}. With
-#   and without surrogate variables.
 # @param svobj Result from \code{sva} function called during \code{diff_setup}.
 # @param gse_dir String, path to directory with GSE folders.
 # @param gse_name String, name of GSE.
@@ -420,11 +491,19 @@ which_max_iqr <- function(eset, groub_by, x = exprs(eset)) {
 # @return List, final result of \code{diff_expr}. Used for subsequent
 #   meta-analysis.
 
-diff_anal <- function(eset, exprs_sva, contrasts, group_levels,
-                      modsv, gse_dir, gse_name, annot = "SYMBOL"){
+diff_anal <- function(eset, svobj, contrasts, group_levels, gse_dir, gse_name, annot = "SYMBOL"){
+  
+    # setup model matrix with surrogate variables
+    group <- eset$group
+    mod <- model.matrix(~0 + group)
+    colnames(mod) <- gsub('^group', '', colnames(mod))
+    svmod <- svobj$sv
+    svind <- seq_len(ncol(svmod))
+    if (length(svind)) colnames(svmod) <- paste0('SV', svind)
+    mod <- cbind(mod, svmod)
 
-    # differential expression (surrogate variables modeled and not)
-    ebayes_sv <- fit_ebayes(eset, contrasts, modsv)
+    # run lmFit and eBayes
+    ebayes_sv <- fit_ebayes(eset, contrasts, mod)
 
     # annotate/store results
     top_tables <- list()
@@ -446,8 +525,9 @@ diff_anal <- function(eset, exprs_sva, contrasts, group_levels,
     # Add extra space to right of plot area
     graphics::par(mai = c(1, 1, 1, 1.4))
 
-    # plot MDS
-    limma::plotMDS(exprs_sva, pch = 19, main = gse_name, col = colours)
+    # plot MDS using sv/pair cleaned data
+    adj <- Biobase::assayDataElement(eset, 'adjusted')
+    limma::plotMDS(adj, pch = 19, main = gse_name, col = colours)
     graphics::legend("topright", inset = c(-0.18, 0), legend = group_levels,
                      fill = unique(colours), xpd = TRUE, bty = "n", cex = 0.65)
 
@@ -467,36 +547,93 @@ diff_anal <- function(eset, exprs_sva, contrasts, group_levels,
 # ------------------------
 
 
-# Perform eBayes analysis from limma.
+#' Get design matrix for two-channel array
+#'
+#' @param eset ExpressionSet with \code{colnames} that end in '_red' and '_green'
+#'   indicating channel and \code{eset$group} indicating group membership.
+#'
+#' @return model matrix for use by \link[limma]{intraspotCorrelation} and \link[limma]{lmscFit}
+#'
+get_ch2_mod <- function(eset) {
+  
+  gsm_name <- gsub('_red|_green', '', colnames(eset))
+  color <- gsub('^.+?_(red|green)$', '\\1', colnames(eset))
+  group <- eset$group
+  
+  is.green <- color == 'green'
+  targets <- data.frame(row.names = gsm_name[is.green],
+                        Cy3 = group[is.green],
+                        Cy5 = group[!is.green])
+  
+  targets2 <- limma::targetsA2C(targets)
+  levels <- unique(targets2$Target)
+  group <- factor(targets2$Target, levels=levels)
+  mod <- stats::model.matrix(~0+group)
+  colnames(mod) <- levels
+  return(mod)
+}
+
+# Perform lmFit and eBayes analysis from limma.
 #
-# Generates contrast matrix then runs eBayes analysis from limma.
+# If paired samples, runs \code{\link[limma]{duplicateCorrelation}} to estimate intra-patient variance.
+# If non-paired two-channel Agilent, runs \code{\link[limma]{intraspotCorrelation}} and \code{\link[limma]{lmscFit}}.
 #
 # @param eset Annotated eset created by \code{load_raw}. Non-selected samples
 #    and duplicate features removed by \code{add_contrasts} and
 #    \code{iqr_replicates}.
 # @param contrasts Character vector of contrast names generated by
 #    \code{add_contrasts}.
-# @param mod Model matrix generated by \code{diff_setup}. With
+# @param mod Model matrix generated by \code{diff_anal}. With
 #   or without surrogate variables.
 #
 # @return result from call to limma \code{eBayes}.
 
 fit_ebayes <- function(eset, contrasts, mod) {
-    contrast_matrix <- limma::makeContrasts(contrasts = contrasts, levels = mod)
+  
+    pair <- eset$pair
+    y <- Biobase::exprs(eset)
     
-    # check for two-channel Agilent array (has M slot)
-    ch2 <- 'M' %in%  Biobase::assayDataElementNames(eset)
-    if (ch2) {
-      MA <- list(M = Biobase::assayDataElement(eset, 'M'),
-                 A = Biobase::exprs(eset))
+    # check for two-channel Agilent array
+    ch2 <- any(grepl('_red', colnames(eset)))
+    
+    if(ch2) {
+      # unpaired two-channel agilent
+      # covert to MAList
+      MA <- to_ma(y)
       
-      MA <- new('MAList', MA)
+      # get two-channel design matrix
+      mod <- get_ch2_mod(eset)
+      
+      # run fit using intra-spot correlation
       corfit <- limma::intraspotCorrelation(MA, mod)
       fit <- limma::lmscFit(MA, mod, correlation=corfit$consensus)
       
+    } else if (length(pair)) {
+      # paired
+      corfit <- limma::duplicateCorrelation(y, mod, block = pair)
+      
+      # if couldn't estimate within-block correlation, model pair as fixed effect
+      if (is.nan(corfit$consensus.correlation)) {
+        fit <- limma::lmFit(y, mod)
+        
+        # if no dof, drop pairs and retry
+        if (fit$df.residual == 0) {
+          eset$pair <- NULL
+          mod <- get_sva_mods(eset@phenoData)$mod
+          fit <- limma::lmFit(y, mod)
+        }
+        
+      } else {
+        fit <- limma::lmFit(y, mod, correlation = corfit$consensus.correlation, block = pair)
+      }
+      
     } else {
-      fit <- limma::lmFit(exprs(eset), mod)
+      # not paired
+      fit <- limma::lmFit(y, mod)
     }
+  
+    # fit contrast
+    contrast_matrix <- limma::makeContrasts(contrasts = contrasts, levels = mod)
     
     fit <- limma::contrasts.fit(fit, contrast_matrix)
     return (limma::eBayes(fit))

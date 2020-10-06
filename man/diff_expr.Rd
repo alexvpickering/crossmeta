@@ -32,7 +32,7 @@ selections, names, and pairs will be reused.}
 \value{
 List of named lists, one for each GSE. Each named list contains:
   \item{pdata}{data.frame with phenotype data for selected samples.
-     Columns \code{treatment} ('ctrl' or 'test'), \code{group}, and \code{pairs} are
+     Columns \code{treatment} ('ctrl' or 'test'), \code{group}, and \code{pair} are
      added based on user selections.}
   \item{top_tables}{List with results of \code{\link[limma]{topTable}} call (one per
      contrast). These results account for the effects of nuissance variables
