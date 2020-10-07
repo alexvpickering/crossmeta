@@ -30,25 +30,28 @@ bulkPage <- function(input, output, session, eset, gse_name) {
 #' @keywords internal
 bulkForm <- function(input, output, session,  pdata) {
   
-  callModule(addContrast, 'add_contrast', pdata)
-  callModule(delContrasts, 'del_contrasts')
-  
-  
-  
-}
-
-addContrast <- function(input, output, session, pdata) {
-  
-  contrast_options <- list(render = I('{option: bulkContrastOptions, item: bulkContrastItem}'))
+  contrasts <- reactiveVal()
   
   group_levels <- reactive({
     get_group_levels(pdata())
   })
   
+  callModule(addContrast, 'add_contrast', group_levels, contrasts)
+  callModule(delContrasts, 'del_contrasts', group_levels, contrasts)
+  
+  
+  
+}
+
+addContrast <- function(input, output, session, group_levels, contrasts) {
+  
+  contrast_options <- list(render = I('{option: bulkContrastOptions, item: bulkContrastItem}'))
+  reset_sel <- reactiveVal(FALSE)
+  
   group_colors <- reactive(get_palette(group_levels()))
   
   group_choices <- reactive({
-    
+
     data.frame(
       name = group_levels(),
       value = group_levels(),
@@ -57,14 +60,65 @@ addContrast <- function(input, output, session, pdata) {
   })
   
   observe({
-    updateSelectizeInput(session, 'select_groups', choices = group_choices(), server = TRUE, options = contrast_options)
+    reset_sel()
+    updateSelectizeInput(session,
+                         'select_groups', 
+                         choices = group_choices(),
+                         selected = NULL,
+                         server = TRUE, 
+                         options = contrast_options)
   })
   
-  full_contrast <- reactive(length(input$contrast_groups) == 2)
+  full_contrast <- reactive(length(input$select_groups) == 2)
+  
+  observeEvent(input$add_contrast, {
+    req(full_contrast())
+    
+    # add contrast to previous contrasts
+    prev <- contrasts()
+    sel <- input$select_groups
+    new <- paste0(sel[1], '-', sel[2])
+    contrasts(c(prev, new))
+    
+    reset_sel(!reset_sel())
+  })
 }
 
-delContrasts <- function(input, output, session, pdata) {
+delContrasts <- function(input, output, session, group_levels, contrasts) {
+  contrast_options <- list(render = I('{option: contrastOptions, item: contrastItem}'))
   
+  contrast_choices <- reactive({
+    contrasts <- contrasts()
+    group_levels <- group_levels()
+    req(contrasts)
+    get_contrast_choices(contrasts, group_levels)
+  })
+  
+  observe({
+    updateSelectizeInput(session,
+                         'select_contrasts', 
+                         choices = rbind(NA, contrast_choices()),
+                         server = TRUE, 
+                         options = contrast_options)
+  })
+  
+  
+  
+}
+
+get_contrast_choices <- function(contrasts, group_levels) {
+  group_colors <- get_palette(group_levels)
+  names(group_colors) <- group_levels
+  
+  cons <- strsplit(contrasts, '-')
+  test <- sapply(cons, `[[`, 1)
+  ctrl <- sapply(cons, `[[`, 2)
+  
+  data.frame(test,
+             ctrl,
+             testColor = group_colors[test],
+             ctrlColor = group_colors[ctrl],
+             value = contrasts, stringsAsFactors = FALSE)
 }
 
 #' Get group levels for bulk data plots

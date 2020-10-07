@@ -98,11 +98,11 @@ addContrastInput <- function(id) {
 delContrastsInput <- function(id) {
   ns <- NS(id)
   
-  options_del <- list()
+  options_del <- list(multiple = TRUE)
   tags$div(shinypanel::selectizeInputWithButtons(
     ns('select_contrasts'),
     'Select comparisons to remove:',
-    actionButton(ns('del_contrast'), label = NULL, icon = icon('minus', 'fa-fw'), title = 'Remove contrast'),
+    actionButton(ns('del_contrast'), label = NULL, icon = icon('minus', 'fa-fw'), title = 'Remove contrasts'),
     options = options_del,
     container_id = ns('del_contrast_container')
   )
