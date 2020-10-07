@@ -104,7 +104,7 @@ diff_expr <- function (esets, data_dir = getwd(),
         gse_dir <- file.path(data_dir, gse_folder)
       
         # select groups/contrasts
-        if (is.null(prev)) prev <- select_contrast(eset)
+        if (is.null(prev)) prev <- select_contrasts(eset)
         if (is.null(prev)) next
         
         # add groups from selection
@@ -177,10 +177,22 @@ add_adjusted <- function(eset, svobj = list(sv = NULL)) {
 
 match_prev_eset <- function(eset, prev_anal) {
   
-    # retain previously selected samples only
+    # retain selected samples only
     # to keep all samples (https://support.bioconductor.org/p/73107/) specify groups without contrasts
-    selected_samples <- row.names(prev_anal$pdata)
-    eset <- eset[, selected_samples]
+    prev <- prev_anal$pdata
+    sel <- row.names(prev_anal$pdata)
+    
+    # for two-channel, keep both channels for lmscFit
+    # order: all R, all G
+    ch2 <- any(grepl('_red|_green', sel))
+    if (ch2) {
+      sel <- gsub('_red|_green', '', sel)
+      sel <- unique(sel)
+      sel <- paste0(sel, rep(c('_red', '_green'), each = length(sel)))
+    }
+    
+    eset <- eset[, sel]
+    prev <- prev[sel, ]
 
     # transfer previous treatment, group, and pairs to eset
     eset$treatment <- prev$treatment
