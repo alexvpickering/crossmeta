@@ -1,0 +1,14 @@
+/* table text on 1 line */
+.dt-container {white-space: nowrap;}
+
+/* to make 100% height div work */
+.dt-fake-height {height: 1px;}
+
+/*  td for bg color group column */
+td.dt-nopad {padding: 0px !important; height: 100%;}
+
+/*  div inside td for bg color group column */
+td.dt-nopad div {height: 100%; width: 100%; text-align: center;}
+
+/*  span inside div inside td for bg color group column */
+td.dt-nopad span {display: inline-block; padding: 8px 10px; color: white;}
