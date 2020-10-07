@@ -17,10 +17,13 @@ bulkPage <- function(input, output, session, eset, gse_name) {
   
   
   bulkTable <- callModule(bulkTable, 'explore',
-                               eset = eset,
-                               up_annot = up_annot)
+                          eset = eset,
+                          up_annot = up_annot)
   
-  
+  return(list(
+    pdata = bulkTable$pdata,
+    contrasts = bulkForm$contrasts
+  ))
   
 }
 
@@ -29,7 +32,122 @@ bulkPage <- function(input, output, session, eset, gse_name) {
 #' @export
 #' @keywords internal
 bulkForm <- function(input, output, session,  pdata) {
- 
+  
+  contrasts <- reactiveVal()
+  
+  group_levels <- reactive({
+    get_group_levels(pdata())
+  })
+  
+  callModule(addContrast, 'add_contrast', group_levels, contrasts)
+  callModule(delContrasts, 'del_contrasts', group_levels, contrasts)
+  
+  
+  
+  return(list(
+    contrasts = contrasts
+  ))
+  
+}
+
+addContrast <- function(input, output, session, group_levels, contrasts) {
+  
+  contrast_options <- list(render = I('{option: addContrastOptions, item: addContrastItem}'))
+  reset_sel <- reactiveVal(FALSE)
+  
+  group_colors <- reactive(get_palette(group_levels()))
+  
+  group_choices <- reactive({
+    
+    data.frame(
+      name = group_levels(),
+      value = group_levels(),
+      color = group_colors(), stringsAsFactors = FALSE
+    )
+  })
+  
+  observe({
+    reset_sel()
+    updateSelectizeInput(session,
+                         'select_groups', 
+                         choices = group_choices(),
+                         selected = NULL,
+                         server = TRUE, 
+                         options = contrast_options)
+  })
+  
+  full_contrast <- reactive(length(input$select_groups) == 2)
+  
+  observeEvent(input$add_contrast, {
+    req(full_contrast())
+    
+    # add contrast to previous contrasts
+    prev <- contrasts()
+    sel <- input$select_groups
+    new <- paste0(sel[1], '-', sel[2])
+    
+    req(!new %in% prev)
+    contrasts(c(prev, new))
+    
+    reset_sel(!reset_sel())
+  })
+}
+
+delContrasts <- function(input, output, session, group_levels, contrasts) {
+  contrast_options <- list(render = I('{option: delContrastOptions, item: delContrastItem}'))
+  
+  contrast_choices <- reactive({
+    contrasts <- contrasts()
+    group_levels <- group_levels()
+    req(contrasts)
+    get_contrast_choices(contrasts, group_levels)
+  })
+  
+  observe({
+    updateSelectizeInput(session,
+                         'select_contrasts', 
+                         choices = rbind(NA, contrast_choices()),
+                         server = TRUE, 
+                         options = contrast_options)
+  })
+  
+  observeEvent(input$del_contrasts, {
+    prev <- contrasts()
+    del <- input$select_contrasts
+    contrasts(setdiff(prev, del))
+  })
+  
+  
+  
+}
+
+get_contrast_choices <- function(contrasts, group_levels) {
+  group_colors <- get_palette(group_levels)
+  names(group_colors) <- group_levels
+  
+  cons <- strsplit(contrasts, '-')
+  test <- sapply(cons, `[[`, 1)
+  ctrl <- sapply(cons, `[[`, 2)
+  
+  data.frame(test,
+             ctrl,
+             testColor = group_colors[test],
+             ctrlColor = group_colors[ctrl],
+             value = contrasts,
+             stringsAsFactors = FALSE)
+}
+
+#' Get group levels for bulk data plots
+#'
+#' @param pdata Data.frame of phenotype data
+#' @export
+#'
+#' @keywords internal
+get_group_levels <- function(pdata) {
+  pdata <- pdata[!is.na(pdata$Group), ]
+  group <- pdata$`Group name`
+  group_order <- order(unique(pdata$Group))
+  unique(group)[group_order]
 }
 
 
@@ -51,7 +169,7 @@ bulkTable <- function(input, output, session, eset, up_annot) {
     
     group <- pdata$Group
     name  <- pdata$`Group name`
-
+    
     # update pdata Group column
     not.na <- !is.na(group)
     group_nums  <- unique(group[not.na])
@@ -86,12 +204,17 @@ bulkTable <- function(input, output, session, eset, up_annot) {
       options = list(
         columnDefs = list(list(className = 'dt-nopad', targets = 0)),
         scrollY = FALSE,
+        scrollX = TRUE,
         paging = FALSE,
         bInfo = 0
       )
     )
   })
-
+  
+  return(list(
+    pdata = pdata
+  ))
+  
 }
 
 #' Logic for downloading and uploading bulk annotation
@@ -228,7 +351,7 @@ is_invertible <- function(pdata) {
 init_pdata <- function(eset) {
   
   pcols <- colnames(eset@phenoData)
-  pdata <- data.frame('Group' = '<div style="background-color: white;"></div>',
+  pdata <- data.frame('Group' = NA,
                       'Group name' = NA,
                       'Pair' = NA,
                       'Accession' = sampleNames(eset), check.names = FALSE)
@@ -268,7 +391,7 @@ format_up_annot <- function(up, ref) {
   up[up == ''] <- NA
   
   # Group in order of Group name
-  # allows changing color of groups by changing order or samples
+  # allows changing color of groups by changing order of samples
   group <- up$`Group name`
   levels <- unique(group[!is.na(group)])
   group <- as.numeric(factor(group, levels =levels))
@@ -332,3 +455,4 @@ get_palette <- function(levs, dark = FALSE) {
   }
   return(values)
 }
+

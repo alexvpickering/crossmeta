@@ -4,7 +4,7 @@
 \alias{run_sva}
 \title{Run surrogate variable analysis}
 \usage{
-run_sva(mods, eset, svanal)
+run_sva(mods, eset, svanal = TRUE)
 }
 \arguments{
 \item{mods}{result of \code{get_mods}}

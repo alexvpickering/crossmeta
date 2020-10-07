@@ -166,8 +166,6 @@ setup_src <- function(anals, ttype = c("top_tables", "padog_tables")) {
 
 
 
-# ---------------------
-
 
 # Get dprimes and vardprimes values for each contrast.
 #
@@ -202,8 +200,6 @@ get_es <- function(diff_exprs, cutoff = 0.3) {
     return(list(filt = es[filt, ], raw = es))
 }
 
-
-# ---------------------
 
 
 # Add metaMA effectsize values to top tables.
@@ -250,8 +246,8 @@ add_es <- function(diff_exprs, cols = c("dprime", "vardprime")) {
             groups <- strsplit(groups, "-")[[1]]
 
             # get sample sizes for groups
-            ni <- sum(classes == groups[2])
-            nj <- sum(classes == groups[1])
+            ni <- sum(classes == groups[2], na.rm = TRUE)
+            nj <- sum(classes == groups[1], na.rm = TRUE)
 
             # bind effect size values with top table
             tt <- study$top_tables[[con]]
@@ -266,8 +262,6 @@ add_es <- function(diff_exprs, cols = c("dprime", "vardprime")) {
     return(diff_exprs)
 }
 
-
-# ---------------------
 
 
 # Merge a list of data.frames.
@@ -296,7 +290,6 @@ merge_dataframes <- function(ls, keys = "SYMBOL") {
     return(res)
 }
 
-# ---------------------
 
 # Modifed f.Q from GeneMeta (allows NAs)
 #
@@ -317,7 +310,6 @@ f.Q <- function (dadj, varadj) {
     Q <- rowSums(w * (dadj - mu)^2, na.rm = TRUE)
 }
 
-# ---------------------
 
 # Modifed tau2.DL from GeneMeta (allows NAs)
 
@@ -339,7 +331,6 @@ tau2.DL <- function (Q, num.studies, my.weights) {
     apply(value, 1, max)
 }
 
-# ---------------------
 
 # Modifed mu.tau2 from GeneMeta (allows NAs)
 #
@@ -359,7 +350,6 @@ mu.tau2 <- function (my.d, my.vars.new) {
     mu <- rowSums(tmp1, na.rm = TRUE)/rowSums(w, na.rm = TRUE)
 }
 
-# ---------------------
 
 # Modifed var.tau2 from GeneMeta (allows NAs)
 #

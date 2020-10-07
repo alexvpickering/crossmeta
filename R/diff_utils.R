@@ -71,8 +71,7 @@
 #' # re-run analysis on first eset
 #' prev <- load_diff(gse_names[1], data_dir)
 #' # anals <- diff_expr(esets[1], data_dir, prev_anals = prev)
-
-
+#' 
 diff_expr <- function (esets, data_dir = getwd(),
                        annot = "SYMBOL", prev_anals = list(NULL), svanal = TRUE) {
 
@@ -104,7 +103,7 @@ diff_expr <- function (esets, data_dir = getwd(),
         gse_dir <- file.path(data_dir, gse_folder)
       
         # select groups/contrasts
-        if (is.null(prev)) prev <- select_contrasts(eset)
+        if (is.null(prev)) prev <- run_select_contrasts(eset)
         if (is.null(prev)) next
         
         # add groups from selection
@@ -128,7 +127,7 @@ diff_expr <- function (esets, data_dir = getwd(),
         eset <- iqr_replicates(eset, annot)
 
         # differential expression
-        anal <- diff_anal(eset, svobj, contrasts, group_levels, gse_dir, gse_name, annot)
+        anal <- diff_anal(eset, svobj, contrasts, group_levels, gse_dir, gse_name, prev, annot)
 
         anals[[gse_name]] <- anal
     }
@@ -136,7 +135,6 @@ diff_expr <- function (esets, data_dir = getwd(),
 }
 
 
-# ---------------------
 #' Add expression data adjusted for pairs/surrogate variables
 #'
 #' @param eset ExpressionSet
@@ -180,17 +178,18 @@ match_prev_eset <- function(eset, prev_anal) {
     # retain selected samples only
     # to keep all samples (https://support.bioconductor.org/p/73107/) specify groups without contrasts
     prev <- prev_anal$pdata
-    sel <- row.names(prev_anal$pdata)
+    sel <- row.names(prev)[!is.na(prev$group)]
     
     # for two-channel, keep both channels for lmscFit
     # order: all R, all G
-    ch2 <- any(grepl('_red|_green', sel))
+    ch2 <- any(grepl('_red|_green', colnames(eset)))
     if (ch2) {
       sel <- gsub('_red|_green', '', sel)
       sel <- unique(sel)
       sel <- paste0(sel, rep(c('_red', '_green'), each = length(sel)))
     }
     
+  
     eset <- eset[, sel]
     prev <- prev[sel, ]
 
@@ -224,19 +223,19 @@ ch2_subset <- function(eset, prev_anal) {
   gsm_names <- colnames(eset)
   
   # treat as single-channel if two-channel, paired, and not using both channels
-  # so that can use duplicateCorrelation
+  # so that can use duplicateCorrelation and not intraspotCorrelation
   ch2 <- any(grepl('_red|_green', gsm_names))
   paired <- length(unique(eset$pair)) > 1
   
   if (ch2 & paired) {
     
-    sel <- strsplit(cons, '-')[[1]]
+    sel <- unique(unlist(strsplit(cons, '-')))
     sel.gsm <- gsm_names[eset$group %in% sel]
     sel.colrs <- gsub('^.+_(red|green)$', '\\1', sel.gsm)
     sel.colrs <- unique(sel.colrs)
-    one.colr <- length(sel.colrs == 1)
+    one.colr <- length(sel.colrs) == 1
     
-    if (!one.colr) stop('two-color paired designs not implemented')
+    if (!one.colr) stop('paired two-color designs that use samples from both colors not yet implemented')
     
     eset <- eset[, sel.gsm]
     colnames(eset) <- gsub('^(.+)_(red|green)$', '\\1', sel.gsm)
@@ -245,7 +244,7 @@ ch2_subset <- function(eset, prev_anal) {
   return(eset)
 }
 
-# ------------------------
+
 
 
 # Select contrasts for each GSE.
@@ -326,6 +325,7 @@ add_contrasts <- function (eset, gse_name, prev_anal) {
 #' @param eset Annotated eset with samples selected during \code{add_contrasts}.
 #'
 #' @return List with model matrix(mod) and null model matrix (mod0) used for \code{sva}.
+#' @export
 #'
 get_sva_mods <- function(pdata) {
   
@@ -371,7 +371,7 @@ get_sva_mods <- function(pdata) {
 #' @param eset ExpressionSet
 #' @param svanal Should surrogate variable analysis be run? If \code{FALSE}, returns dummy result.
 #'
-run_sva <- function(mods, eset, svanal) {
+run_sva <- function(mods, eset, svanal = TRUE) {
   if (!svanal) return(list("sv" = NULL))
   
   # remove duplicated rows (from 1:many PROBE:SYMBOL) as affect sva
@@ -392,7 +392,7 @@ run_sva <- function(mods, eset, svanal) {
   return(svobj)
 }
 
-# ------------------------
+
 #' Removes features with replicated annotation.
 #'
 #' For rows with duplicated annot, highested IQR retained.
@@ -471,7 +471,7 @@ which_max_iqr <- function(eset, groub_by, x = exprs(eset)) {
 }
 
 
-# ------------------------
+
 
 
 # Run limma analysis.
@@ -490,6 +490,7 @@ which_max_iqr <- function(eset, groub_by, x = exprs(eset)) {
 # @param svobj Result from \code{sva} function called during \code{diff_setup}.
 # @param gse_dir String, path to directory with GSE folders.
 # @param gse_name String, name of GSE.
+# @param prev used to sele
 # @param annot String, either "ENTREZID" or "SYMBOL" for probe or gene level
 #   analysis respectively. If "ENTREZID", appends "_entrezid.rds" to save name.
 #
@@ -497,7 +498,7 @@ which_max_iqr <- function(eset, groub_by, x = exprs(eset)) {
 # @return List, final result of \code{diff_expr}. Used for subsequent
 #   meta-analysis.
 
-diff_anal <- function(eset, svobj, contrasts, group_levels, gse_dir, gse_name, annot = "SYMBOL"){
+diff_anal <- function(eset, svobj, contrasts, group_levels, gse_dir, gse_name, prev, annot = "SYMBOL"){
   
     # setup model matrix with surrogate variables
     group <- eset$group
@@ -541,7 +542,9 @@ diff_anal <- function(eset, svobj, contrasts, group_levels, gse_dir, gse_name, a
     pdata <- pData(eset)
 
     # save to disk
-    diff_expr <- list(pdata = pdata, top_tables = top_tables, ebayes_sv = ebayes_sv, annot = annot)
+    # uses prev so that saved will have _red|_green even if treated like single-channel
+    prev$ebayes_sv <- ebayes_sv # need this for add_es
+    diff_expr <- c(prev, list(top_tables = top_tables, annot = annot))
     save_name <- paste(gse_name, "diff_expr", tolower(annot), sep = "_")
     save_name <- paste0(save_name, ".rds")
 
@@ -550,7 +553,7 @@ diff_anal <- function(eset, svobj, contrasts, group_levels, gse_dir, gse_name, a
 }
 
 
-# ------------------------
+
 
 
 #' Get design matrix for two-channel array
@@ -647,7 +650,7 @@ fit_ebayes <- function(eset, contrasts, mod) {
 
 
 
-# ------------------------
+
 
 
 # Adjusts expression data for surrogate variables.
@@ -674,7 +677,7 @@ clean_y <- function(y, mod, svs) {
 }
 
 
-# ------------------------
+
 
 
 

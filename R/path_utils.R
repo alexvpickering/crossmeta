@@ -91,8 +91,8 @@ diff_path <- function(esets, prev_anals, data_dir = getwd()) {
         group_levels <- unique(eset$group)
         
         # run surrogate variable analysis
-        sva_mods <- get_mods(eset@phenoData)
-        svobj <- run_sva(sva_mods, eset, svanal)
+        sva_mods <- get_sva_mods(eset@phenoData)
+        svobj <- run_sva(sva_mods, eset)
         
         # add surrogate variable/pair adjusted ("clean") expression matrix for iqr_replicates
         eset <- add_adjusted(eset, svobj)

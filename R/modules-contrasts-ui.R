@@ -31,7 +31,7 @@ bulkAnnotInput <- function(id) {
              
     ),
     # hidden dl/upload buttons
-    div(style = 'display: none',
+    div(style = 'display: none;',
         fileInput(ns('up_annot'), '', accept = c("text/csv", "text/comma-separated-values,text/plain", ".csv")),
     ),
     downloadLink(ns('dl_annot'), ''),
@@ -51,7 +51,8 @@ bulkFormInput <- function(id) {
   withTags({
     div(class = "well-form well-bg",
         div(id = ns('anal_dataset_panel'), style = '',
-            bulkContrastInput(ns('contrast'))
+            addContrastInput(ns('add_contrast')),
+            delContrastsInput(ns('del_contrasts'))
         )
     )
   })
@@ -74,55 +75,38 @@ bulkTableOuput <- function(id) {
 
 
 
-#' Bulk contrast input
+#' Add contrast input
 #' @export
 #' @keywords internal
-bulkContrastInput <- function(id, label = 'Select groups to compare:') {
+addContrastInput <- function(id) {
   ns <- NS(id)
   
-  options <- list(maxItems = 2, placeholder = 'Select test then control group')
-  input <- tags$div(id = 'bulk-intro-comparison',
-                    shinypanel::selectizeInputWithButtons(
-                      ns('contrast_groups'),
-                      'Select groups to compare:',
-                      actionButton(ns('plus'), label = NULL, icon = icon('plus', 'fa-fw'), title = 'Add contrast'),
-                      options = options,
-                      container_id = ns('run_anal_container')
-                    )
+  options_add <- list(maxItems = 2, placeholder = 'Select test then control group')
+  tags$div(shinypanel::selectizeInputWithButtons(
+    ns('select_groups'),
+    'Select groups to compare:',
+    actionButton(ns('add_contrast'), label = NULL, icon = icon('plus', 'fa-fw'), title = 'Add contrast'),
+    options = options_add,
+    container_id = ns('add_contrast_container')
   )
-  
-  return(input)
+  )
 }
 
-
-select_contrasts <- function(eset, gse_name) {
+#' Delete contrasts input
+#' @export
+#' @keywords internal
+delContrastsInput <- function(id) {
+  ns <- NS(id)
   
-  server <- function(input, output, session) {
-    
-    bulkPage <- callModule(bulkPage, 'bulk', 
-                           eset = eset,
-                           gse_name = gse_name)
-    
-  }
-  
-  
-  ui <- bootstrapPage(
-    shiny::tags$head(
-      shiny::tags$style(".dt-container {white-space: nowrap;}"), # table text on 1 line
-      shiny::tags$style(".dt-fake-height {height: 1px;}"), # to make 100% height div work
-      shiny::tags$style("td.dt-nopad {padding: 0px !important; height: 100%;}"), # td for bg color group column
-      shiny::tags$style("td.dt-nopad div {height: 100%; width: 100%; text-align: center;}"), # div inside td for bg color group column
-      shiny::tags$style("td.dt-nopad span {display: inline-block; padding: 8px 10px; color: white;}") # span inside div inside td for bg color group column
-    ),
-    shinyjs::useShinyjs(),
-    fluidPage(
-      tags$div(bulkPageUI('bulk'), style='padding-top: 15px;'
-      )
-    )
+  options_del <- list(multiple = TRUE)
+  tags$div(shinypanel::selectizeInputWithButtons(
+    ns('select_contrasts'),
+    'Select comparisons to remove:',
+    actionButton(ns('del_contrasts'), label = NULL, icon = icon('minus', 'fa-fw'), title = 'Remove contrasts'),
+    options = options_del,
+    container_id = ns('del_contrast_container')
   )
-  
-  runGadget(shinyApp(ui, server), viewer = paneViewer())
+  )
   
 }
 
-select_contrasts(eset, gse_name)
