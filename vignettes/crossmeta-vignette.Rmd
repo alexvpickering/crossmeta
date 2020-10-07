@@ -32,7 +32,7 @@ inhibitor LY-294002. The search was filtered as follows:
 This search produced 35 hits from which five were chosen. In practice, it is 
 best to select all GSEs matching the necessary criteria (supplementary raw data
 files available, multiple samples for each treatment, and from either Affymetrix,
-Illumina, or Agilent single channel arrays).
+Illumina, or Agilent arrays).
 
 After identifying GSEs for the meta-analysis, download and decompress the raw
 data as follows. For raw Illumina data only, you may need to check that it has the 
