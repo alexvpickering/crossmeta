@@ -45,7 +45,7 @@ bulkForm <- function(input, output, session,  pdata) {
 
 addContrast <- function(input, output, session, group_levels, contrasts) {
   
-  contrast_options <- list(render = I('{option: bulkContrastOptions, item: bulkContrastItem}'))
+  contrast_options <- list(render = I('{option: addContrastOptions, item: addContrastItem}'))
   reset_sel <- reactiveVal(FALSE)
   
   group_colors <- reactive(get_palette(group_levels()))
@@ -78,6 +78,8 @@ addContrast <- function(input, output, session, group_levels, contrasts) {
     prev <- contrasts()
     sel <- input$select_groups
     new <- paste0(sel[1], '-', sel[2])
+    
+    req(!new %in% prev)
     contrasts(c(prev, new))
     
     reset_sel(!reset_sel())
@@ -85,7 +87,7 @@ addContrast <- function(input, output, session, group_levels, contrasts) {
 }
 
 delContrasts <- function(input, output, session, group_levels, contrasts) {
-  contrast_options <- list(render = I('{option: contrastOptions, item: contrastItem}'))
+  contrast_options <- list(render = I('{option: delContrastOptions, item: delContrastItem}'))
   
   contrast_choices <- reactive({
     contrasts <- contrasts()
@@ -100,6 +102,12 @@ delContrasts <- function(input, output, session, group_levels, contrasts) {
                          choices = rbind(NA, contrast_choices()),
                          server = TRUE, 
                          options = contrast_options)
+  })
+  
+  observeEvent(input$del_contrasts, {
+    prev <- contrasts()
+    del <- input$select_contrasts
+    contrasts(setdiff(prev, del))
   })
   
   
@@ -118,7 +126,8 @@ get_contrast_choices <- function(contrasts, group_levels) {
              ctrl,
              testColor = group_colors[test],
              ctrlColor = group_colors[ctrl],
-             value = contrasts, stringsAsFactors = FALSE)
+             value = contrasts,
+             stringsAsFactors = FALSE)
 }
 
 #' Get group levels for bulk data plots

@@ -1,4 +1,5 @@
-function bulkContrastOptions(item, escape) {
+// styling for options
+function addContrastOptions(item, escape) {
   
   
   var clustEl = "<div>" +
@@ -12,7 +13,7 @@ function bulkContrastOptions(item, escape) {
 
 
 //styling for current item
-function bulkContrastItem(item, escape) {
+function addContrastItem(item, escape) {
   
   var clustEl = "<div class='bulk-item'>" +
     "<div class='input-swatch' style='background-color:" + item.color + "'></div>" +
@@ -25,8 +26,8 @@ function bulkContrastItem(item, escape) {
 
 
 
-// styling if looking at cluster
-function contrastOptions(item, escape) {
+// styling for options
+function delContrastOptions(item, escape) {
 
   // styling if looking at contrast
   var conEl  = "<div title=''>" +
@@ -44,7 +45,7 @@ function contrastOptions(item, escape) {
 
 
 //styling for current item
-function contrastItem(item, escape) {
+function delContrastItem(item, escape) {
 
    // styling if looking at contrast
   var conEl  = "<div title=''>" +
