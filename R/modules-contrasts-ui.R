@@ -51,24 +51,13 @@ bulkFormInput <- function(id) {
   withTags({
     div(class = "well-form well-bg",
         div(id = ns('anal_dataset_panel'), style = '',
-            bulkFormAnalInput(ns('anal_form'))
+            bulkContrastInput(ns('contrast'))
         )
     )
   })
 }
 
 
-
-#' Differential expression analysis inputs for bulkFormInput
-#' @export
-#' @keywords internal
-bulkFormAnalInput <- function(id) {
-  ns <- NS(id)
-  
-  tagList(
-    bulkAnalInput(ns('ds'), label = 'Add two-group comparison:')
-  )
-}
 
 
 #' Tables for datasets page
@@ -85,35 +74,22 @@ bulkTableOuput <- function(id) {
 
 
 
-#' Bulk Differential expression analysis input
+#' Bulk contrast input
 #' @export
 #' @keywords internal
-bulkAnalInput <- function(id, with_dl = TRUE, label = 'Select groups to compare:') {
+bulkContrastInput <- function(id, label = 'Select groups to compare:') {
   ns <- NS(id)
   
   options <- list(maxItems = 2, placeholder = 'Select test then control group')
-  if (with_dl) {
-    input <- tags$div(id = 'bulk-intro-comparison',
-                      shinypanel::selectizeInputWithButtons(
-                        ns('contrast_groups'),
-                        label,
-                        actionButton(ns('plus'), label = NULL, icon = icon('plus', 'fa-fw'), title = 'Add contrast'),
-                        options = options,
-                        container_id = ns('run_anal_container')
-                      )
-    )
-    
-  } else {
-    input <- tags$div(
-      id = ns('run_anal_container'),
-      shinypanel::selectizeInputWithValidation(
-        ns('contrast_groups'),
-        label,
-        options = options
-      )
-      
-    )
-  }
+  input <- tags$div(id = 'bulk-intro-comparison',
+                    shinypanel::selectizeInputWithButtons(
+                      ns('contrast_groups'),
+                      'Select groups to compare:',
+                      actionButton(ns('plus'), label = NULL, icon = icon('plus', 'fa-fw'), title = 'Add contrast'),
+                      options = options,
+                      container_id = ns('run_anal_container')
+                    )
+  )
   
   return(input)
 }
