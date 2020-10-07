@@ -70,7 +70,6 @@ load_illum <- function (gse_names, data_dir, gpl_dir, ensql) {
   return (list(esets = esets, errors = errors))
 }
 
-# -------------------
 
 # Helper utility for load_illum.
 #
@@ -174,7 +173,7 @@ xls_to_txt <- function(xls_paths) {
     write.table(d, txt_path, sep='\t', quote = FALSE, row.names = FALSE)
   }
 }
-# -------------------
+
 
 # like base pmatch
 # partial match occurs if the whole of the element of x matches any part of the element of table
@@ -280,14 +279,14 @@ match_samples <- function(eset, elist) {
     # determine most similar eset sample for each sample in elist
     for (i in 1:ncol(elist)) {
       qsamp <- elist$E[, i]
-      qres[[colnames(elist)[i]]] <- ccmap::query_drugs(qsamp, exprs(eset), sorted = FALSE, ngenes = ngenes)
+      qres[[colnames(elist)[i]]] <- query_ref(qsamp, exprs(eset), sorted = FALSE, ngenes = ngenes)
     }
     
   } else {
     # determine most similar elist sample for each sample in eset
     for (i in 1:ncol(eset)) {
       qsamp <- exprs(eset)[, i]
-      qres[[colnames(eset)[i]]] <- ccmap::query_drugs(qsamp, elist$E, sorted = FALSE, ngenes = ngenes)
+      qres[[colnames(eset)[i]]] <- query_ref(qsamp, elist$E, sorted = FALSE, ngenes = ngenes)
     }
   }
   
@@ -364,6 +363,42 @@ match_samples <- function(eset, elist) {
   }
 }
 
+
+#' Get correlation between query and reference signatures.
+#' 
+#' Determines the pearson correlation between the query and each reference signature.
+#'
+#' @param query Named numeric vector of differentual expression values for
+#'   query genes. Usually 'meta' slot of \code{get_dprimes} result.
+#' @param ref A matrix of differential expression
+#'   to query against (rows are genes, columns are samples).
+#' @param sorted Would you like the results sorted by decreasing similarity?
+#'   Default is TRUE.
+#' @param ngenes The number of top differentially-regulated (up and down) query genes to use. 
+#'
+#' @return Vector of pearson correlations between query and reference signatures.
+#'
+query_ref <- function(query, ref, sorted = TRUE, ngenes = 200) {
+  
+  # use only common genes
+  query <- query[names(query) %in% row.names(ref)]
+  
+  # top up/down ngenes
+  top_ngenes  <- utils::head(names(sort(abs(query), TRUE)), ngenes)
+  query <- query[top_ngenes]
+  ref   <- ref[names(ref), ,drop = FALSE]
+  
+  # pearson correlation
+  sim <- stats::cor(query, drug_info, method="pearson")
+  sim <- structure(c(sim), names=colnames(sim))
+  
+  if (sorted) {
+    return(sort(sim, decreasing = TRUE))
+  } else {
+    return(sim)
+  }
+  
+}
 
 
 

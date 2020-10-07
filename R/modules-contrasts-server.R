@@ -184,7 +184,6 @@ bulkTable <- function(input, output, session, eset, up_annot) {
       group_num <- group_nums[i]
       group_name <- group_names[i]
       
-      # plotly color bug when two groups
       color <- group_colors[group_num]
       
       rows <- which(group == group_num)
