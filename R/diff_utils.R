@@ -104,7 +104,7 @@ diff_expr <- function (esets, data_dir = getwd(),
         gse_dir <- file.path(data_dir, gse_folder)
       
         # select groups/contrasts
-        if (is.null(prev)) prev <- select_contrasts(eset, gse_name)
+        if (is.null(prev)) prev <- select_contrast(eset)
         if (is.null(prev)) next
         
         # add groups from selection
@@ -176,17 +176,11 @@ add_adjusted <- function(eset, svobj = list(sv = NULL)) {
 # @return Expression set with samples and pData as in prev_anal.
 
 match_prev_eset <- function(eset, prev_anal) {
-    # same order as eset
-    prev_anal$pdata <- prev_anal$pdata[colnames(eset), ]
-
-    # keep all samples: https://support.bioconductor.org/p/73107/
-    prev <- prev_anal$pdata
-    unsel <- setdiff(colnames(eset), row.names(prev))
-    
-    # group any undefined samples together
-    prev[unsel, ] <- NA
-    prev[unsel, 'group'] <- 'NOT_SPECIFIED'
-    
+  
+    # retain previously selected samples only
+    # to keep all samples (https://support.bioconductor.org/p/73107/) specify groups without contrasts
+    selected_samples <- row.names(prev_anal$pdata)
+    eset <- eset[, selected_samples]
 
     # transfer previous treatment, group, and pairs to eset
     eset$treatment <- prev$treatment
