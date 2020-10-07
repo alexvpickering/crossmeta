@@ -454,6 +454,17 @@ server <- function(input, output, session) {
   # get arguments from calling function
   eset <- getShinyOption('eset')
   
+  observeEvent(input$done, {
+    browser()
+    js$closeWindow()
+    stopApp(NULL)
+  })
+  
+  observeEvent(input$cancel, {
+    js$closeWindow()
+    stopApp(stop("User cancel", call. = FALSE))
+  })
+  
   bulkPage <- callModule(bulkPage, 'bulk', 
                          eset = eset,
                          gse_name = gse_name)

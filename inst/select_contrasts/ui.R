@@ -110,14 +110,16 @@ delContrastsInput <- function(id) {
   
 }
 
-
+jscode <- "shinyjs.closeWindow = function() { window.close(); }"
 
 bootstrapPage(
   shinyjs::useShinyjs(),
+  shinyjs::extendShinyjs(text = jscode, functions = c("closeWindow")),
   includeScript(path = 'www/select_contrasts.js'),
   includeCSS(path = 'www/select_contrasts.css'),
-  fluidPage(
-    tags$div(bulkPageUI('bulk'), style='padding-top: 15px;'
+  miniUI::miniPage(
+    miniUI::gadgetTitleBar('Select Contrasts'),
+    tags$div(bulkPageUI('bulk'), style='padding: 15px;'
     )
   )
 )
