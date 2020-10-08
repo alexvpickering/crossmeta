@@ -13,7 +13,7 @@ elist <- limma::normalizeBetweenArrays(elist, method="Aquantile")
 # setup dummy eset with required pdata columns needed for phenoData.ch2
 targets <- elist$targets
 colnames(elist) <- targets$geo_accession <- row.names(targets)
-elist$genes$SYMBOL <- elist$genes$NAME
+elist$genes$rn <- seq_len(nrow(elist))
 
 targets$label_ch1 <- 'Cy3'
 targets$label_ch2 <- 'Cy5'
@@ -53,48 +53,37 @@ test_that("crossmeta produces similar results to limma", {
   # avoid GUI selection
   eset$group <- make.names(eset$source_name)
   eset <- list(Apoa1 = eset)
-  prev <- setup_prev(eset, 'ApoAI...-C57BL.6')
+  prev <- crossmeta::setup_prev(eset, 'ApoAI...-C57BL.6')
   
   data_dir = tempdir()
   dir.create(file.path(data_dir, names(eset)))
-  res <- diff_expr(eset, prev_anals = prev, data_dir = data_dir, svanal = FALSE)
+  res <- crossmeta::diff_expr(eset, prev_anals = prev, data_dir = data_dir, svanal = FALSE, annot='rn')
+  # cleanup
+  unlink('Rplots.pdf')
+  res <- res$Apoa1$top_tables$`Apoa1_ApoAI...-C57BL.6`
   
   # as in limma user guide
+  MA <- backgroundCorrect(RG, method="normexp", offset=50)
+  MA <- normalizeWithinArrays(MA, method = 'loess')
+  MA <- normalizeBetweenArrays(MA, method = 'Aquantile')
+  design <- cbind("Control-Ref"=1,"KO-Control"=MA$targets$Cy5=="ApoAI-/-")
+  fit <- lmFit(MA, design)
+  fit <- eBayes(fit)
+  tt <- topTable(fit,coef=2, n = Inf)
+  tt <- tt[!is.na(tt$NAME), ]
+  
+  # annotation by row name so should be unchanged
+  expect_equal(nrow(tt), nrow(res))
+  
+  # correlation between logFCs
+  lfc1 <- res$logFC
+  names(lfc1) <- row.names(res)
+  
+  lfc2 <- tt$logFC
+  names(lfc2) <- row.names(tt)
+  lfc2 <- lfc2[names(lfc1)]
+  
+  cor12 <- cor(lfc1, lfc2)
+  expect_gt(cor12, 0.96)
 })
 
-
-
-
-
-# setup expression sets
-pdata <- data.frame(col1 = letters[1:5], col2 = rep('mouse', 5), row.names = paste0('SAMPLE', 1:5))
-mat   <- matrix(rnorm(50), ncol = 5, dimnames = list(1:10, paste0('SAMPLE', 1:5)))
-eset <- ExpressionSet(mat, as(pdata, 'AnnotatedDataFrame'))
-
-# make data with sample names equal to col1 of pdata
-data <- eset
-sampleNames(data) <- pdata$col1
-
-
-test_that("match_samples correctly orders data when sample names are eset pdata column", {
-  
-  # trivial order is already correct
-  res <- crossmeta:::match_samples(eset, data)
-  
-  # reorder and rename
-  eset <- eset[, res$eset_order]
-  data <- data[, res$elist_order]
-  colnames(data) <- colnames(eset)
-  expect_equal(eset, data)
-  
-  # shuffle data order
-  sampleNames(data) <- pdata$col1
-  data <- data[, sample(5)]
-  
-  # see if recovers
-  res <- crossmeta:::match_samples(eset, data)
-  eset <- eset[, res$eset_order]
-  data <- data[, res$elist_order]
-  colnames(data) <- colnames(eset)
-  expect_equal(eset, data)
-})
