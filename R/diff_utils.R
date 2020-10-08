@@ -196,7 +196,6 @@ match_prev_eset <- function(eset, prev_anal) {
     # transfer previous treatment, group, and pairs to eset
     eset$treatment <- prev$treatment
     eset$group     <- prev$group
-    eset$pair      <- NA
 
     if ("pair" %in% colnames(prev)) {
         eset$pair <- prev$pair
@@ -504,10 +503,7 @@ diff_anal <- function(eset, svobj, contrasts, group_levels, gse_dir, gse_name, p
     group <- eset$group
     mod <- model.matrix(~0 + group)
     colnames(mod) <- gsub('^group', '', colnames(mod))
-    svmod <- svobj$sv
-    svind <- seq_len(ncol(svmod))
-    if (length(svind)) colnames(svmod) <- paste0('SV', svind)
-    mod <- cbind(mod, svmod)
+    mod <- cbind(mod, svobj$sv)
 
     # run lmFit and eBayes
     ebayes_sv <- fit_ebayes(eset, contrasts, mod)

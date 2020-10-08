@@ -263,8 +263,8 @@ phenoData.ch2 <- function(eset) {
   # add common as one column per channel with corresponding value
   ch1.col.common <- ch1.col[ch1_names %in% common]
   ch2.col.common <- ch2.col[ch2_names %in% common]
-  pdata.common.ch1 <- pdata[, ch1.col.common]
-  pdata.common.ch2 <- pdata[, ch2.col.common]
+  pdata.common.ch1 <- pdata[, ch1.col.common, drop = FALSE]
+  pdata.common.ch2 <- pdata[, ch2.col.common, drop = FALSE]
   
   colnames(pdata.common.ch1) <- colnames(pdata.common.ch2) <- common
   pdata.common <- rbind(pdata.common.ch1, pdata.common.ch2)
@@ -275,18 +275,18 @@ phenoData.ch2 <- function(eset) {
   ch1.col.unique <- setdiff(ch1.col, ch1.col.common)
   ch2.col.unique <- setdiff(ch2.col, ch2.col.common)
   
-  pdata.unique <- rbind.fill(pdata[,ch1.col.unique, drop = FALSE],
+  pdata.unique <- rbind.fill(pdata[, ch1.col.unique, drop = FALSE],
                              pdata[, ch2.col.unique, drop = FALSE])
   
   
-  pdata.ch2 <- cbind(pdata.ch2, pdata.unique)
+  if (ncol(pdata.unique)) pdata.ch2 <- cbind(pdata.ch2, pdata.unique)
   
   
   # all red then all green
   stopifnot(all(c('Cy5', 'Cy3') %in% pdata.ch2$label))
   is.red <- pdata.ch2$label == 'Cy5'
   is.green <- pdata.ch2$label == 'Cy3'
-  pdata.ch2 <- rbind(pdata.ch2[is.red, ], pdata.ch2[is.green, ])
+  pdata.ch2 <- rbind(pdata.ch2[is.red,, drop = FALSE], pdata.ch2[is.green,, drop = FALSE])
   
   # fix row names
   suffix <- rep(c('_red', '_green'), each = length(is.red)/2)
