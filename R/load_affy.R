@@ -20,98 +20,15 @@ cel_dates <- function(cel_paths) {
 }
 
 
-# ------------------------
 
-
-# Load and pre-process raw Affymetrix CEL files for multiple GSEs.
+# Affymetrix loader for load_plat.
 #
-# Load raw CEL files previously downloaded with \code{get_raw_affy}. Used by
-# \code{load_raw}.
-
-# Data is normalized, SYMBOL and PROBE annotation are added to fData slot, and
-# scan dates are added to pData slot.
+# Used by load_plat to load an eset for each GPL platform in a GSE.
 #
-# @param gse_names Character vector of Affymetrix GSE names.
-# @param data_dir String specifying directory with GSE folders.
-#
-# @seealso \code{\link{get_raw}} to obtain raw data.
-# @return List of annotated esets (one for each unique GSE/GPL platform).
-
-load_affy <- function (gse_names, data_dir, gpl_dir, ensql) {
-    
-    esets  <- list()
-    errors <- c()
-    for (gse_name in gse_names) {
-        
-        gse_dir <- file.path(data_dir, gse_name)
-        save_name <- paste(gse_name, "eset.rds", sep = "_")
-        
-        # get GSEMatrix (for pheno dat)
-        eset <- NULL
-        while (is.null(eset)) {
-            eset <- try(crossmeta:::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, getGPL = FALSE))
-        }
-        
-        # check if have GPL
-        gpl_names <- paste0(sapply(eset, Biobase::annotation), '.soft', collapse = "|")
-        gpl_paths <- sapply(gpl_names, function(gpl_name) {
-            list.files(gpl_dir, gpl_name, full.names = TRUE, recursive = TRUE, include.dirs = TRUE)[1]
-        })
-        
-        # copy over GPL
-        if (length(gpl_paths) > 0)
-            file.copy(gpl_paths, gse_dir)
-        
-        # will use local GPL or download if couldn't copy
-        eset <- NULL
-        while (is.null(eset)) {
-            eset <- try(crossmeta:::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE))
-        }
-        
-        # name esets
-        if (length(eset) > 1) {
-            names(eset) <- paste(gse_name, sapply(eset, Biobase::annotation), sep='.')
-        } else {
-            names(eset) <- gse_name
-        }
-        
-        # load eset for each platform in GSE
-        eset <- lapply(eset, function(eset.gpl) {
-            tryCatch(
-                {load_affy_plat(eset.gpl, gse_dir, gse_name, ensql)},
-                error = function(e) {message(e$message, '\n'); return(NA)})
-        })
-        
-        
-        # save to disc
-        if (!all(is.na(eset)))
-            saveRDS(eset[!is.na(eset)], file.path(gse_dir, save_name))
-        
-        if (anyNA(eset))
-            errors <- c(errors, names(eset[is.na(eset)]))
-        
-        
-        if (!all(is.na(eset)))
-            esets[[gse_name]] <- eset[!is.na(eset)]
-    }
-    eset_names <- get_eset_names(esets, gse_names)
-    esets <- unlist(esets)
-    names(esets) <- eset_names
-    return (list(esets = esets, errors = errors))
-}
-
-
-# ------------------------
-
-
-# Helper utility for load_affy.
-#
-# Used by load_affy to load an eset for each GPL platform in a GSE.
-#
-# @param eset Expression set obtained by load_affy call to getGEO.
+# @param eset Expression set obtained by load_plat call to getGEO.
 # @param gse_dir String specifying path to GSE folder.
 #
-# @seealso \code{\link{load_affy}}.
+# @seealso \code{\link{load_plat}}.
 # @return Annotated eset with scan_date in pData slot.
 
 load_affy_plat <- function (eset, gse_dir, gse_name, ensql) {
@@ -200,7 +117,7 @@ load_affy_plat <- function (eset, gse_dir, gse_name, ensql) {
     return(eset)
 }
 
-# ----
+
 
 # Merge feature data from eset and raw data.
 #

@@ -1,85 +1,12 @@
-# Load and pre-process raw Illum files.
+# Illumina loader utility for load_plat.
 #
-# Load raw txt files previously downloaded with \code{get_raw} and checked
-# for format with \code{open_raw_illum}. Used by \code{load_raw}.
+# Used by load_plat to load an eset.
 #
-# Data is normalized, SYMBOL and PROBE annotation are added to fData slot, and
-# detection p-values are added to pvals slot.
-#
-# @param gse_names Character vector of Illumina GSE names.
-# @param data_dir String specifying directory with GSE folders.
-#
-# @seealso \code{\link{get_raw}} to obtain raw Illumina data.
-#   \code{\link{open_raw_illum}} to ensure their correctness.
-
-# @return List of annotated esets.
-
-load_illum <- function (gse_names, data_dir, gpl_dir, ensql) {
-  
-  esets  <- list()
-  errors <- c()
-  for (gse_name in gse_names) {
-    
-    gse_dir <- file.path(data_dir, gse_name)
-    save_name <- paste(gse_name, "eset.rds", sep = "_")
-    
-    
-    # get GSEMatrix (for pheno dat)
-    eset <- NULL
-    while (is.null(eset)) {
-      eset <- try(crossmeta:::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, getGPL = FALSE))
-    }
-    
-    if (length(eset) > 1) {
-      warning("Multi-platform Illumina GSEs not supported. ", gse_name)
-      errors <- c(errors, gse_name)
-      next
-    }
-    
-    # check if have GPL
-    gpl_names <- paste0(sapply(eset, annotation), '.soft', collapse = "|")
-    gpl_paths <- sapply(gpl_names, function(gpl_name) {
-      list.files(gpl_dir, gpl_name, full.names = TRUE, recursive = TRUE, include.dirs = TRUE)[1]
-    })
-    
-    # copy over GPL
-    if (length(gpl_paths) > 0)
-      file.copy(gpl_paths, gse_dir)
-    
-    # will use local GPL or download if couldn't copy
-    eset <- NULL
-    while (is.null(eset)) {
-      eset <- try(crossmeta:::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE))
-    }
-    eset <- tryCatch(
-      {load_illum_plat(eset[[1]], gse_name, gse_dir, ensql)},
-      error = function(e) {message(e$message, '\n'); return(NULL)})
-    
-    # save to disc
-    if (!is.null(eset)) {
-      saveRDS(eset, file.path(gse_dir, save_name))
-    } else {
-      errors <- c(errors, gse_name)
-    }
-    
-    esets[[gse_name]] <- eset
-  }
-  eset_names <- get_eset_names(esets, gse_names)
-  esets <- unlist(esets)
-  names(esets) <- eset_names
-  return (list(esets = esets, errors = errors))
-}
-
-
-# Helper utility for load_illum.
-#
-# Used by load_illum to load an eset.
-#
-# @param eset Expression set obtained by load_illum call to getGEO.
+# @param eset Expression set obtained by \code{getGEO}.
 # @param gse_name String specifying GSE name.
 # @param gse_dir String specifying path to GSE folder.
 #
-# @seealso \code{\link{load_illum}}.
+# @seealso \code{\link{load_plat}}.
 # @return Annotated eset.
 
 load_illum_plat <- function(eset, gse_name, gse_dir, ensql) {
@@ -92,7 +19,8 @@ load_illum_plat <- function(eset, gse_name, gse_dir, ensql) {
   xls_to_txt(xls_paths)
   
   # fix header issues
-  elist_paths <- list.files(gse_dir, pattern = "non.*norm.*txt$|raw.*txt$|nonorm.*txt$|_supplementary_.*.txt$", full.names = TRUE, ignore.case = TRUE)
+  illum_pat <- "^GSM[0-9]+.*txt$|non.*norm.*txt$|raw.*txt$|nonorm.*txt$|_supplementary_.*.txt$"
+  elist_paths <- list.files(gse_dir, pattern = illum_pat, full.names = TRUE, ignore.case = TRUE)
   elist_paths <- elist_paths[!grepl('fixed[.]txt$', elist_paths)]
   annotation  <- fix_illum_headers(elist_paths, eset)
   
@@ -145,11 +73,8 @@ load_illum_plat <- function(eset, gse_name, gse_dir, ensql) {
   }
   colnames(elist) <- sampleNames(eset)
   
-  # transfer elist to eset
-  eset <- ExpressionSet(elist$E,
-                        phenoData = phenoData(eset),
-                        featureData = as(elist$genes, 'AnnotatedDataFrame'),
-                        annotation = annotation(eset))
+  # convert limma object to eset
+  eset <- to_eset(elist, eset)
   
   # add SYMBOL annotation
   eset <- symbol_annot(eset, gse_name, ensql)

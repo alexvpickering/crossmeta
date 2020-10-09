@@ -7,9 +7,9 @@
 load_agil_plat(eset, gse_dir, gse_name, ensql)
 }
 \arguments{
-\item{eset}{ExpressionSet from \link{getGEO}}
+\item{eset}{ExpressionSet from \link{getGEO}.}
 
-\item{gse_dir}{Direction with Agilent raw data}
+\item{gse_dir}{Direction with Agilent raw data.}
 
 \item{gse_name}{Accession name for \code{eset}.}
 

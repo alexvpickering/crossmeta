@@ -34,4 +34,5 @@ Supported platforms include Affymetrix, Agilent, and Illumina.
 library(lydata)
 data_dir <- system.file("extdata", package = "lydata")
 eset <- load_raw("GSE9601", data_dir = data_dir)
+
 }

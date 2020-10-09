@@ -40,7 +40,7 @@ get_raw <- function (gse_names, data_dir = getwd()) {
     }
 }
 
-# -----------
+
 
 #' Load and annotate raw data downloaded from GEO.
 #'
@@ -61,19 +61,12 @@ get_raw <- function (gse_names, data_dir = getwd()) {
 #' library(lydata)
 #' data_dir <- system.file("extdata", package = "lydata")
 #' eset <- load_raw("GSE9601", data_dir = data_dir)
-
-
+#' 
 load_raw <- function(gse_names, data_dir = getwd(), gpl_dir = '..', overwrite = FALSE, ensql = NULL) {
 
-    # no duplicates allowed (causes mismatched names/esets)
+    # no duplicates allowed
     gse_names <- unique(gse_names)
-
-    affy_names  <- c()
-    agil_names  <- c()
-    illum_names <- c()
-
-    errors <- c()
-    saved <- list()
+    esets <- list()
     for (gse_name in gse_names) {
 
         gse_dir   <- file.path(data_dir, gse_name)
@@ -82,64 +75,140 @@ load_raw <- function(gse_names, data_dir = getwd(), gpl_dir = '..', overwrite = 
 
         # check if saved copy
         if (length(eset_path) > 0 & overwrite == FALSE) {
-            saved[[gse_name]] <- readRDS(eset_path)
+            esets[[gse_name]] <- readRDS(eset_path)
             next()
-        }
-
-        # determine platform (based on filenames)
-        affy  <- list.files(gse_dir, ".CEL$", ignore.case = TRUE)
-        agil  <- list.files(gse_dir, "^GSM.*txt$|^GSM.*gpr$", ignore.case = TRUE)
-        illum <- list.files(gse_dir, "non.*norm.*txt$|raw.*txt$|nonorm.*txt$|_supplementary_.*.xls$", ignore.case = TRUE)
-
-        # add to appropriate names vector
-        if (length(affy) != 0) {
-            affy_names  <- c(affy_names, gse_name)
-        } else if (length(illum) != 0) {
-            illum_names <- c(illum_names, gse_name)
-        } else if  (length(agil) != 0) {
-            agil_names  <- c(agil_names, gse_name)
-
-        }  else {
-            errors <- c(errors, gse_name)
+            
+        } else {
+            esets[[gse_name]] <- load_plat(gse_name, data_dir, gpl_dir, ensql)
         }
     }
+    
+    # fix up names for multi-gpl esets
+    eset_names <- get_eset_names(esets, gse_names)
+    esets <- unlist(esets)
+    names(esets) <- eset_names
 
-    # fix up saved names
-    eset_names <- get_eset_names(saved, names(saved))
-    saved <- unlist(saved)
-    names(saved) <- eset_names
-
-    # load non-saved esets
-    affy  <- load_affy(affy_names, data_dir, gpl_dir, ensql)
-    agil  <- load_agil(agil_names, data_dir, gpl_dir, ensql)
-    illum <- load_illum(illum_names, data_dir, gpl_dir, ensql)
-
-
-    # no raw data found
-    if (length(errors) > 0) {
-        message(paste0("Couldn't find raw data for: ",
-                       paste(errors, collapse=", ")))
-    }
-
-    # couldn't load raw data
-    if (length(affy$errors) > 0) {
-        message(paste0("Couldn't load raw Affymetrix data for: ",
-                       paste(affy$errors, collapse=", ")))
-    }
-
-    if (length(agil$errors) > 0) {
-        message(paste0("Couldn't load raw Agilent data for: ",
-                       paste(agil$errors, collapse=", ")))
-    }
-
-    if (length(illum$errors) > 0) {
-        message(paste0("Couldn't load raw Illumina data for: ",
-                       paste(illum$errors, collapse=", ")))
-    }
-
-
-    return (c(saved, affy$esets, agil$esets, illum$esets))
+    return (esets)
 }
+
+# Load and pre-process raw Affymetrix, Illumina, and Agilent microarrays.
+#
+# Load raw files previously downloaded with \code{get_raw}. Used by \code{load_raw}.
+#
+# Data is normalized, SYMBOL and PROBE annotation are added to fData slot.
+#
+# @param gse_name GSE names.
+# @param data_dir String specifying directory with GSE folder.
+#
+# @seealso \code{\link{get_raw}} to obtain raw data.
+#
+# @return List of annotated esets, one for each platform in \code{gse_name}.
+
+load_plat <- function(gse_name, data_dir, gpl_dir, ensql) {
+  
+  gse_dir <- file.path(data_dir, gse_name)
+  
+  # get GSEMatrix for phenotype data
+  eset <- NULL
+  while (is.null(eset)) 
+    eset <- try(crossmeta:::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, getGPL = FALSE))
+  
+  # check if have GPLs
+  gpl_names <- paste0(sapply(eset, Biobase::annotation), '.soft', collapse = "|")
+  gpl_paths <- sapply(gpl_names, function(gpl_name) {
+    list.files(gpl_dir, gpl_name, full.names = TRUE, recursive = TRUE, include.dirs = TRUE)[1]
+  })
+  
+  # copy over GPLs
+  if (length(gpl_paths) > 0) file.copy(gpl_paths, gse_dir)
+  
+  # will use local GPL or download if couldn't copy
+  eset <- NULL
+  while (is.null(eset)) 
+    eset <- try(crossmeta:::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE))
+  
+  # name esets
+  if (length(eset) > 1) {
+    names(eset) <- paste(gse_name, sapply(eset, Biobase::annotation), sep='.')
+  } else {
+    names(eset) <- gse_name
+  }
+  
+  # determine manufacturer
+  supported <- c('Affymetrix', 'Illumina', 'Agilent')
+  gpl_names <- sapply(eset, Biobase::annotation)
+  mft_names <- sapply(gpl_names, get_mft)
+  
+  # load eset for each platform in GSE
+  res <- list()
+  nplat <- length(eset)
+  for (i in 1:nplat) {
+    pre_msg <- paste0('Error:', gse_name, ' (', i, ' of ', nplat, '): ')
+    
+    mft_name <- mft_names[i]
+    if (!mft_name %in% supported) {
+      message(pre_msg, mft_name, ' platforms (', gpl_names[i], ') not supported.\n')
+      next()
+    }
+    
+    load_fun <- switch(mft_name,
+                       'Affymetrix' = load_affy_plat, 
+                       'Illumina' = load_illum_plat, 
+                       'Agilent' = load_agil_plat)
+    
+    gse.gpl <- names(eset)[i]
+    res[[gse.gpl]] <- tryCatch(
+      load_fun(eset[[i]], gse_name, gse_dir, ensql),
+      error = function(e) {message(pre_msg, e$message, '\n'); return(NA)})
+  }
+  
+  # save to disc
+  save_path <- file.path(gse_dir, paste(gse_name, "eset.rds", sep = "_"))
+  saveRDS(res, save_path)
+  
+  return(res)
+}
+
+get_mft <- function(gpl_name) {
+  
+  # check gpl_bioc first
+  if (gpl_name %in% row.names(gpl_bioc)) {
+    mft <- gpl_bioc[gpl_name, 'manufacturer']
+    
+  } else {
+    mft <- scrape_mft(gpl_name)
+  }
+  return(mft)
+}
+
+scrape_mft <- function(gpl_name) {
+  gpl_text <- crawl_acc(gpl_name)
+  mft <- grep('^!Platform_manufacturer = ', gpl_text, value = TRUE)
+  mft <- gsub('^!Platform_manufacturer = ', '', mft)
+  
+  if (grepl('illumina', mft, ignore.case = TRUE)) mft <- 'Illumina'
+  else if (grepl('affymetrix', mft, ignore.case = TRUE)) mft <- 'Affymetrix'
+  else if (grepl('agilent', mft, ignore.case = TRUE)) mft <- 'Agilent'
+  
+  return(mft)
+}
+
+crawl_acc <- function(acc_name) {
+  
+  # get html text for GPL page
+  acc_url  <- paste0("https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=", acc_name, "&targ=self&form=text&view=full")
+  
+  acc_text <- NULL
+  attempt <- 1
+  while(is.null(acc_text) && attempt <= 3) {
+    con <- url(acc_url)
+    try(acc_text <- readLines(con))
+    if(is.null(acc_text)) Sys.sleep(15)
+    close(con)
+  }
+  return(acc_text)
+}
+
 
 
 
@@ -188,7 +257,6 @@ get_biocpack_name <- function (gpl_name) {
 }
 
 
-# ------------------------
 
 
 #' Add hgnc symbol to expression set.
@@ -264,10 +332,6 @@ symbol_annot <- function (eset, gse_name = "", ensql = NULL) {
     suppressWarnings(Biobase::assayDataElement(eset, 'M') <- M)
     return(eset)
 }
-
-
-
-# ------------------------
 
 
 # Get map from eset features to entrez id.
@@ -460,38 +524,37 @@ entrez_map <- function(eset, ensql) {
 }
 
 
-# ------------------------
 
 
-# Get eset names for load_affy and load_agil.
+# Get eset names for load_raw.
 #
 # Helper function to get around issue of a single GSE having multiple platforms
 # (and thus \code{getGEO} returns a list of esets). To distinguish these cases,
 # the GPL platform is appended to the GSE name.
 #
-# @param List of annotated esets. Created by \code{load_affy} or \code{load_agil}.
+# @param List of annotated esets.
 # @param gse_names Character vector of GSE names for each eset.
 #
-# @seealso \code{\link{load_affy}}, \code{\link{load_agil}}
+# @seealso \code{\link{load_raw}}
 # @return Character vector of GSE names with GPL appended when multiple
 #   platforms per GSE.
 
 get_eset_names <- function(esets, gse_names) {
-    eset_names <- c()
-
-    for (i in seq_along(esets)) {
-        # get gse name
-        gse_name <- gse_names[i]
-
-        if (length(esets[[i]]) > 1) {
-            # add gpl_name to make gse_name unique
-            gpl_name <- sapply(esets[[i]], annotation)
-            gse_name <- paste(gse_name, gpl_name, sep = ".")
-        }
-        # add gse_name to eset_names
-        eset_names <- c(eset_names, gse_name)
+  eset_names <- c()
+  
+  for (i in seq_along(esets)) {
+    # get gse name
+    gse_name <- gse_names[i]
+    
+    if (length(esets[[i]]) > 1) {
+      # add gpl_name to make gse_name unique
+      gpl_name <- sapply(esets[[i]], annotation)
+      gse_name <- paste(gse_name, gpl_name, sep = ".")
     }
-    return(eset_names)
+    # add gse_name to eset_names
+    eset_names <- c(eset_names, gse_name)
+  }
+  return(eset_names)
 }
 
 

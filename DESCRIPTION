@@ -1,6 +1,6 @@
 Package: crossmeta
 Title: Cross Platform Meta-Analysis of Microarray Data
-Version: 1.15.18
+Version: 1.15.19
 Author: Alex Pickering
 Maintainer: Alex Pickering <alexvpickering@gmail.com>
 Description: Implements cross-platform and cross-species meta-analyses of Affymentrix,
@@ -11,7 +11,7 @@ Description: Implements cross-platform and cross-species meta-analyses of Affyme
     seperately, the user can select tissue sources for each contrast and specify
     any tissue sources that should be grouped for the subsequent meta-analyses.
 Depends:
-    R (>= 3.5)
+    R (>= 4.0)
 SystemRequirements: 
     libxml2: libxml2-dev (deb), libxml2-devel (rpm)
     libcurl: libcurl4-openssl-dev (deb), libcurl-devel (rpm)
