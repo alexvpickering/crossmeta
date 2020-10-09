@@ -1,6 +1,6 @@
 Package: crossmeta
 Title: Cross Platform Meta-Analysis of Microarray Data
-Version: 1.15.16
+Version: 1.15.17
 Author: Alex Pickering
 Maintainer: Alex Pickering <alexvpickering@gmail.com>
 Description: Implements cross-platform and cross-species meta-analyses of Affymentrix,
@@ -26,8 +26,7 @@ Suggests:
     rmarkdown,
     lydata,
     org.Hs.eg.db,
-    testthat,
-    ccdata
+    testthat
 Imports:
     affy (>= 1.52.0),
     affxparser (>= 1.46.0),

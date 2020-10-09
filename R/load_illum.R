@@ -389,7 +389,7 @@ query_ref <- function(query, ref, sorted = TRUE, ngenes = 200) {
   ref   <- ref[names(ref), ,drop = FALSE]
   
   # pearson correlation
-  sim <- stats::cor(query, drug_info, method="pearson")
+  sim <- stats::cor(query, ref, method="pearson")
   sim <- structure(c(sim), names=colnames(sim))
   
   if (sorted) {
