@@ -386,7 +386,7 @@ query_ref <- function(query, ref, sorted = TRUE, ngenes = 200) {
   # top up/down ngenes
   top_ngenes  <- utils::head(names(sort(abs(query), TRUE)), ngenes)
   query <- query[top_ngenes]
-  ref   <- ref[names(ref), ,drop = FALSE]
+  ref   <- ref[names(query), ,drop = FALSE]
   
   # pearson correlation
   sim <- stats::cor(query, ref, method="pearson")
