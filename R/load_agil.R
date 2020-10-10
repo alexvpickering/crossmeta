@@ -1,13 +1,13 @@
 #' Load Agilent raw data
 #'
 #' @param eset ExpressionSet from \link{getGEO}.
-#' @param gse_dir Direction with Agilent raw data.
 #' @param gse_name Accession name for \code{eset}.
+#' @param gse_dir Direction with Agilent raw data.
 #' @inheritParams load_raw
 #'
 #' @return ExpressionSet
 #' 
-load_agil_plat <- function (eset, gse_dir, gse_name, ensql) {
+load_agil_plat <- function (eset, gse_name, gse_dir, ensql) {
   
   # if _ch2 in pdata => dual channel
   ch2 <- any(grepl('ch2', colnames(pData(eset))))

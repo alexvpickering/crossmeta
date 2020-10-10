@@ -75,19 +75,15 @@ load_raw <- function(gse_names, data_dir = getwd(), gpl_dir = '..', overwrite = 
 
         # check if saved copy
         if (length(eset_path) > 0 & overwrite == FALSE) {
-            esets[[gse_name]] <- readRDS(eset_path)
+            esets <- c(esets, readRDS(eset_path))
             next()
             
         } else {
-            esets[[gse_name]] <- load_plat(gse_name, data_dir, gpl_dir, ensql)
+            esets <- c(esets, load_plat(gse_name, data_dir, gpl_dir, ensql))
         }
     }
     
-    # fix up names for multi-gpl esets
-    eset_names <- get_eset_names(esets, gse_names)
-    esets <- unlist(esets)
-    names(esets) <- eset_names
-
+    esets <- unlist(esets[!is.na(esets)])
     return (esets)
 }
 
@@ -140,10 +136,10 @@ load_plat <- function(gse_name, data_dir, gpl_dir, ensql) {
   mft_names <- sapply(gpl_names, get_mft)
   
   # load eset for each platform in GSE
-  res <- list()
+  esets <- list()
   nplat <- length(eset)
   for (i in 1:nplat) {
-    pre_msg <- paste0('Error:', gse_name, ' (', i, ' of ', nplat, '): ')
+    pre_msg <- paste0('Error: ', gse_name, ' (', i, ' of ', nplat, '): ')
     
     mft_name <- mft_names[i]
     if (!mft_name %in% supported) {
@@ -157,16 +153,17 @@ load_plat <- function(gse_name, data_dir, gpl_dir, ensql) {
                        'Agilent' = load_agil_plat)
     
     gse.gpl <- names(eset)[i]
-    res[[gse.gpl]] <- tryCatch(
-      load_fun(eset[[i]], gse_name, gse_dir, ensql),
+    esets[[gse.gpl]] <- tryCatch(
+      {load_fun(eset[[i]], gse_name, gse_dir, ensql)},
       error = function(e) {message(pre_msg, e$message, '\n'); return(NA)})
   }
   
   # save to disc
   save_path <- file.path(gse_dir, paste(gse_name, "eset.rds", sep = "_"))
-  saveRDS(res, save_path)
+  na.esets <- is.na(esets)
+  if (!all(na.esets)) saveRDS(esets[!na.esets], save_path)
   
-  return(res)
+  return(esets)
 }
 
 get_mft <- function(gpl_name) {
@@ -523,39 +520,6 @@ entrez_map <- function(eset, ensql) {
     return(unique(map))
 }
 
-
-
-
-# Get eset names for load_raw.
-#
-# Helper function to get around issue of a single GSE having multiple platforms
-# (and thus \code{getGEO} returns a list of esets). To distinguish these cases,
-# the GPL platform is appended to the GSE name.
-#
-# @param List of annotated esets.
-# @param gse_names Character vector of GSE names for each eset.
-#
-# @seealso \code{\link{load_raw}}
-# @return Character vector of GSE names with GPL appended when multiple
-#   platforms per GSE.
-
-get_eset_names <- function(esets, gse_names) {
-  eset_names <- c()
-  
-  for (i in seq_along(esets)) {
-    # get gse name
-    gse_name <- gse_names[i]
-    
-    if (length(esets[[i]]) > 1) {
-      # add gpl_name to make gse_name unique
-      gpl_name <- sapply(esets[[i]], annotation)
-      gse_name <- paste(gse_name, gpl_name, sep = ".")
-    }
-    # add gse_name to eset_names
-    eset_names <- c(eset_names, gse_name)
-  }
-  return(eset_names)
-}
 
 
 
