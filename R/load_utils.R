@@ -123,6 +123,9 @@ load_plat <- function(gse_name, data_dir, gpl_dir, ensql) {
   while (is.null(eset)) 
     eset <- try(crossmeta:::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE))
   
+  # make sure eset uses GSM accession for sample names (e.g. GSE10653 doesn't)
+  eset <- lapply(eset, function(x) {colnames(x) <- x$geo_accession; x})
+  
   # name esets
   if (length(eset) > 1) {
     names(eset) <- paste(gse_name, sapply(eset, Biobase::annotation), sep='.')

@@ -198,9 +198,11 @@ phenoData.ch2 <- function(eset) {
   
   if (ncol(pdata.unique)) pdata.ch2 <- cbind(pdata.ch2, pdata.unique)
   
+  # remove white-space from label (e.g. GSE10653)
+  pdata.ch2$label <- gsub(' ', '', pdata.ch2$label)
   
   # all red then all green
-  stopifnot(all(c('Cy5', 'Cy3') %in% pdata.ch2$label))
+  stopifnot(setequal(c('Cy5', 'Cy3'), pdata.ch2$label))
   is.red <- pdata.ch2$label == 'Cy5'
   is.green <- pdata.ch2$label == 'Cy3'
   pdata.ch2 <- rbind(pdata.ch2[is.red,, drop = FALSE], pdata.ch2[is.green,, drop = FALSE])

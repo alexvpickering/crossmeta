@@ -4,14 +4,14 @@
 \alias{load_agil_plat}
 \title{Load Agilent raw data}
 \usage{
-load_agil_plat(eset, gse_dir, gse_name, ensql)
+load_agil_plat(eset, gse_name, gse_dir, ensql)
 }
 \arguments{
 \item{eset}{ExpressionSet from \link{getGEO}.}
 
-\item{gse_dir}{Direction with Agilent raw data.}
-
 \item{gse_name}{Accession name for \code{eset}.}
+
+\item{gse_dir}{Direction with Agilent raw data.}
 
 \item{ensql}{For development. Path to sqlite file with ENTREZID and SYMBOL columns created in data-raw/entrezdt.}
 }
