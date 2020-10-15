@@ -31,7 +31,7 @@ cel_dates <- function(cel_paths) {
 # @seealso \code{\link{load_plat}}.
 # @return Annotated eset with scan_date in pData slot.
 
-load_affy_plat <- function (eset, gse_dir, gse_name, ensql) {
+load_affy_plat <- function (eset, gse_name, gse_dir, ensql) {
     
     try(Biobase::fData(eset)[Biobase::fData(eset) == ""] <- NA)
     try(Biobase::fData(eset)[] <- lapply(Biobase::fData(eset), as.character))
