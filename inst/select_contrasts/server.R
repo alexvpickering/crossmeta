@@ -2,15 +2,17 @@ server <- function(input, output, session) {
   
   # get arguments from calling function
   eset <- getShinyOption('eset')
+  gse_name <- getShinyOption('gse_name')
   
   observeEvent(input$done, {
     js$closeWindow()
     stopApp(prev())
   })
   
-  observeEvent(input$cancel, {
-    js$closeWindow()
-    stopApp(stop("User cancel", call. = FALSE))
+  observeEvent(input$goto_geo, {
+    # click genecards
+      geo_link <- paste0('https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=', gse_name)
+      runjs(paste0("window.open('", geo_link, "')"))
   })
   
   # return value in format of previously saved analysis

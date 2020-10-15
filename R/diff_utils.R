@@ -103,7 +103,7 @@ diff_expr <- function (esets, data_dir = getwd(),
         gse_dir <- file.path(data_dir, gse_folder)
       
         # select groups/contrasts
-        if (is.null(prev)) prev <- run_select_contrasts(eset)
+        if (is.null(prev)) prev <- run_select_contrasts(eset, gse_name)
         if (is.null(prev)) next
         
         # add groups from selection

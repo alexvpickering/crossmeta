@@ -6,6 +6,7 @@
 \usage{
 run_select_contrasts(
   eset,
+  gse_name,
   app_dir = system.file("select_contrasts", package = "crossmeta", mustWork = TRUE),
   port = 3838
 )
@@ -13,11 +14,24 @@ run_select_contrasts(
 \arguments{
 \item{eset}{ExpressionSet}
 
+\item{gse_name}{GEO accession for the series.}
+
 \item{app_dir}{Directory to shiny app. For local development use 'inst/select_contrasts'. Default is
 in 'select_contrasts' sub directory of crossmeta package.}
 }
 \value{
 result of \link{setup_prev}. Used to specify sample groups and contrasts for differential expression analysis.
+
+library(lydata)
+# location of data
+data_dir <- system.file("extdata", package = "lydata")
+
+# gather GSE names
+gse_name  <- "GSE9601"
+
+# load previous analysis
+eset <- load_raw(gse_name, data_dir)[[1]]
+run_select_contrasts(eset, gse_name)
 }
 \description{
 Shiny gadget to upload groups and select contrasts
