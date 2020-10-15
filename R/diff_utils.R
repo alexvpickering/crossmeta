@@ -381,7 +381,10 @@ run_sva <- function(mods, eset, svanal = TRUE) {
   
   set.seed(100)
   svobj <- tryCatch (
-    {utils::capture.output(svobj <- sva::sva(expr, mods$mod, mods$mod0)); svobj},
+    {utils::capture.output(svobj <- sva::sva(expr, mods$mod, mods$mod0))
+      colnames(svobj$sv) <- paste0('SV', seq_len(svobj$n.sv))
+      return(svobj)
+      },
     
     error = function(e) {
       message(gse_name, ": sva failed - continuing without.")

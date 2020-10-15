@@ -20,7 +20,7 @@ server <- function(input, output, session) {
     if (!length(contrasts)) return(NULL)
     
     eset$group <- pdata$`Group name`
-    eset$pair  <- pdata$Pair
+    if (!all(is.na(pdata$Pair))) eset$pair  <- pdata$Pair
     setup_prev(list(eset), contrasts)[[1]]
   })
   
