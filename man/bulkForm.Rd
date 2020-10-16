@@ -4,7 +4,7 @@
 \alias{bulkForm}
 \title{Logic for Bulk Data form}
 \usage{
-bulkForm(input, output, session, pdata)
+bulkForm(input, output, session, pdata, prev)
 }
 \description{
 Logic for Bulk Data form

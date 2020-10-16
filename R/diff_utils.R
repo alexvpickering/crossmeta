@@ -39,6 +39,8 @@
 #'    be reloaded using \code{\link{load_diff}}. If present, previous
 #'   selections, names, and pairs will be reused.
 #' @param svanal Use surrogate variable analysis? Default is \code{TRUE}.
+#' @param recheck Would you like to recheck previous group/contrast annotations? Requires 
+#'   \code{prev_anals}. Default is FALSE.
 #'
 #' @export
 #'
@@ -73,7 +75,7 @@
 #' # anals <- diff_expr(esets[1], data_dir, prev_anals = prev)
 #' 
 diff_expr <- function (esets, data_dir = getwd(),
-                       annot = "SYMBOL", prev_anals = list(NULL), svanal = TRUE) {
+                       annot = "SYMBOL", prev_anals = list(NULL), svanal = TRUE, recheck = FALSE) {
 
     # within organism symbol
     if (annot == 'SPECIES') {
@@ -103,7 +105,7 @@ diff_expr <- function (esets, data_dir = getwd(),
         gse_dir <- file.path(data_dir, gse_folder)
       
         # select groups/contrasts
-        if (is.null(prev)) prev <- run_select_contrasts(eset, gse_name)
+        if (is.null(prev) | recheck) prev <- run_select_contrasts(eset, gse_name, prev)
         if (is.null(prev)) next
         
         # add groups from selection

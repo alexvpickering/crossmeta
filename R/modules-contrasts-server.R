@@ -1,12 +1,13 @@
 #' Logic Bulk Data page
 #' @export
 #' @keywords internal
-bulkPage <- function(input, output, session, eset, gse_name) {
+bulkPage <- function(input, output, session, eset, gse_name, prev) {
   
   
   
   bulkForm <- callModule(bulkForm, 'form',
-                         pdata = bulkTable$pdata)
+                         pdata = bulkTable$pdata,
+                         prev = prev)
   
   
   dataset_name <- reactive(gse_name)
@@ -18,6 +19,7 @@ bulkPage <- function(input, output, session, eset, gse_name) {
   
   bulkTable <- callModule(bulkTable, 'explore',
                           eset = eset,
+                          prev = prev,
                           up_annot = up_annot)
   
   return(list(
@@ -31,9 +33,9 @@ bulkPage <- function(input, output, session, eset, gse_name) {
 #' Logic for Bulk Data form
 #' @export
 #' @keywords internal
-bulkForm <- function(input, output, session,  pdata) {
+bulkForm <- function(input, output, session,  pdata, prev) {
   
-  contrasts <- reactiveVal()
+  contrasts <- reactiveVal(colnames(prev$ebayes_sv))
   
   group_levels <- reactive({
     get_group_levels(pdata())
@@ -154,10 +156,10 @@ get_group_levels <- function(pdata) {
 #' Logic for pdata table
 #' @export
 #' @keywords internal
-bulkTable <- function(input, output, session, eset, up_annot) {
+bulkTable <- function(input, output, session, eset, prev, up_annot) {
   
   pdata <- reactive({
-    pdata <- init_pdata(eset)
+    pdata <- init_pdata(eset, prev)
     annot <- up_annot()
     if (is.null(annot)) return(pdata)
     else return(annot)
@@ -347,7 +349,7 @@ is_invertible <- function(pdata) {
   is(try(solve.default(t(mod) %*% mod),silent=T), 'matrix')
 }
 
-init_pdata <- function(eset) {
+init_pdata <- function(eset, prev) {
   
   pcols <- colnames(eset@phenoData)
   pdata <- data.frame('Group' = NA,
@@ -378,8 +380,28 @@ init_pdata <- function(eset) {
     pdata <- cbind(pdata, pData(eset)[, add_cols])
   }
   
+  if (!is.null(prev)) {
+    pdata <- format_prev_pdata(prev$pdata, pdata)
+  }
+  
   return(pdata)
   
+}
+
+format_prev_pdata <- function(prev, pdata) {
+  matches <- match(row.names(prev), row.names(pdata))
+  group <- prev$group
+  levels <- unique(group[!is.na(group)])
+  
+  pdata[matches, 'Group name'] <- group
+  pdata[matches, 'Group'] <- as.numeric(factor(group, levels = levels))
+  
+  # workaround as previously saved 'pairs' column
+  pair_col <- grep('^pairs?$', colnames(prev))[1]
+  if (!is.na(pair_col)) 
+    pdata[matches, 'Pair'] <- prev[[pair_col]]
+  
+  return(pdata)
 }
 
 #' Format uploaded annotation
@@ -393,7 +415,7 @@ format_up_annot <- function(up, ref) {
   # allows changing color of groups by changing order of samples
   group <- up$`Group name`
   levels <- unique(group[!is.na(group)])
-  group <- as.numeric(factor(group, levels =levels))
+  group <- as.numeric(factor(group, levels = levels))
   up <- tibble::add_column(up, Group = group, .before = 1)
   
   up$Pair <- factor(up$Pair)

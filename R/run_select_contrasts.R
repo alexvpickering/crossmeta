@@ -2,6 +2,7 @@
 #'
 #' @param eset ExpressionSet
 #' @param gse_name GEO accession for the series.
+#' @param prev Previous result of \code{diff_expr}. Used to allow rechecking previous selections.
 #' @param app_dir Directory to shiny app. For local development use 'inst/select_contrasts'. Default is
 #'   in 'select_contrasts' sub directory of crossmeta package.
 #'
@@ -20,11 +21,12 @@
 #' 
 run_select_contrasts <- function(eset, 
                                  gse_name,
+                                 prev,
                                  app_dir = system.file('select_contrasts', package = 'crossmeta', mustWork = TRUE),
                                  port = 3838) {
   
   # pass arguments to app through options then run
-  shiny::shinyOptions(eset = eset, gse_name = gse_name)
+  shiny::shinyOptions(eset = eset, gse_name = gse_name, prev = prev)
   
   # auto-reload if update app files
   options(shiny.autoreload = TRUE)

@@ -7,6 +7,7 @@
 run_select_contrasts(
   eset,
   gse_name,
+  prev,
   app_dir = system.file("select_contrasts", package = "crossmeta", mustWork = TRUE),
   port = 3838
 )
@@ -15,6 +16,8 @@ run_select_contrasts(
 \item{eset}{ExpressionSet}
 
 \item{gse_name}{GEO accession for the series.}
+
+\item{prev}{Previous result of \code{diff_expr}. Used to allow rechecking previous selections.}
 
 \item{app_dir}{Directory to shiny app. For local development use 'inst/select_contrasts'. Default is
 in 'select_contrasts' sub directory of crossmeta package.}

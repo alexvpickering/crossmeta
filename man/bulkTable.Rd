@@ -4,7 +4,7 @@
 \alias{bulkTable}
 \title{Logic for pdata table}
 \usage{
-bulkTable(input, output, session, eset, up_annot)
+bulkTable(input, output, session, eset, prev, up_annot)
 }
 \description{
 Logic for pdata table

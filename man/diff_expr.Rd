@@ -9,7 +9,8 @@ diff_expr(
   data_dir = getwd(),
   annot = "SYMBOL",
   prev_anals = list(NULL),
-  svanal = TRUE
+  svanal = TRUE,
+  recheck = FALSE
 )
 }
 \arguments{
@@ -28,6 +29,9 @@ from the same platform, "PROBE" (for probe level analysis).}
 selections, names, and pairs will be reused.}
 
 \item{svanal}{Use surrogate variable analysis? Default is \code{TRUE}.}
+
+\item{recheck}{Would you like to recheck previous group/contrast annotations? Requires 
+\code{prev_anals}. Default is FALSE.}
 }
 \value{
 List of named lists, one for each GSE. Each named list contains:

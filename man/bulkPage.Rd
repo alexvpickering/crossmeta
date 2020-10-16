@@ -4,7 +4,7 @@
 \alias{bulkPage}
 \title{Logic Bulk Data page}
 \usage{
-bulkPage(input, output, session, eset, gse_name)
+bulkPage(input, output, session, eset, gse_name, prev)
 }
 \description{
 Logic Bulk Data page

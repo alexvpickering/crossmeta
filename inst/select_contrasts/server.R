@@ -3,10 +3,11 @@ server <- function(input, output, session) {
   # get arguments from calling function
   eset <- getShinyOption('eset')
   gse_name <- getShinyOption('gse_name')
+  prev <- getShinyOption('prev')
   
   observeEvent(input$done, {
     js$closeWindow()
-    stopApp(prev())
+    stopApp(res())
   })
   
   observeEvent(input$goto_geo, {
@@ -16,7 +17,7 @@ server <- function(input, output, session) {
   })
   
   # return value in format of previously saved analysis
-  prev <- reactive({
+  res <- reactive({
     pdata <- bulkPage$pdata()
     contrasts <- bulkPage$contrasts()
     if (!length(contrasts)) return(NULL)
@@ -28,6 +29,7 @@ server <- function(input, output, session) {
   
   bulkPage <- callModule(bulkPage, 'bulk', 
                          eset = eset,
-                         gse_name = gse_name)
+                         gse_name = gse_name,
+                         prev = prev)
   
 }
