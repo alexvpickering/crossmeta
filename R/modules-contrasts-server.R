@@ -355,7 +355,8 @@ init_pdata <- function(eset, prev) {
   pdata <- data.frame('Group' = NA,
                       'Group name' = NA,
                       'Pair' = NA,
-                      'Accession' = sampleNames(eset), check.names = FALSE)
+                      'Accession' = sampleNames(eset), 
+                      row.names = sampleNames(eset), check.names = FALSE)
   
   
   # title not helpful if two-channel
