@@ -5,6 +5,9 @@ server <- function(input, output, session) {
   gse_name <- getShinyOption('gse_name')
   prev <- getShinyOption('prev')
   
+  # title for widget
+  output$title <- shiny::renderText(paste('Select Contrasts:', gse_name))
+  
   observeEvent(input$done, {
     js$closeWindow()
     stopApp(res())

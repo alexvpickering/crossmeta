@@ -183,7 +183,7 @@ match_prev_eset <- function(eset, prev_anal) {
     sel <- row.names(prev)[!is.na(prev$group)]
     
     if (length(sel) < nrow(eset))
-      warning('Not all samples grouped: see https://support.bioconductor.org/p/73107/#73109')
+      warning('Not all samples grouped: see https://support.bioconductor.org/p/73107/#73109', call. = FALSE)
     
     
     # for two-channel, keep both channels for lmscFit

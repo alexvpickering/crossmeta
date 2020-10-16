@@ -14,7 +14,7 @@ bulkPage <- function(input, output, session, eset, gse_name, prev) {
   
   up_annot <- callModule(bulkAnnot, 'anal',
                          dataset_name = dataset_name,
-                         pdata = init_pdata(eset))
+                         pdata = bulkTable$pdata)
   
   
   bulkTable <- callModule(bulkTable, 'explore',
@@ -223,7 +223,6 @@ bulkTable <- function(input, output, session, eset, prev, up_annot) {
 #' @keywords internal
 bulkAnnot <- function(input, output, session, dataset_name, pdata) {
   
-  
   observeEvent(input$click_up, {
     shinyjs::click('up_annot')
     error_msg(NULL)
@@ -240,7 +239,7 @@ bulkAnnot <- function(input, output, session, dataset_name, pdata) {
     filename = fname,
     content = function(con) {
       
-      write.csv(format_dl_annot(pdata), con, row.names = FALSE)
+      write.csv(format_dl_annot(pdata()), con, row.names = FALSE)
     }
   )
   
@@ -257,7 +256,7 @@ bulkAnnot <- function(input, output, session, dataset_name, pdata) {
   
   observeEvent(input$up_annot, {
     
-    ref <- pdata
+    ref <- pdata()
     
     infile <- input$up_annot
     if (!isTruthy(infile)){
@@ -265,7 +264,7 @@ bulkAnnot <- function(input, output, session, dataset_name, pdata) {
       
     } else {
       res <- read.csv(infile$datapath, check.names = FALSE, stringsAsFactors = FALSE)
-      msg <- validate_up_annot(res, pdata)
+      msg <- validate_up_annot(res, ref)
       
       res <- if (is.null(msg)) format_up_annot(res, ref) else NULL
     }
@@ -305,9 +304,8 @@ format_dl_annot <- function(annot) {
 validate_up_annot <- function(up, ref) {
   msg <- NULL
   
-  
   req_cols <- c('Group name', 'Pair', 'Accession')
-  miss_cols <- req_cols[!req_cols %in% colnames(ref)]
+  miss_cols <- req_cols[!req_cols %in% colnames(up)]
   
   group <- up$`Group name`
   group <- group[!is.na(group)]
@@ -374,7 +372,9 @@ init_pdata <- function(eset, prev) {
   
   # remove accession numbers if Illumina (match with raw data not guaranteed)
   if ('illum' %in% pcols) {
-    pdata$Accession <- NULL
+    warning(
+      "Unmatched Illumina raw samples and GEO annotation. ",
+      "Use 'Title' (not 'Accession') to decide groups.", call. = FALSE)
     
   } else {
     add_cols <- setdiff(pcols, used_cols)
@@ -390,6 +390,7 @@ init_pdata <- function(eset, prev) {
 }
 
 format_prev_pdata <- function(prev, pdata) {
+  browser()
   matches <- match(row.names(prev), row.names(pdata))
   group <- prev$group
   levels <- unique(group[!is.na(group)])

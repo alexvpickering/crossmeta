@@ -15,7 +15,7 @@ load_illum_plat <- function(eset, gse_name, gse_dir, ensql) {
   try(fData(eset)[] <- lapply(fData(eset), as.character))
   
   # convert .xls to txt
-  xls_paths <- list.files(gse_dir, pattern = "_supplementary_.*.xls$", full.names = TRUE, ignore.case = TRUE)
+  xls_paths <- list.files(gse_dir, pattern = "_supplementary_.*.xlsx?$", full.names = TRUE, ignore.case = TRUE)
   xls_to_txt(xls_paths)
   
   # fix header issues
@@ -94,7 +94,7 @@ load_illum_plat <- function(eset, gse_name, gse_dir, ensql) {
 xls_to_txt <- function(xls_paths) {
   for (xls_path in xls_paths) {
     d <- readxl::read_excel(xls_path)
-    txt_path <- gsub('.xls$', '.txt', xls_path)
+    txt_path <- gsub('.xlsx?$', '.txt', xls_path)
     write.table(d, txt_path, sep='\t', quote = FALSE, row.names = FALSE)
   }
 }
