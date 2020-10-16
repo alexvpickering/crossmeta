@@ -7,7 +7,7 @@
 run_select_contrasts(
   eset,
   gse_name,
-  prev,
+  prev = NULL,
   app_dir = system.file("select_contrasts", package = "crossmeta", mustWork = TRUE),
   port = 3838
 )

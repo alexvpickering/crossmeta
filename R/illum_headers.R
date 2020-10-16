@@ -175,8 +175,8 @@ fix_illum_headers <- function(elist_paths, eset = NULL) {
         if (length(pcols)) {
 
             # longest common prefix or suffix in pvalue columns
-            pcol_prefix <- Biobase::lcPrefix(colnames(ex)[pcols])
-            pcol_sufix  <- Biobase::lcSuffix(colnames(ex)[pcols])
+            pcol_prefix <- get_lcstring(colnames(ex)[pcols])
+            pcol_sufix  <- get_lcstring(colnames(ex)[pcols], 'suffix')
 
             if (grepl('pval|detection', pcol_prefix, TRUE)) {
                 colnames(ex)[pcols] <- gsub(pcol_prefix, '', colnames(ex)[pcols])
@@ -196,8 +196,8 @@ fix_illum_headers <- function(elist_paths, eset = NULL) {
         if (length(scols)) {
 
             # longest common prefix or suffix in pvalue columns
-            scol_prefix <- Biobase::lcPrefix(colnames(ex)[scols])
-            scol_sufix  <- Biobase::lcSuffix(colnames(ex)[scols])
+            scol_prefix <- get_lcstring(colnames(ex)[scols])
+            scol_sufix  <- get_lcstring(colnames(ex)[scols], 'suffix')
 
             if (grepl('signal', scol_prefix, TRUE)) {
                 colnames(ex)[scols] <- gsub(scol_prefix, '', colnames(ex)[scols])
@@ -270,4 +270,21 @@ fix_illum_headers <- function(elist_paths, eset = NULL) {
     annotation <- unique(annotation)
     if (!length(annotation) || identical(annotation, 'ID_REF')) annotation = c("TargetID", "SYMBOL", "ID_REF")
     return(annotation)
+}
+
+
+get_lcstring <- function(x, type = 'prefix') {
+  
+  if (type == 'prefix') {
+    lcstring <- Biobase::lcPrefix(x)
+    
+  } else if (type == 'suffix') {
+    lcstring  <- Biobase::lcSuffix(x)
+  }
+  
+  # remove e.g. -L. from "-L.Detection Pval"
+  # not sure why but ?? seems to give precedence to retaining '.Detection Pval'
+  pattern <- '^(.+)??(.?AVG.?Signal.?|.?Detection.?(Pval)?(ue)?.?)(.+)?$'
+  lcstring <- gsub(pattern, '\\2', lcstring)
+  return(lcstring)
 }

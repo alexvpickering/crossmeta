@@ -28,6 +28,10 @@ load_illum_plat <- function(eset, gse_name, gse_dir, ensql) {
   elist_paths <- gsub(".txt", "_fixed.txt", elist_paths, fixed = TRUE)
   elist <- limma::read.ilmn(elist_paths, probeid = "ID_REF", annotation = annotation)
   
+  # make sure samples have distinct names 
+  # e.g. samples in two files from GSE40936 were getting named identically by fix_illum_headers
+  colnames(elist) <- make.unique(colnames(elist))
+  
   
   # don't correct if already log transformed (already corrected?)
   logd <- max(elist$E, na.rm = TRUE) < 100
