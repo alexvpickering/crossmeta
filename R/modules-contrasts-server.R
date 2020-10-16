@@ -390,7 +390,6 @@ init_pdata <- function(eset, prev) {
 }
 
 format_prev_pdata <- function(prev, pdata) {
-  browser()
   matches <- match(row.names(prev), row.names(pdata))
   group <- prev$group
   levels <- unique(group[!is.na(group)])
