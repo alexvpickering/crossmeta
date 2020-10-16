@@ -182,6 +182,10 @@ match_prev_eset <- function(eset, prev_anal) {
     prev <- prev_anal$pdata
     sel <- row.names(prev)[!is.na(prev$group)]
     
+    if (length(sel) < nrow(eset))
+      warning('Not all samples grouped: see https://support.bioconductor.org/p/73107/#73109')
+    
+    
     # for two-channel, keep both channels for lmscFit
     # order: all R, all G
     ch2 <- any(grepl('_red|_green', colnames(eset)))
