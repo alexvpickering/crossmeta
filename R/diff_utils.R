@@ -106,7 +106,6 @@ diff_expr <- function (esets, data_dir = getwd(),
       
         # select groups/contrasts
         if (is.null(prev) | recheck) prev <- run_select_contrasts(eset, gse_name, prev)
-        if (is.null(prev)) next
         
         # add groups from selection
         eset <- match_prev_eset(eset, prev)
@@ -243,8 +242,10 @@ ch2_subset <- function(eset, prev_anal) {
     
     if (!one.colr) stop('paired two-color designs that use samples from both colors not yet implemented')
     
-    eset <- eset[, sel.gsm]
-    colnames(eset) <- gsub('^(.+)_(red|green)$', '\\1', sel.gsm)
+    # keep samples with selected color and group assignment
+    keep <- grepl(sel.colrs, gsm_names) & !is.na(eset$group)
+    eset <- eset[, keep]
+    colnames(eset) <- gsub('^(.+)_(red|green)$', '\\1', colnames(eset))
   }
   
   return(eset)

@@ -9,8 +9,14 @@ server <- function(input, output, session) {
   output$title <- shiny::renderText(paste('Select Contrasts:', gse_name))
   
   observeEvent(input$done, {
-    js$closeWindow()
-    stopApp(res())
+    res <- res()
+    if (is.null(res)) {
+      warning('No contrasts specified.')
+      
+    } else {
+      js$closeWindow()
+      stopApp()
+    }
   })
   
   observeEvent(input$goto_geo, {
