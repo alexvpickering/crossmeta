@@ -157,8 +157,15 @@ add_adjusted <- function(eset, svobj = list(sv = NULL)) {
   mod <- mod[, !colnames(mod) %in% pair_cols]
   mod.clean <- cbind(mod0[, pair_cols], svs)
   
+  # if can't adjust, use unadjusted for subsequent filtering/mds plots
   y <- Biobase::exprs(eset)
-  adj <- clean_y(y, mod, mod.clean)
+  adj <- tryCatch(
+    clean_y(y, mod, mod.clean),
+    error = function(e) {
+      message("adjusting for sva/pairs failed - using non-adjusted.") 
+      return(y)
+    })
+  
   Biobase::assayDataElement(eset, 'adjusted') <- adj
   return(eset)
 }
@@ -395,7 +402,7 @@ run_sva <- function(mods, eset, svanal = TRUE) {
       },
     
     error = function(e) {
-      message(gse_name, ": sva failed - continuing without.")
+      message("sva failed - continuing without.")
       return(list("sv" = NULL))
     })
   

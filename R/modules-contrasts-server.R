@@ -336,14 +336,9 @@ validate_up_annot <- function(up, ref) {
 #' @keywords internal
 is_invertible <- function(pdata) {
   pdata <- pdata[!is.na(pdata$`Group name`), ]
-  
-  pair <- pdata$Pair
-  if (length(unique(pair)) > 1) pdata$pair <- pair
-  
   pdata$group <- pdata$`Group name`
   
   mod <- get_sva_mods(pdata)$mod
-  
   is(try(solve.default(t(mod) %*% mod),silent=T), 'matrix')
 }
 
