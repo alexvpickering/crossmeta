@@ -11,11 +11,11 @@ server <- function(input, output, session) {
   observeEvent(input$done, {
     res <- res()
     if (is.null(res)) {
-      warning('No contrasts specified.')
+      warning('No contrasts specified.', call. = FALSE)
       
     } else {
       js$closeWindow()
-      stopApp()
+      stopApp(res)
     }
   })
   
