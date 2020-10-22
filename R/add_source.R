@@ -42,7 +42,7 @@
 #' # run shiny GUI to add tissue sources
 #' # anals <- add_sources(anals, data_dir)
 #'
-add_sources <- function(diff_exprs, data_dir = getwd()) {
+add_sources <- function(diff_exprs, data_dir = getwd(), postfix = NULL) {
   
   # get source info for each contrast
   srclist <- list('GSE' = character(0),
@@ -130,6 +130,7 @@ add_sources <- function(diff_exprs, data_dir = getwd()) {
     gse_dir <- file.path(data_dir, gse_folder)
     
     save_name <- paste(gse_name, "diff_expr", tolower(diff_exprs[[i]]$annot), sep = "_")
+    if (!is.null(postfix)) save_name <- paste(save_name, postfix, sep = "_")
     save_name <- paste0(save_name, ".rds")
     
     saveRDS(diff_exprs[[i]], file.path(gse_dir, save_name))
