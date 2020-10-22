@@ -4,7 +4,7 @@
 \alias{load_diff}
 \title{Load previous differential expression analyses.}
 \usage{
-load_diff(gse_names, data_dir = getwd(), annot = "SYMBOL")
+load_diff(gse_names, data_dir = getwd(), annot = "SYMBOL", postfix = NULL)
 }
 \arguments{
 \item{gse_names}{Character vector specifying GSE names to be loaded.}
@@ -12,6 +12,9 @@ load_diff(gse_names, data_dir = getwd(), annot = "SYMBOL")
 \item{data_dir}{String specifying directory of GSE folders.}
 
 \item{annot}{Level of previous analysis (e.g. "SYMBOL" or "PROBE").}
+
+\item{postfix}{Optional string to append to saved results. Useful if need to run multiple
+meta-analyses on the same series but with different contrasts.}
 }
 \value{
 Result of previous call to \code{\link{diff_expr}}.

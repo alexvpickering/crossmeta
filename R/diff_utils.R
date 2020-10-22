@@ -41,6 +41,8 @@
 #' @param svanal Use surrogate variable analysis? Default is \code{TRUE}.
 #' @param recheck Would you like to recheck previous group/contrast annotations? Requires 
 #'   \code{prev_anals}. Default is FALSE.
+#' @param postfix Optional string to append to saved results. Useful if need to run multiple
+#'   meta-analyses on the same series but with different contrasts.
 #'
 #' @export
 #'
@@ -75,7 +77,7 @@
 #' # anals <- diff_expr(esets[1], data_dir, prev_anals = prev)
 #' 
 diff_expr <- function (esets, data_dir = getwd(),
-                       annot = "SYMBOL", prev_anals = list(NULL), svanal = TRUE, recheck = FALSE) {
+                       annot = "SYMBOL", prev_anals = list(NULL), svanal = TRUE, recheck = FALSE, postfix = NULL) {
 
     # within organism symbol
     if (annot == 'SPECIES') {
@@ -128,7 +130,7 @@ diff_expr <- function (esets, data_dir = getwd(),
         eset <- iqr_replicates(eset, annot)
 
         # differential expression
-        anal <- diff_anal(eset, svobj, contrasts, group_levels, gse_dir, gse_name, prev, annot)
+        anal <- diff_anal(eset, svobj, contrasts, group_levels, gse_dir, gse_name, prev, annot, postfix)
 
         anals[[gse_name]] <- anal
     }
@@ -515,7 +517,7 @@ which_max_iqr <- function(eset, groub_by, x = exprs(eset)) {
 # @return List, final result of \code{diff_expr}. Used for subsequent
 #   meta-analysis.
 
-diff_anal <- function(eset, svobj, contrasts, group_levels, gse_dir, gse_name, prev, annot = "SYMBOL"){
+diff_anal <- function(eset, svobj, contrasts, group_levels, gse_dir, gse_name, prev, annot = "SYMBOL", postfix = NULL){
   
     # setup model matrix with surrogate variables
     group <- eset$group
@@ -559,7 +561,9 @@ diff_anal <- function(eset, svobj, contrasts, group_levels, gse_dir, gse_name, p
     # uses prev so that saved will have _red|_green even if treated like single-channel
     prev$ebayes_sv <- ebayes_sv # need this for add_es
     diff_expr <- c(prev, list(top_tables = top_tables, annot = annot))
+    
     save_name <- paste(gse_name, "diff_expr", tolower(annot), sep = "_")
+    if (!is.null(postfix)) save_name <- paste(save_name, postfix, sep = "_")
     save_name <- paste0(save_name, ".rds")
 
     saveRDS(diff_expr, file.path(gse_dir, save_name))
@@ -702,6 +706,7 @@ clean_y <- function(y, mod, svs) {
 #' @param gse_names Character vector specifying GSE names to be loaded.
 #' @param data_dir String specifying directory of GSE folders.
 #' @param annot Level of previous analysis (e.g. "SYMBOL" or "PROBE").
+#' @inheritParams diff_expr
 #'
 #' @export
 #' @return Result of previous call to \code{\link{diff_expr}}.
@@ -712,7 +717,7 @@ clean_y <- function(y, mod, svs) {
 #' gse_names <- c("GSE9601", "GSE34817")
 #' prev <- load_diff(gse_names, data_dir)
 
-load_diff <- function(gse_names, data_dir = getwd(), annot = "SYMBOL") {
+load_diff <- function(gse_names, data_dir = getwd(), annot = "SYMBOL", postfix = NULL) {
 
     anals <- list()
     for (gse_name in gse_names) {
@@ -726,7 +731,10 @@ load_diff <- function(gse_names, data_dir = getwd(), annot = "SYMBOL") {
         }
 
         # get paths
-        pattern <- paste0(paste(".*_diff_expr", tolower(annot), sep="_"), ".rds")
+        pattern <- paste(".*_diff_expr", tolower(annot), sep = "_")
+        if (!is.null(postfix)) pattern <- paste(pattern, postfix, sep = "_")
+        pattern <- paste0(pattern, '.rds')
+        
         anal_paths <- list.files(gse_dir, pattern, full.names = TRUE)
 
         # load each diff path

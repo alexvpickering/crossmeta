@@ -10,7 +10,8 @@ diff_expr(
   annot = "SYMBOL",
   prev_anals = list(NULL),
   svanal = TRUE,
-  recheck = FALSE
+  recheck = FALSE,
+  postfix = NULL
 )
 }
 \arguments{
@@ -32,6 +33,9 @@ selections, names, and pairs will be reused.}
 
 \item{recheck}{Would you like to recheck previous group/contrast annotations? Requires 
 \code{prev_anals}. Default is FALSE.}
+
+\item{postfix}{Optional string to append to saved results. Useful if need to run multiple
+meta-analyses on the same series but with different contrasts.}
 }
 \value{
 List of named lists, one for each GSE. Each named list contains:
