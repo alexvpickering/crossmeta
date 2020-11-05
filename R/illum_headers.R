@@ -131,7 +131,7 @@ fix_illum_headers <- function(elist_paths, eset = NULL) {
         rawf <- readLines(fpath)
 
         # fread first 1000 rows as example
-        ex <- data.table::fread(fpath, sep = '\t', skip = 0, header = TRUE, nrows = 1000, fill = TRUE)
+        ex <- data.table::fread(fpath, sep = '\t', skip = 0, header = TRUE, nrows = 1000, fill = TRUE, )
         ex <- as.data.frame(ex)
 
 
@@ -153,8 +153,11 @@ fix_illum_headers <- function(elist_paths, eset = NULL) {
             rawf[1] <- paste0(names(ex), collapse = '\t')
         }
 
-        # remove any columns that start with V (autonamed by data.table)
-        ex[, grepl('^V\\d+$', colnames(ex))] <- NULL
+        # remove any columns that start with V then column number (autonamed by data.table)
+        cols <- colnames(ex)
+        vcols <- grep('^V\\d+$', cols)
+        is.auto <- sapply(vcols, function(j) cols[j] == paste0('V', j))
+        ex[, vcols[is.auto]] <- NULL
 
 
         # identify other annotation columns
