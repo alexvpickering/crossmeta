@@ -4,7 +4,7 @@
 \alias{add_sources}
 \title{Add sample source information for meta-analysis.}
 \usage{
-add_sources(diff_exprs, data_dir = getwd())
+add_sources(diff_exprs, data_dir = getwd(), postfix = NULL)
 }
 \arguments{
 \item{diff_exprs}{Previous result of \code{\link{diff_expr}}, which can

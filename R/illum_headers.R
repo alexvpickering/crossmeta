@@ -49,7 +49,7 @@ ilmn.nnum <- function(elist_paths) {
     ex <- as.data.frame(ex)
     
     # remove any columns that start with V (autonamed by data.table)
-    ex[, grepl('^V\\d+$', colnames(ex))] <- NULL
+    ex <- remove_autonamed(ex)
     
     isnum   <- unname(sapply(ex, is.numeric))
     isprobe <- unname(sapply(ex, function(col) is.integer(col) & min(col) > 10000))
@@ -62,6 +62,22 @@ ilmn.nnum <- function(elist_paths) {
     nnum <- nnum + sum(isnum)
   }
   return(nnum)
+}
+
+#' Remove columns that are autonamed by data.table
+#' 
+#' Auto-named columns start with 'V' followed by the column number.
+#'
+#' @param ex data.frame loaded with \link[data.table]{fread}
+#'
+#' @return \code{ex} with auto-named columns removed.
+#' 
+remove_autonamed <- function(ex) {
+  cols <- colnames(ex)
+  vcols <- grep('^V\\d+$', cols)
+  is.auto <- sapply(vcols, function(j) cols[j] == paste0('V', j))
+  ex[, vcols[is.auto]] <- NULL
+  return(ex)
 }
 
 #' Run prefix on Illumina raw data files
@@ -134,7 +150,6 @@ fix_illum_headers <- function(elist_paths, eset = NULL) {
         ex <- data.table::fread(fpath, sep = '\t', skip = 0, header = TRUE, nrows = 1000, fill = TRUE, )
         ex <- as.data.frame(ex)
 
-
         # fix annotation columns ----
 
         # look for first column with ILMN entries
@@ -152,13 +167,9 @@ fix_illum_headers <- function(elist_paths, eset = NULL) {
             names(ex)[idcol] <- 'ID_REF'
             rawf[1] <- paste0(names(ex), collapse = '\t')
         }
-
+        
         # remove any columns that start with V then column number (autonamed by data.table)
-        cols <- colnames(ex)
-        vcols <- grep('^V\\d+$', cols)
-        is.auto <- sapply(vcols, function(j) cols[j] == paste0('V', j))
-        ex[, vcols[is.auto]] <- NULL
-
+        ex <- remove_autonamed(ex)
 
         # identify other annotation columns
         isnum   <- unname(sapply(ex, is.numeric))
