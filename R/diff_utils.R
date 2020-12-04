@@ -195,27 +195,29 @@ get_ch2_mod <- function(eset) {
 
 
 
-# Adjusts expression data for surrogate variables.
-#
-# Factors out effect of surrogate variables discovered during surrogate variable
-# analysis.
-#
-# @param y Expression data of eset.
-# @param mod Full model matrix supplied to \code{sva}.
-# @param svs Surrogate variables returned by \code{sva} (svobj$sv).
-#
-# @seealso \code{\link{get_contrast_esets}}.
-# @return Expression data with effects of svs removed.
-
-clean_y <- function(y, mod, svs) {
-
-    X = cbind(mod, svs)
-    Hat = solve(t(X) %*% X) %*% t(X)
-    beta = (Hat %*% t(y))
-    rm(Hat)
-    gc()
-    P = ncol(mod)
-    return(y - t(as.matrix(X[,-c(1:P)]) %*% beta[-c(1:P),]))
+#' Adjusts expression data for surrogate variables.
+#'
+#' Factors out effect of surrogate variables discovered during surrogate variable
+#' analysis.
+#'
+#' @param y Expression data of eset.
+#' @param mod Full model matrix supplied to \code{sva}.
+#' @param svs Surrogate variables returned by \code{sva} (svobj$sv).
+#'
+#' @return Expression data with effects of svs removed.
+#' @export
+clean_y <- function(y, mod, mod.clean) {
+  
+  # if no factors to clean return original
+  if (!ncol(mod.clean)) return(y)
+  
+  X = cbind(mod, mod.clean)
+  Hat = solve(t(X) %*% X) %*% t(X)
+  beta = (Hat %*% t(y))
+  rm(Hat)
+  gc()
+  P = ncol(mod)
+  return(y - t(as.matrix(X[,-c(1:P)]) %*% beta[-c(1:P),]))
 }
 
 

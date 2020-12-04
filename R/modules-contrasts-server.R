@@ -35,7 +35,7 @@ bulkPage <- function(input, output, session, eset, gse_name, prev) {
 #' @keywords internal
 bulkForm <- function(input, output, session,  pdata, prev) {
   
-  contrasts <- reactiveVal(colnames(prev$ebayes_sv))
+  contrasts <- reactiveVal(colnames(prev$ebayes_sv$contrasts))
   
   group_levels <- reactive({
     get_group_levels(pdata())

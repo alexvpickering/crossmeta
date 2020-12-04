@@ -106,14 +106,8 @@ diff_expr <- function(esets, data_dir = getwd(),
     gse_dir <- file.path(data_dir, gse_folder)
     
     # setup contrasts
-    # select groups/contrasts
     if (is.null(prev) | recheck) prev <- run_select_contrasts(eset, gse_name, prev)
-    
-    # add groups from selection
-    eset <- match_prev_eset(eset, prev)
-    
-    # possibly subset two-channel to be like one-channel
-    eset <- ch2_subset(eset, prev)
+    eset <- run_limma_setup(eset, prev)
     
     # run sva
     sva_mods <- get_sva_mods(eset@phenoData)
@@ -147,6 +141,25 @@ diff_expr <- function(esets, data_dir = getwd(),
     saveRDS(diff_expr, file.path(gse_dir, save_name))
   }
   return(anals)
+}
+
+#' Setup ExpressionSet for running limma analysis
+#'
+#' @param eset ExpressionSet 
+#' @param prev previous result of call to diff_expr
+#'
+#' @return \code{eset} ready for \code{run_limma}
+#' @export
+#'
+run_limma_setup <- function(eset, prev) {
+  
+  # add groups from selection
+  eset <- match_prev_eset(eset, prev)
+  
+  # possibly subset two-channel to be like one-channel
+  eset <- ch2_subset(eset, prev)
+  
+  return(eset)
 }
 
 #' Get top table
@@ -227,8 +240,11 @@ run_limma <- function (eset, annot = "SYMBOL", svobj = list('sv' = NULL), numsv 
 #' For microarray datasets duplicates exprs slot into vsd slot.
 #'
 #' @param eset ExpressionSet with group column in \code{pData(eset)}
+#' @param pbulk Is this an pseudobulk single-cell \code{eset}? Default is \code{FALSE}.
+#'  Used by package drugseqr.
 #' @param vsd_path Path to save result to. Allows skipping running transform
 #'   on each load.
+#' @inheritParams run_lmfit
 #'
 #' @return \code{eset} with \code{'vsd'} \code{assayDataElement} added.
 #' @export
@@ -259,7 +275,6 @@ add_vsd <- function(eset, rna_seq = TRUE, pbulk = FALSE, vsd_path = NULL) {
     if (!is.null(vsd_path)) saveRDS(vsd, vsd_path)
     
   } else {
-    # rlog fast enough for most rna-seq
     vsd <- GEOkallisto::get_vsd(eset)
     vsd <- SummarizedExperiment::assay(vsd)
     if (!is.null(vsd_path)) saveRDS(vsd, vsd_path)
@@ -350,9 +365,8 @@ iqr_replicates <- function(eset, annot = "SYMBOL", rm.dup = FALSE, keep_path = N
     Biobase::featureNames(eset) <- fdata[!annot.na, annot]
     
   } else {
-    # use sva adjusted to compute IQRs
     # use rlog transformed or RMA-normalized to compute IQRs
-    y <- Biobase::assayDataElement(eset, 'adjusted')
+    y <- Biobase::assayDataElement(eset, 'vsd')
     
     # use row number to keep selected features
     iqr_rows <- which_max_iqr(eset, annot, y)

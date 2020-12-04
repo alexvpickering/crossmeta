@@ -76,7 +76,6 @@ load_raw <- function(gse_names, data_dir = getwd(), gpl_dir = '..', overwrite = 
         # check if saved copy
         if (length(eset_path) > 0 & overwrite == FALSE) {
             eset <- readRDS(eset_path)
-            eset <- setNames(list(eset), gse_name)
             esets <- c(esets, eset)
             
         } else {
