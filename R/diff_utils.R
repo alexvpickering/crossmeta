@@ -70,7 +70,7 @@
 #' esets <- load_raw(gse_names[1], data_dir)
 #'
 #' # run analysis
-#' # anals <- diff_expr(esets, data_dir)
+#' anals_old <- diff_expr(esets, data_dir)
 #'
 #' # re-run analysis on first eset
 #' prev <- load_diff(gse_names[1], data_dir)

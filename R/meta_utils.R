@@ -174,9 +174,6 @@ setup_src <- function(anals, ttype = c("top_tables", "padog_tables")) {
 
 get_es <- function(diff_exprs, cutoff = 0.3) {
 
-    # add dprimes and vardprimes to top tables
-    diff_exprs <- add_es(diff_exprs)
-
     # get top tables
     es <- lapply(diff_exprs, function(study) study$top_tables)
     nm <- unlist(lapply(es, names))
