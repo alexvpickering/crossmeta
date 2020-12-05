@@ -128,12 +128,11 @@ diff_expr <- function(esets, data_dir = getwd(),
       top_tables[[paste0(gse_name, '_', con)]] <- tt
     }
 
-    anals[[gse_name]] <- c(prev, list(top_tables = top_tables, annot = annot))
-    
-    # save to disk
     # uses prev so that saved will have _red|_green even if treated like single-channel
     diff_expr <- c(prev, list(top_tables = top_tables, annot = annot))
+    anals[[gse_name]] <- diff_expr
     
+    # save to disk
     save_name <- paste(gse_name, "diff_expr", tolower(annot), sep = "_")
     if (!is.null(postfix)) save_name <- paste(save_name, postfix, sep = "_")
     save_name <- paste0(save_name, ".rds")
