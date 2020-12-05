@@ -129,7 +129,7 @@ diff_expr <- function(esets, data_dir = getwd(),
     }
 
     # uses prev so that saved will have _red|_green even if treated like single-channel
-    diff_expr <- c(prev, list(top_tables = top_tables, annot = annot))
+    diff_expr <- c(list(top_tables = top_tables, annot = annot), prev)
     anals[[gse_name]] <- diff_expr
     
     # save to disk
