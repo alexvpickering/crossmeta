@@ -214,7 +214,7 @@ run_limma <- function (eset, annot = "SYMBOL", svobj = list('sv' = NULL), numsv 
   rna_seq <- 'norm.factors' %in% colnames(Biobase::pData(eset))
   
   # filtering low counts (as in tximport vignette)
-  if (filter & rna_seq) eset <- GEOkallisto::filter_genes(eset)
+  if (filter & rna_seq) eset <- rkal::filter_genes(eset)
   
   # add vsd element for cleaning
   eset <- add_vsd(eset, rna_seq = rna_seq)
@@ -274,7 +274,7 @@ add_vsd <- function(eset, rna_seq = TRUE, pbulk = FALSE, vsd_path = NULL) {
     if (!is.null(vsd_path)) saveRDS(vsd, vsd_path)
     
   } else {
-    vsd <- GEOkallisto::get_vsd(eset)
+    vsd <- rkal::get_vsd(eset)
     vsd <- SummarizedExperiment::assay(vsd)
     if (!is.null(vsd_path)) saveRDS(vsd, vsd_path)
   }
