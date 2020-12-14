@@ -422,7 +422,7 @@ run_sva <- function(mods, eset, svanal = TRUE) {
     
     error = function(e) {
       message("sva failed - continuing without.")
-      return(list("sv" = NULL))
+      return(list(sv = NULL, n.sv = 0))
     })
   return(svobj)
 }
