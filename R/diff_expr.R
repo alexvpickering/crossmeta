@@ -391,7 +391,8 @@ iqr_replicates <- function(eset, annot = "SYMBOL", rm.dup = FALSE, keep_path = N
 #' @param mods result of \code{get_mods}
 #' @param eset ExpressionSet
 #' @param svanal Should surrogate variable analysis be run? If \code{FALSE}, returns dummy result.
-#'
+#' @export
+#' 
 run_sva <- function(mods, eset, svanal = TRUE) {
   if (!svanal) return(list("sv" = NULL))
   
