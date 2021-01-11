@@ -394,7 +394,7 @@ iqr_replicates <- function(eset, annot = "SYMBOL", rm.dup = FALSE, keep_path = N
 #' @export
 #' 
 run_sva <- function(mods, eset, svanal = TRUE) {
-  if (!svanal) return(list("sv" = NULL))
+  if (!svanal) return(list("sv" = NULL, n.sv = 0))
   
   # determine if this is rna seq data
   rna_seq <- 'norm.factors' %in% colnames(Biobase::pData(eset))

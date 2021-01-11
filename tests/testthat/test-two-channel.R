@@ -58,6 +58,7 @@ test_that("crossmeta produces similar results to limma", {
   data_dir = tempdir()
   dir.create(file.path(data_dir, names(eset)))
   res <- crossmeta::diff_expr(eset, prev_anals = prev, data_dir = data_dir, svanal = FALSE, annot='rn')
+  
   # cleanup
   unlink('Rplots.pdf')
   res <- res$Apoa1$top_tables$`Apoa1_ApoAI...-C57BL.6`
