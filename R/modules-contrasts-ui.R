@@ -1,7 +1,8 @@
 
-#' UI for Bulk Data page
+#' UI for Select Contrasts Interface
+#' @param id The id string to be namespaced.
+#'
 #' @export
-#' @keywords internal
 bulkPageUI <- function(id) {
   ns <- NS(id)
   tagList(
@@ -17,7 +18,7 @@ bulkPageUI <- function(id) {
 }
 
 #' UI for Bulk Data annotation upload/download
-#' @export
+#'
 #' @keywords internal
 bulkAnnotInput <- function(id) {
   ns <- NS(id)
@@ -43,7 +44,7 @@ bulkAnnotInput <- function(id) {
 
 
 #' Input form for Bulk Data page
-#' @export
+#'
 #' @keywords internal
 bulkFormInput <- function(id) {
   ns <- NS(id)
@@ -62,7 +63,7 @@ bulkFormInput <- function(id) {
 
 
 #' Tables for datasets page
-#' @export
+#'
 #' @keywords internal
 bulkTableOuput <- function(id) {
   ns <- NS(id)
@@ -76,7 +77,7 @@ bulkTableOuput <- function(id) {
 
 
 #' Add contrast input
-#' @export
+#'
 #' @keywords internal
 addContrastInput <- function(id) {
   ns <- NS(id)
@@ -93,7 +94,7 @@ addContrastInput <- function(id) {
 }
 
 #' Delete contrasts input
-#' @export
+#'
 #' @keywords internal
 delContrastsInput <- function(id) {
   ns <- NS(id)

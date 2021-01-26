@@ -2,11 +2,13 @@
 % Please edit documentation in R/modules-contrasts-ui.R
 \name{bulkPageUI}
 \alias{bulkPageUI}
-\title{UI for Bulk Data page}
+\title{UI for Select Contrasts Interface}
 \usage{
 bulkPageUI(id)
 }
-\description{
-UI for Bulk Data page
+\arguments{
+\item{id}{The id string to be namespaced.}
 }
-\keyword{internal}
+\description{
+UI for Select Contrasts Interface
+}

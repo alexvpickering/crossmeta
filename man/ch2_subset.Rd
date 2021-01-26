@@ -7,7 +7,9 @@
 ch2_subset(eset, prev_anal)
 }
 \arguments{
-\item{eset}{ExpressionSet}
+\item{eset}{Annotated ExpressionSet. Created by \code{load_raw}.}
+
+\item{prev_anal}{One item (for eset) from previous result of \code{diff_expr}.}
 }
 \value{
 ExpressionSet. If two-channel, paired and one channel not used will subset to used channel.
@@ -17,3 +19,4 @@ Two-channel esets use intraspotCorrelation and lmscFit so can't use duplicateCor
 If not using one channel in contrasts (e.g. because all reference RNA) and have paired design,
 better to treat as single channel so that can use duplicateCorrelation.
 }
+\keyword{internal}

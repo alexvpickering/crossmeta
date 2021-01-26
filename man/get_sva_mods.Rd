@@ -7,7 +7,8 @@
 get_sva_mods(pdata)
 }
 \arguments{
-\item{eset}{Annotated eset with samples selected during \code{add_contrasts}.}
+\item{pdata}{\code{data.frame} of phenotype data with column \code{'group'}
+and \code{'pair'} (optional).}
 }
 \value{
 List with model matrix(mod) and null model matrix (mod0) used for \code{sva}.

@@ -5,13 +5,15 @@
 #' @param prev Previous result of \code{diff_expr}. Used to allow rechecking previous selections.
 #' @param app_dir Directory to shiny app. For local development use 'inst/select_contrasts'. Default is
 #'   in 'select_contrasts' sub directory of crossmeta package.
+#' @inheritParams shiny::runGadget
 #'
 #' @return result of \link{setup_prev}. Used to specify sample groups and contrasts for differential expression analysis.
+#' @keywords internal
 #' 
 #' library(lydata)
 #' # location of data
 #' data_dir <- system.file("extdata", package = "lydata")
-#'
+#'z
 #' # gather GSE names
 #' gse_name  <- "GSE9601"
 #'

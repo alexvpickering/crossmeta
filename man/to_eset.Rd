@@ -17,3 +17,4 @@ ExpressionSet using expression data from \code{object} and annotation from \code
 \description{
 Convert limma object to ExpressionSet
 }
+\keyword{internal}

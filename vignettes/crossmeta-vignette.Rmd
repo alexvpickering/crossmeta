@@ -276,7 +276,8 @@ for each gene that is present in a specified fraction of studies (30% by default
 
 ```{r, message=FALSE, results='hide'}
 # re-load previous analyses if need to
-anals <- load_diff(gse_names, data_dir)
+prev <- load_diff(gse_names, data_dir)
+anals <- diff_expr(esets, data_dir, prev_anals = prev)
 
 # perform meta analyses by tissue source
 es_res <- es_meta(anals, by_source = TRUE)

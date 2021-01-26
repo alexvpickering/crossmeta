@@ -32,7 +32,7 @@ load_agil_plat <- function (eset, gse_name, gse_dir, ensql) {
     {limma::read.maimages(elist_paths, source = source, green.only = !ch2)},
     error = function(e) {
       # determine source of error
-      output <- capture.output(tryCatch(
+      output <- utils::capture.output(tryCatch(
         limma::read.maimages(elist_paths, source = source, green.only = !ch2),
         error = function(e) NULL))
       
@@ -79,7 +79,7 @@ load_agil_plat <- function (eset, gse_name, gse_dir, ensql) {
 #' @param eset ExpressionSet from \link{getGEO}. Used for annotation.
 #'
 #' @return ExpressionSet using expression data from \code{object} and annotation from \code{eset}.
-#' @export
+#' @keywords internal
 #'
 to_eset <- function(object, eset) {
   
@@ -93,7 +93,7 @@ to_eset <- function(object, eset) {
  
   eset <- ExpressionSet(E,
                         phenoData = pdata,
-                        featureData = as(object$genes, 'AnnotatedDataFrame'),
+                        featureData = methods::as(object$genes, 'AnnotatedDataFrame'),
                         annotation = annotation(eset))
   
   return(eset)
@@ -120,7 +120,7 @@ exprs.MA <- function(MA) {
 #' @param y Expression values from two-channel agilent array in order all red then all green.
 #'
 #' @return MAList
-#' @export
+#' @keywords internal
 #'
 #' @examples
 #' 
@@ -130,7 +130,7 @@ exprs.MA <- function(MA) {
 #' colnames(MA) <- letters[1:5]
 #' 
 #' y <- exprs.MA(MA)
-#' MA2 <- to_ma(y)
+#' MA2 <- crossmeta:::to_ma(y)
 #' all.equal(MA, MA2)
 #' 
 to_ma <- function(y) {
@@ -139,7 +139,7 @@ to_ma <- function(y) {
   G <- y[, (narray+1):ncol(y)]
   M <- R - G
   A <- (R + G)/2
-  MA <- new("MAList", list(M=M, A=A))
+  MA <- methods::new("MAList", list(M=M, A=A))
   colnames(MA) <- gsub('_red|_green', '', colnames(MA))
   return(MA)
 }

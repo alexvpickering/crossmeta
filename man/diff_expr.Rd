@@ -11,7 +11,8 @@ diff_expr(
   prev_anals = list(NULL),
   svanal = TRUE,
   recheck = FALSE,
-  postfix = NULL
+  postfix = NULL,
+  port = 3838
 )
 }
 \arguments{
@@ -36,6 +37,8 @@ selections, names, and pairs will be reused.}
 
 \item{postfix}{Optional string to append to saved results. Useful if need to run multiple
 meta-analyses on the same series but with different contrasts.}
+
+\item{port}{See \code{\link[shiny:shiny-package]{runApp()}}.}
 }
 \value{
 List of named lists, one for each GSE. Each named list contains:
@@ -54,21 +57,15 @@ After selecting control and test samples for each contrast, surrogate variable
 analysis (\code{\link[sva]{sva}}) and differential expression analysis is performed.
 }
 \details{
-The \strong{Samples} tab is used to select control and test samples for
-each contrast. To do so: select rows for control samples, type a group name
-in the \emph{Control group name} text input box and click the \emph{Add Group}
-button. Repeat for test samples. While adding additional contrasts, a previous
-control group can be quickly reselected from the \emph{Previous selections}
-dropdown box. After control and test samples have been added for all contrasts
+Click the Download icon and fill in the \emph{Group name} column and optionally
+the \emph{Pairs} column. Then save and upload the filled in metadata csv. After doing so,
+select a test and control group to compare and click the \emph{+} icon to add the
+contrast. Repeat previous step to add additional contrasts.
+After control and test samples have been added for all contrasts
 that you wish to include, click the \emph{Done} button. Repeat for all GSEs.
 
 Paired samples (e.g. the same subject before and after treatment) can be
-specified by selecting sample rows to pair and then clicking \emph{Pair Samples}.
-The author does not usually specify paired samples and instead allows surrogate
-variable analysis to discover these inter-sample relationships from the data itself.
-
-The \strong{Contrasts} tab is used to view and delete contrasts that have
-already been added.
+specified by filling out the \emph{Pairs column} before uploading the metadata.
 
 For each GSE, analysis results are saved in the corresponding GSE
 folder in \code{data_dir} that was created by \code{\link{get_raw}}. If analyses
@@ -88,11 +85,11 @@ gse_names  <- c("GSE9601", "GSE15069", "GSE50841", "GSE34817", "GSE29689")
 # load first eset
 esets <- load_raw(gse_names[1], data_dir)
 
-# run analysis
-anals_old <- diff_expr(esets, data_dir)
+# run analysis (opens GUI)
+# anals_old <- diff_expr(esets, data_dir)
 
 # re-run analysis on first eset
 prev <- load_diff(gse_names[1], data_dir)
-# anals <- diff_expr(esets[1], data_dir, prev_anals = prev)
+anals <- diff_expr(esets[1], data_dir, prev_anals = prev)
 
 }

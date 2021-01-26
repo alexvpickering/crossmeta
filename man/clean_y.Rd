@@ -11,7 +11,7 @@ clean_y(y, mod, mod.clean)
 
 \item{mod}{Full model matrix supplied to \code{sva}.}
 
-\item{svs}{Surrogate variables returned by \code{sva} (svobj$sv).}
+\item{mod.clean}{Model matrix with factors to clean.}
 }
 \value{
 Expression data with effects of svs removed.
@@ -20,3 +20,4 @@ Expression data with effects of svs removed.
 Factors out effect of surrogate variables discovered during surrogate variable
 analysis.
 }
+\keyword{internal}

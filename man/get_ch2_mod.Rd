@@ -16,3 +16,4 @@ model matrix for use by \link[limma]{intraspotCorrelation} and \link[limma]{lmsc
 \description{
 Get design matrix for two-channel array
 }
+\keyword{internal}

@@ -13,7 +13,7 @@ run_limma(
 )
 }
 \arguments{
-\item{eset}{Annotated eset created by \code{\link[GEOkallisto]{load_seq}}.}
+\item{eset}{Annotated eset created by \code{load_raw}.}
 
 \item{annot}{String, column name in fData. For duplicated
 values in this column, the row with the highest interquartile range
@@ -26,11 +26,6 @@ or \code{"ENTREZID_HS"} (for probe level analysis).}
 
 \item{filter}{For RNA-seq. Should genes with low counts be filtered? drugseqr shiny app performs this step
 separately. Should be \code{TRUE} (default) if used outside of drugseqr shiny app.}
-
-\item{data_dir}{String specifying directory of GSE folders.}
-
-\item{prev_anal}{Previous result of \code{run_limma}. If present, previous group
-selections will be reused.}
 }
 \value{
 List with:

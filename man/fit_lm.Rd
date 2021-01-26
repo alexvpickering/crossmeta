@@ -9,6 +9,12 @@ fit_lm(eset, svobj = list(sv = NULL), numsv = 0, rna_seq = TRUE)
 \arguments{
 \item{eset}{Annotated eset created by \code{load_raw}. Replicate features and
 non-selected samples removed by \code{iqr_replicates}.}
+
+\item{svobj}{Surrogate variable analysis results. Returned from \link{run_sva}.}
+
+\item{numsv}{Number of surrogate variables to model.}
+
+\item{rna_seq}{Is this an RNA-seq \code{eset}? Default is \code{TRUE}.}
 }
 \value{
 list with slots:
@@ -21,3 +27,4 @@ Runs limma differential expression analysis on all contrasts selected by
 variables discovered by \code{diff_setup}. Also prints MDS plot and saves
 results.
 }
+\keyword{internal}

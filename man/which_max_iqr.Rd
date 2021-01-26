@@ -19,3 +19,4 @@ Integer vector of row numbers representing rows with the maximum IQR after group
 \description{
 Groups by \code{group_by} and determines row with maximum IQR.
 }
+\keyword{internal}

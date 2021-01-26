@@ -1,13 +1,14 @@
-# Illumina loader utility for load_plat.
-#
-# Used by load_plat to load an eset.
-#
-# @param eset Expression set obtained by \code{getGEO}.
-# @param gse_name String specifying GSE name.
-# @param gse_dir String specifying path to GSE folder.
-#
-# @seealso \code{\link{load_plat}}.
-# @return Annotated eset.
+#' Illumina loader utility for load_plat.
+#'
+#' Used by load_plat to load an eset.
+#'
+#' @param eset Expression set obtained by \code{getGEO}.
+#' @param gse_name String specifying GSE name.
+#' @param gse_dir String specifying path to GSE folder.
+#'
+#' @seealso \code{\link{load_plat}}.
+#' @return Annotated eset.
+#' @keywords internal
 
 load_illum_plat <- function(eset, gse_name, gse_dir, ensql) {
   
@@ -93,13 +94,13 @@ load_illum_plat <- function(eset, gse_name, gse_dir, ensql) {
 #' @param xls_paths Paths to .xls files
 #'
 #' @return NULL
-#' @export
+#' @keywords internal
 #'
 xls_to_txt <- function(xls_paths) {
   for (xls_path in xls_paths) {
     d <- readxl::read_excel(xls_path)
     txt_path <- gsub('.xlsx?$', '.txt', xls_path)
-    write.table(d, txt_path, sep='\t', quote = FALSE, row.names = FALSE)
+    utils::write.table(d, txt_path, sep='\t', quote = FALSE, row.names = FALSE)
   }
 }
 
@@ -306,6 +307,7 @@ match_samples <- function(eset, elist) {
 #' @param ngenes The number of top differentially-regulated (up and down) query genes to use. 
 #'
 #' @return Vector of pearson correlations between query and reference signatures.
+#' @keywords internal
 #'
 query_ref <- function(query, ref, sorted = TRUE, ngenes = 200) {
   

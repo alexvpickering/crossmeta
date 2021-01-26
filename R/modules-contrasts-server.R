@@ -1,6 +1,10 @@
-#' Logic Bulk Data page
+#' Logic for Select Contrasts Interface
+#' @param input,output,session shiny module boilerplate
+#' @inheritParams run_select_contrasts
+#' 
+#' @importFrom shinyjs html toggleClass 
 #' @export
-#' @keywords internal
+#' 
 bulkPage <- function(input, output, session, eset, gse_name, prev) {
   
   
@@ -31,7 +35,6 @@ bulkPage <- function(input, output, session, eset, gse_name, prev) {
 
 
 #' Logic for Bulk Data form
-#' @export
 #' @keywords internal
 bulkForm <- function(input, output, session,  pdata, prev) {
   
@@ -142,8 +145,6 @@ get_contrast_choices <- function(contrasts, group_levels) {
 #' Get group levels for bulk data plots
 #'
 #' @param pdata Data.frame of phenotype data
-#' @export
-#'
 #' @keywords internal
 get_group_levels <- function(pdata) {
   pdata <- pdata[!is.na(pdata$Group), ]
@@ -154,7 +155,6 @@ get_group_levels <- function(pdata) {
 
 
 #' Logic for pdata table
-#' @export
 #' @keywords internal
 bulkTable <- function(input, output, session, eset, prev, up_annot) {
   
@@ -219,7 +219,6 @@ bulkTable <- function(input, output, session, eset, prev, up_annot) {
 }
 
 #' Logic for downloading and uploading bulk annotation
-#' @export
 #' @keywords internal
 bulkAnnot <- function(input, output, session, dataset_name, pdata) {
   
@@ -239,7 +238,7 @@ bulkAnnot <- function(input, output, session, dataset_name, pdata) {
     filename = fname,
     content = function(con) {
       
-      write.csv(format_dl_annot(pdata()), con, row.names = FALSE)
+      utils::write.csv(format_dl_annot(pdata()), con, row.names = FALSE)
     }
   )
   
@@ -263,7 +262,7 @@ bulkAnnot <- function(input, output, session, dataset_name, pdata) {
       res <- msg <- NULL
       
     } else {
-      res <- read.csv(infile$datapath, check.names = FALSE, stringsAsFactors = FALSE)
+      res <- utils::read.csv(infile$datapath, check.names = FALSE, stringsAsFactors = FALSE)
       msg <- validate_up_annot(res, ref)
       
       res <- if (is.null(msg)) format_up_annot(res, ref) else NULL
@@ -278,7 +277,6 @@ bulkAnnot <- function(input, output, session, dataset_name, pdata) {
 }
 
 #' Format downloaded annotation
-#' @export
 #' @keywords internal
 format_dl_annot <- function(annot) {
   
@@ -299,7 +297,6 @@ format_dl_annot <- function(annot) {
 
 
 #' Validate uploaded bulk annotation
-#' @export
 #' @keywords internal
 validate_up_annot <- function(up, ref) {
   msg <- NULL
@@ -332,14 +329,13 @@ validate_up_annot <- function(up, ref) {
 }
 
 #' Check uploaded bulk pdata to make sure the study design is invertible
-#' @export
 #' @keywords internal
 is_invertible <- function(pdata) {
   pdata <- pdata[!is.na(pdata$`Group name`), ]
   pdata$group <- pdata$`Group name`
   
   mod <- get_sva_mods(pdata)$mod
-  is(try(solve.default(t(mod) %*% mod),silent=T), 'matrix')
+  methods::is(try(solve.default(t(mod) %*% mod),silent=T), 'matrix')
 }
 
 init_pdata <- function(eset, prev) {
@@ -401,7 +397,6 @@ format_prev_pdata <- function(prev, pdata) {
 }
 
 #' Format uploaded annotation
-#' @export
 #' @keywords internal
 format_up_annot <- function(up, ref) {
   row.names(up) <- up$Accession
@@ -424,25 +419,26 @@ format_up_annot <- function(up, ref) {
 }
 
 
-#' Get a pallete for cluster plots
+#' Get a Pallete to Distinguish Groups 
 #'
 #' @param levs Character vector of levels to get colour pallete for.
 #'
 #' @return Character vector with colour codes of \code{length(levs)}.
-#' @export
+#'
 #' @keywords internal
-get_palette <- function(levs, dark = FALSE) {
+get_palette <- function(levs, dark = FALSE, with_all = FALSE) {
+  if (with_all) levs <- c(levs, 'All Clusters')
   
   # palettes from scater
   tableau20 <- c("#1F77B4", "#AEC7E8", "#FF7F0E", "#FFBB78", "#2CA02C",
                  "#98DF8A", "#D62728", "#FF9896", "#9467BD", "#C5B0D5",
-                 "#8C564B", "#C49C94", "#E377C2", "#F7B6D2", "#7F7F7F",
-                 "#C7C7C7", "#BCBD22", "#DBDB8D", "#17BECF", "#9EDAE5")
+                 "#8C564B", "#C49C94", "#E377C2", "#F7B6D2",
+                 "#17BECF", "#9EDAE5")
   
   tableau20_dark <- c("#004771", "#4075A5", "#984802", "#A06705", "#036003",
                       "#33870E", "#821919", "#CF1701", "#5B3979", "#7D5E91",
-                      "#55342D", "#7B574F", "#A22283", "#CE308A", "#4B4B4B",
-                      "#727272", "#6D6D01", "#7F7F07", "#056F79", "#028491")
+                      "#55342D", "#7B574F", "#A22283", "#CE308A",
+                      "#056F79", "#028491")
   
   tableau10medium <- c("#729ECE", "#FF9E4A", "#67BF5C", "#ED665D",
                        "#AD8BC9", "#A8786E", "#ED97CA", "#A2A2A2",
@@ -459,17 +455,29 @@ get_palette <- function(levs, dark = FALSE) {
     
   } else if (nlevs <= 10) {
     pal <- if(dark) tableau10medium_dark else tableau10medium
-    values <- head(pal, nlevs)
+    values <- utils::head(pal, nlevs)
     
-  } else if (nlevs <= 20) {
+  } else if (nlevs <= 16) {
     pal <- if(dark) tableau20_dark else tableau20
-    values <- head(pal, nlevs)
+    values <- utils::head(pal, nlevs)
     
   } else {
+    pal <- grDevices::colors(distinct = TRUE)
+    pal <- pal[grep('gr(a|e)y|white|ivory|beige|seashell|snow',
+                    pal,
+                    invert = TRUE)]
     set.seed(0)
-    values <- randomcoloR::distinctColorPalette(nlevs)
-    
+    pal <- sample(pal, nlevs)
+    values <- col2hex(pal, dark)
   }
   return(values)
+}
+
+col2hex <- function(cname, dark) {
+  colMat <- grDevices::col2rgb(cname)
+  if (dark) colMat <- colMat/1.4
+  grDevices::rgb(red = colMat[1, ]/255,
+                 green = colMat[2, ]/255,
+                 blue = colMat[3, ]/255)
 }
 

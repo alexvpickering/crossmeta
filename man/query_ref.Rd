@@ -24,3 +24,4 @@ Vector of pearson correlations between query and reference signatures.
 \description{
 Determines the pearson correlation between the query and each reference signature.
 }
+\keyword{internal}

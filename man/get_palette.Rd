@@ -2,9 +2,9 @@
 % Please edit documentation in R/modules-contrasts-server.R
 \name{get_palette}
 \alias{get_palette}
-\title{Get a pallete for cluster plots}
+\title{Get a Pallete to Distinguish Groups}
 \usage{
-get_palette(levs, dark = FALSE)
+get_palette(levs, dark = FALSE, with_all = FALSE)
 }
 \arguments{
 \item{levs}{Character vector of levels to get colour pallete for.}
@@ -13,6 +13,6 @@ get_palette(levs, dark = FALSE)
 Character vector with colour codes of \code{length(levs)}.
 }
 \description{
-Get a pallete for cluster plots
+Get a Pallete to Distinguish Groups
 }
 \keyword{internal}

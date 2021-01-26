@@ -3,21 +3,15 @@
 #' After selecting control and test samples for each contrast, surrogate variable
 #' analysis (\code{\link[sva]{sva}}) and differential expression analysis is performed.
 #'
-#' The \strong{Samples} tab is used to select control and test samples for
-#' each contrast. To do so: select rows for control samples, type a group name
-#' in the \emph{Control group name} text input box and click the \emph{Add Group}
-#' button. Repeat for test samples. While adding additional contrasts, a previous
-#' control group can be quickly reselected from the \emph{Previous selections}
-#' dropdown box. After control and test samples have been added for all contrasts
+#' Click the Download icon and fill in the \emph{Group name} column and optionally
+#' the \emph{Pairs} column. Then save and upload the filled in metadata csv. After doing so,
+#' select a test and control group to compare and click the \emph{+} icon to add the
+#' contrast. Repeat previous step to add additional contrasts.
+#' After control and test samples have been added for all contrasts
 #' that you wish to include, click the \emph{Done} button. Repeat for all GSEs.
 #'
 #' Paired samples (e.g. the same subject before and after treatment) can be
-#' specified by selecting sample rows to pair and then clicking \emph{Pair Samples}.
-#' The author does not usually specify paired samples and instead allows surrogate
-#' variable analysis to discover these inter-sample relationships from the data itself.
-#'
-#' The \strong{Contrasts} tab is used to view and delete contrasts that have
-#' already been added.
+#' specified by filling out the \emph{Pairs column} before uploading the metadata.
 #'
 #' For each GSE, analysis results are saved in the corresponding GSE
 #' folder in \code{data_dir} that was created by \code{\link{get_raw}}. If analyses
@@ -43,6 +37,7 @@
 #'   \code{prev_anals}. Default is FALSE.
 #' @param postfix Optional string to append to saved results. Useful if need to run multiple
 #'   meta-analyses on the same series but with different contrasts.
+#' @inheritParams run_select_contrasts
 #'
 #' @export
 #'
@@ -69,15 +64,16 @@
 #' # load first eset
 #' esets <- load_raw(gse_names[1], data_dir)
 #'
-#' # run analysis
-#' anals_old <- diff_expr(esets, data_dir)
+#' # run analysis (opens GUI)
+#' # anals_old <- diff_expr(esets, data_dir)
 #'
 #' # re-run analysis on first eset
 #' prev <- load_diff(gse_names[1], data_dir)
-#' # anals <- diff_expr(esets[1], data_dir, prev_anals = prev)
+#' anals <- diff_expr(esets[1], data_dir, prev_anals = prev)
 #' 
 diff_expr <- function(esets, data_dir = getwd(),
-                          annot = "SYMBOL", prev_anals = list(NULL), svanal = TRUE, recheck = FALSE, postfix = NULL) {
+                      annot = "SYMBOL", prev_anals = list(NULL), svanal = TRUE, recheck = FALSE, postfix = NULL,
+                      port=3838) {
   
   # within organism symbol
   if (annot == 'SPECIES') {
@@ -106,7 +102,7 @@ diff_expr <- function(esets, data_dir = getwd(),
     gse_dir <- file.path(data_dir, gse_folder)
     
     # setup contrasts
-    if (is.null(prev) | recheck) prev <- run_select_contrasts(eset, gse_name, prev)
+    if (is.null(prev) | recheck) prev <- run_select_contrasts(eset, gse_name, prev, port=port)
     eset <- run_limma_setup(eset, prev)
     
     # run sva
@@ -127,7 +123,7 @@ diff_expr <- function(esets, data_dir = getwd(),
       cat (con_name, "(# p < 0.05):", num_sig, "\n")
       top_tables[[paste0(gse_name, '_', con)]] <- tt
     }
-
+    
     # uses prev so that saved will have _red|_green even if treated like single-channel
     diff_expr <- c(list(top_tables = top_tables, annot = annot), prev)
     anals[[gse_name]] <- diff_expr
@@ -165,6 +161,9 @@ run_limma_setup <- function(eset, prev) {
 #'
 #' @param lm_fit Result of \link{run_limma}
 #' @param groups Test and Control group as strings.
+#' @param with.es Add \code{'dprime'} and \code{'vardprime'} from 
+#'  \code{\link[metaMA]{effectsize}}? Default is \code{TRUE}.
+#' @inheritParams fit_ebayes
 #'
 #' @return result of \link[limma]{toptable}
 #' @export
@@ -188,16 +187,13 @@ get_top_table <- function(lm_fit, groups = c('test', 'ctrl'), with.es = TRUE, ro
 #' If analyses need to be repeated, previous results can be reloaded with \code{\link[base]{readRDS}}
 #' and supplied to the \code{prev_anal} parameter. In this case, previous selections will be reused.
 #'
-#' @param eset Annotated eset created by \code{\link[GEOkallisto]{load_seq}}.
-#' @param data_dir String specifying directory of GSE folders.
+#' @param eset Annotated eset created by \code{load_raw}.
 #' @param annot String, column name in fData. For duplicated
 #'   values in this column, the row with the highest interquartile range
 #'   across selected samples will be kept. Appropriate values are \code{"SYMBOL"} (default - for gene level analysis)
 #'   or \code{"ENTREZID_HS"} (for probe level analysis).
 #' @param svobj Surrogate variable analysis results. Returned from \link{run_sva}.
 #' @param numsv Number of surrogate variables to model.
-#' @param prev_anal Previous result of \code{run_limma}. If present, previous group
-#'   selections will be reused.
 #' @param filter For RNA-seq. Should genes with low counts be filtered? drugseqr shiny app performs this step
 #'   separately. Should be \code{TRUE} (default) if used outside of drugseqr shiny app.
 #'
@@ -214,7 +210,7 @@ run_limma <- function (eset, annot = "SYMBOL", svobj = list('sv' = NULL), numsv 
   rna_seq <- 'norm.factors' %in% colnames(Biobase::pData(eset))
   
   # filtering low counts (as in tximport vignette)
-  if (filter & rna_seq) eset <- rkal::filter_genes(eset)
+  if (filter & rna_seq) eset <- filter_genes(eset)
   
   # add vsd element for cleaning
   eset <- add_vsd(eset, rna_seq = rna_seq)
@@ -274,7 +270,7 @@ add_vsd <- function(eset, rna_seq = TRUE, pbulk = FALSE, vsd_path = NULL) {
     if (!is.null(vsd_path)) saveRDS(vsd, vsd_path)
     
   } else {
-    vsd <- rkal::get_vsd(eset)
+    vsd <- get_vsd(eset)
     vsd <- SummarizedExperiment::assay(vsd)
     if (!is.null(vsd_path)) saveRDS(vsd, vsd_path)
   }
@@ -335,11 +331,12 @@ add_adjusted <- function(eset, svobj = list(sv = NULL), numsv = 0, adj_path = NU
 #'
 #' For rows with duplicated annot, highested IQR retained.
 #'
-#' @param mod Model matrix without surrogate variables. generated by \code{diff_setup}.
-#' @param svobj Result from \code{sva} function called during \code{diff_setup}.
+#' @inheritParams run_limma
 #' @param annot feature to use to remove replicates.
 #' @param rm.dup remove duplicates (same measure, multiple ids)? Used for Pathway analysis so that doesn't treat
 #'  probes that map to multiple genes as distinct measures.
+#' @param keep_path Path to file to load/save rows that are retained. Used for
+#'  caching by 'drugseqr' app.
 #'
 #' @return Expression set with unique features at probe or gene level.
 #' @export
@@ -388,7 +385,7 @@ iqr_replicates <- function(eset, annot = "SYMBOL", rm.dup = FALSE, keep_path = N
 
 #' Run surrogate variable analysis
 #'
-#' @param mods result of \code{get_mods}
+#' @param mods result of \link{get_sva_mods}
 #' @param eset ExpressionSet
 #' @param svanal Should surrogate variable analysis be run? If \code{FALSE}, returns dummy result.
 #' @export
@@ -438,16 +435,21 @@ run_sva <- function(mods, eset, svanal = TRUE) {
 #'
 #' @param eset Annotated eset created by \code{load_raw}. Replicate features and
 #'   non-selected samples removed by \code{iqr_replicates}.
+#' @inheritParams run_limma
+#' @inheritParams add_adjusted
+#' @inheritParams run_lmfit
 #'
 #' @return list with slots:
 #'   * \code{fit} Result of \link[limma]{lmFit}.
 #'   * \code{mod} model matrix used for fit.
+#'   
+#' @keywords internal
 #'
 fit_lm <- function(eset, svobj = list(sv = NULL), numsv = 0, rna_seq = TRUE){
   
   # setup model matrix with surrogate variables
   group <- Biobase::pData(eset)$group
-  mod <- model.matrix(~0 + group)
+  mod <- stats::model.matrix(~0 + group)
   colnames(mod) <- gsub('^group', '', colnames(mod))
   svind <- seq_len(numsv)
   svmod <- svobj$sv[, svind, drop = FALSE]
@@ -478,6 +480,8 @@ fit_lm <- function(eset, svobj = list(sv = NULL), numsv = 0, rna_seq = TRUE){
 #' @param rna_seq Is this an RNA-seq \code{eset}? Default is \code{TRUE}.
 #'
 #' @return result from call to limma \code{lmFit}.
+#' @keywords internal
+#' 
 run_lmfit <- function(eset, mod, rna_seq = TRUE) {
   
   pdata <- Biobase::pData(eset)
@@ -573,6 +577,7 @@ run_lmfit <- function(eset, mod, rna_seq = TRUE) {
 #'
 #' @param lm_fit Result of call to \link{run_limma}
 #' @param contrasts Character vector of contrasts to fit.
+#' @inheritParams limma::eBayes
 #'
 #' @return result of \link[limma]{eBayes}
 #' @export

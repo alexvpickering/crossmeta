@@ -10,6 +10,8 @@ fit_ebayes(lm_fit, contrasts, robust = TRUE)
 \item{lm_fit}{Result of call to \link{run_limma}}
 
 \item{contrasts}{Character vector of contrasts to fit.}
+
+\item{robust}{logical, should the estimation of \code{df.prior} and \code{var.prior} be robustified against outlier sample variances?}
 }
 \value{
 result of \link[limma]{eBayes}

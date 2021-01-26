@@ -1,14 +1,15 @@
 
-# Reuse contrast selections from previous analysis.
-#
-# Transfers user-supplied selections from previous call of diff_expr.
-#
-# @param eset Annotated eset. Created by \code{load_raw}.
-# @param prev_anal One item (for eset) from previous result of \code{diff_expr}.
-#    If present, previous selections and names will be reused.
-#
-# @seealso \code{\link{diff_expr}}
-# @return Expression set with samples and pData as in prev_anal.
+#' Reuse contrast selections from previous analysis.
+#'
+#' Transfers user-supplied selections from previous call of diff_expr.
+#'
+#' @param eset Annotated eset. Created by \code{load_raw}.
+#' @param prev_anal One item (for eset) from previous result of \code{diff_expr}.
+#'    If present, previous selections and names will be reused.
+#'
+#' @seealso \code{\link{diff_expr}}
+#' @return Expression set with samples and pData as in prev_anal.
+#' @keywords internal
 #
 match_prev_eset <- function(eset, prev_anal) {
   
@@ -53,11 +54,11 @@ match_prev_eset <- function(eset, prev_anal) {
 #' If not using one channel in contrasts (e.g. because all reference RNA) and have paired design,
 #' better to treat as single channel so that can use duplicateCorrelation.
 #'
-#' @param eset ExpressionSet
-#' @inheritParams diff_expr
+#' @param eset Annotated ExpressionSet. Created by \code{load_raw}.
+#' @param prev_anal One item (for eset) from previous result of \code{diff_expr}.
 #'
 #' @return ExpressionSet. If two-channel, paired and one channel not used will subset to used channel.
-#' @export
+#' @keywords internal
 #'
 ch2_subset <- function(eset, prev_anal) {
   cons <- colnames(prev_anal$ebayes_sv$contrasts)
@@ -93,7 +94,8 @@ ch2_subset <- function(eset, prev_anal) {
 #'
 #' Used by \code{add_adjusted} to create model matrix with surrogate variables.
 #'
-#' @param eset Annotated eset with samples selected during \code{add_contrasts}.
+#' @param pdata \code{data.frame} of phenotype data with column \code{'group'}
+#'   and \code{'pair'} (optional).
 #'
 #' @return List with model matrix(mod) and null model matrix (mod0) used for \code{sva}.
 #' @export
@@ -146,9 +148,10 @@ get_sva_mods <- function(pdata) {
 #' @param x \code{matrix} of expression values to use for IQR
 #'
 #' @return Integer vector of row numbers representing rows with the maximum IQR after grouping by \code{group_by}
-#' @export
+#' @keywords internal
 #'
 which_max_iqr <- function(eset, groub_by, x = exprs(eset)) {
+    iqrange <- NULL
     
     # add inter-quartile ranges, row, and feature data to exprs data
     data <- as.data.frame(x)
@@ -173,6 +176,7 @@ which_max_iqr <- function(eset, groub_by, x = exprs(eset)) {
 #'   indicating channel and \code{eset$group} indicating group membership.
 #'
 #' @return model matrix for use by \link[limma]{intraspotCorrelation} and \link[limma]{lmscFit}
+#' @keywords internal
 #'
 get_ch2_mod <- function(eset) {
   
@@ -202,10 +206,12 @@ get_ch2_mod <- function(eset) {
 #'
 #' @param y Expression data of eset.
 #' @param mod Full model matrix supplied to \code{sva}.
-#' @param svs Surrogate variables returned by \code{sva} (svobj$sv).
+#' @param mod.clean Model matrix with factors to clean.
 #'
 #' @return Expression data with effects of svs removed.
-#' @export
+#' 
+#' @keywords internal
+#' 
 clean_y <- function(y, mod, mod.clean) {
   
   # if no factors to clean return original

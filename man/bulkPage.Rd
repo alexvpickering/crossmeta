@@ -2,11 +2,19 @@
 % Please edit documentation in R/modules-contrasts-server.R
 \name{bulkPage}
 \alias{bulkPage}
-\title{Logic Bulk Data page}
+\title{Logic for Select Contrasts Interface}
 \usage{
 bulkPage(input, output, session, eset, gse_name, prev)
 }
-\description{
-Logic Bulk Data page
+\arguments{
+\item{input, output, session}{shiny module boilerplate}
+
+\item{eset}{ExpressionSet}
+
+\item{gse_name}{GEO accession for the series.}
+
+\item{prev}{Previous result of \code{diff_expr}. Used to allow rechecking previous selections.}
 }
-\keyword{internal}
+\description{
+Logic for Select Contrasts Interface
+}

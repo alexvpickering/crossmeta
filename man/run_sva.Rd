@@ -7,7 +7,7 @@
 run_sva(mods, eset, svanal = TRUE)
 }
 \arguments{
-\item{mods}{result of \code{get_mods}}
+\item{mods}{result of \link{get_sva_mods}}
 
 \item{eset}{ExpressionSet}
 

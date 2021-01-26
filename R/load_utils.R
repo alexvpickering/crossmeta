@@ -76,6 +76,13 @@ load_raw <- function(gse_names, data_dir = getwd(), gpl_dir = '..', overwrite = 
         # check if saved copy
         if (length(eset_path) > 0 & overwrite == FALSE) {
             eset <- readRDS(eset_path)
+            
+            # ensure in correct format
+            if (methods::is(eset, 'ExpressionSet')) {
+              eset <- list(eset)
+              names(eset) <- gse_name
+            }
+            
             esets <- c(esets, eset)
             
         } else {
@@ -87,18 +94,20 @@ load_raw <- function(gse_names, data_dir = getwd(), gpl_dir = '..', overwrite = 
     return (esets)
 }
 
-# Load and pre-process raw Affymetrix, Illumina, and Agilent microarrays.
-#
-# Load raw files previously downloaded with \code{get_raw}. Used by \code{load_raw}.
-#
-# Data is normalized, SYMBOL and PROBE annotation are added to fData slot.
-#
-# @param gse_name GSE names.
-# @param data_dir String specifying directory with GSE folder.
-#
-# @seealso \code{\link{get_raw}} to obtain raw data.
-#
-# @return List of annotated esets, one for each platform in \code{gse_name}.
+#' Load and pre-process raw Affymetrix, Illumina, and Agilent microarrays.
+#'
+#' Load raw files previously downloaded with \code{get_raw}. Used by \code{load_raw}.
+#'
+#' Data is normalized, SYMBOL and PROBE annotation are added to fData slot.
+#'
+#' @param gse_name GSE names.
+#' @param data_dir String specifying directory with GSE folder.
+#' @inheritParams load_raw
+#' @keywords internal
+#'
+#' @seealso \code{\link{get_raw}} to obtain raw data.
+#'
+#' @return List of annotated esets, one for each platform in \code{gse_name}.
 
 load_plat <- function(gse_name, data_dir, gpl_dir, ensql) {
   
@@ -292,6 +301,7 @@ get_biocpack_name <- function (gpl_name) {
 #' eset <- symbol_annot(eset)
 
 symbol_annot <- function (eset, gse_name = "", ensql = NULL) {
+    SYMBOL_9606 <- NULL
     cat("Annotating")
   
     # get map from features to organism entrez ids and  symbols
@@ -575,7 +585,7 @@ getAndParseGSEMatrices <- function(GEO, destdir, AnnotGPL, getGPL=TRUE) {
             message(sprintf('Using locally cached version: %s',destfile))
         } else {
             destfile=file.path(destdir,b[i])
-            download.file(sprintf('https://ftp.ncbi.nlm.nih.gov/geo/series/%s/%s/matrix/%s',
+            utils::download.file(sprintf('https://ftp.ncbi.nlm.nih.gov/geo/series/%s/%s/matrix/%s',
                                   stub,GEO,b[i]),destfile=destfile,mode='wb',
                           method=getOption('download.file.method.GEOquery'))
         }
@@ -610,7 +620,7 @@ getGEOSuppFiles <- function(GEO,makeDirectory=TRUE,baseDir=getwd()) {
         suppressWarnings(dir.create(storedir <- file.path(baseDir,GEO)))
     }
     for(i in fnames) {
-        download.file(paste(file.path(url,i),'tool=geoquery',sep="?"),
+        utils::download.file(paste(file.path(url,i),'tool=geoquery',sep="?"),
                       destfile=file.path(storedir,i),
                       mode='wb',
                       method=getOption('download.file.method.GEOquery'))
@@ -639,7 +649,7 @@ getDirListing <- function(url) {
         message('OK')
     } else { # standard processing of txt content
         tmpcon <- textConnection(a, "r")
-        b <- read.table(tmpcon)
+        b <- utils::read.table(tmpcon)
         close(tmpcon)
     }
     b <- as.character(b[,ncol(b)])

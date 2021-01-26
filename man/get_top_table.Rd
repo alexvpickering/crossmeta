@@ -15,6 +15,11 @@ get_top_table(
 \item{lm_fit}{Result of \link{run_limma}}
 
 \item{groups}{Test and Control group as strings.}
+
+\item{with.es}{Add \code{'dprime'} and \code{'vardprime'} from 
+\code{\link[metaMA]{effectsize}}? Default is \code{TRUE}.}
+
+\item{robust}{logical, should the estimation of \code{df.prior} and \code{var.prior} be robustified against outlier sample variances?}
 }
 \value{
 result of \link[limma]{toptable}

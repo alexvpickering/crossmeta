@@ -11,6 +11,9 @@ add_sources(diff_exprs, data_dir = getwd(), postfix = NULL)
 be reloaded using \code{\link{load_diff}}.}
 
 \item{data_dir}{String specifying directory of GSE folders.}
+
+\item{postfix}{Optional string to append to saved results. Useful if need to run multiple
+meta-analyses on the same series but with different contrasts.}
 }
 \value{
 Same as \code{\link{diff_expr}} with added slots for each GSE in \code{diff_exprs}:

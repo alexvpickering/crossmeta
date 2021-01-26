@@ -22,6 +22,7 @@
 #' @param diff_exprs Previous result of \code{\link{diff_expr}}, which can
 #'    be reloaded using \code{\link{load_diff}}.
 #' @param data_dir String specifying directory of GSE folders.
+#' @inheritParams diff_expr
 #'
 #' @return Same as \code{\link{diff_expr}} with added slots for each GSE in \code{diff_exprs}:
 #'    \item{sources}{Named vector specifying selected sample source for each contrast.

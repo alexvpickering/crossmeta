@@ -21,21 +21,38 @@ run_select_contrasts(
 
 \item{app_dir}{Directory to shiny app. For local development use 'inst/select_contrasts'. Default is
 in 'select_contrasts' sub directory of crossmeta package.}
+
+\item{port}{See \code{\link[shiny:shiny-package]{runApp()}}.}
 }
 \value{
 result of \link{setup_prev}. Used to specify sample groups and contrasts for differential expression analysis.
-
-library(lydata)
-# location of data
-data_dir <- system.file("extdata", package = "lydata")
-
-# gather GSE names
-gse_name  <- "GSE9601"
-
-# load previous analysis
-eset <- load_raw(gse_name, data_dir)[[1]]
-run_select_contrasts(eset, gse_name)
 }
 \description{
 Shiny gadget to upload groups and select contrasts
 }
+\keyword{"GSE9601"}
+\keyword{"lydata")}
+\keyword{#}
+\keyword{<-}
+\keyword{=}
+\keyword{GSE}
+\keyword{analysis}
+\keyword{data}
+\keyword{data_dir}
+\keyword{data_dir)[[1]]}
+\keyword{eset}
+\keyword{gather}
+\keyword{gse_name}
+\keyword{gse_name)}
+\keyword{internal}
+\keyword{library(lydata)}
+\keyword{load}
+\keyword{load_raw(gse_name,}
+\keyword{location}
+\keyword{names}
+\keyword{of}
+\keyword{package}
+\keyword{previous}
+\keyword{run_select_contrasts(eset,}
+\keyword{system.file("extdata",}
+\keyword{z}

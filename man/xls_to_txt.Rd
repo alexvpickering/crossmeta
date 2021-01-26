@@ -12,3 +12,4 @@ xls_to_txt(xls_paths)
 \description{
 For converting Illumina _Supplementary_.*.xls files to .txt for load_illum_plat.
 }
+\keyword{internal}

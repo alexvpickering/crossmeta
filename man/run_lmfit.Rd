@@ -22,3 +22,4 @@ result from call to limma \code{lmFit}.
 \description{
 If paired samples, runs \code{\link{duplicateCorrelation}} to estimate intra-patient variance.
 }
+\keyword{internal}

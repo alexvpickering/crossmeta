@@ -23,7 +23,8 @@ MA <- new('MAList', list(M=M, A=A))
 colnames(MA) <- letters[1:5]
 
 y <- exprs.MA(MA)
-MA2 <- to_ma(y)
+MA2 <- crossmeta:::to_ma(y)
 all.equal(MA, MA2)
 
 }
+\keyword{internal}
