@@ -15,7 +15,7 @@ iqr_replicates(eset, annot = "SYMBOL", rm.dup = FALSE, keep_path = NULL)
 probes that map to multiple genes as distinct measures.}
 
 \item{keep_path}{Path to file to load/save rows that are retained. Used for
-caching by 'drugseqr' app.}
+caching by 'dseqr' app.}
 }
 \value{
 Expression set with unique features at probe or gene level.

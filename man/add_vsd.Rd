@@ -12,7 +12,7 @@ add_vsd(eset, rna_seq = TRUE, pbulk = FALSE, vsd_path = NULL)
 \item{rna_seq}{Is this an RNA-seq \code{eset}? Default is \code{TRUE}.}
 
 \item{pbulk}{Is this an pseudobulk single-cell \code{eset}? Default is \code{FALSE}.
-Used by package drugseqr.}
+Used by package dseqr.}
 
 \item{vsd_path}{Path to save result to. Allows skipping running transform
 on each load.}

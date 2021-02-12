@@ -194,8 +194,8 @@ get_top_table <- function(lm_fit, groups = c('test', 'ctrl'), with.es = TRUE, ro
 #'   or \code{"ENTREZID_HS"} (for probe level analysis).
 #' @param svobj Surrogate variable analysis results. Returned from \link{run_sva}.
 #' @param numsv Number of surrogate variables to model.
-#' @param filter For RNA-seq. Should genes with low counts be filtered? drugseqr shiny app performs this step
-#'   separately. Should be \code{TRUE} (default) if used outside of drugseqr shiny app.
+#' @param filter For RNA-seq. Should genes with low counts be filtered? dseqr shiny app performs this step
+#'   separately. Should be \code{TRUE} (default) if used outside of dseqr shiny app.
 #'
 #' @export
 #'
@@ -236,7 +236,7 @@ run_limma <- function (eset, annot = "SYMBOL", svobj = list('sv' = NULL), numsv 
 #'
 #' @param eset ExpressionSet with group column in \code{pData(eset)}
 #' @param pbulk Is this an pseudobulk single-cell \code{eset}? Default is \code{FALSE}.
-#'  Used by package drugseqr.
+#'  Used by package dseqr.
 #' @param vsd_path Path to save result to. Allows skipping running transform
 #'   on each load.
 #' @inheritParams run_lmfit
@@ -336,7 +336,7 @@ add_adjusted <- function(eset, svobj = list(sv = NULL), numsv = 0, adj_path = NU
 #' @param rm.dup remove duplicates (same measure, multiple ids)? Used for Pathway analysis so that doesn't treat
 #'  probes that map to multiple genes as distinct measures.
 #' @param keep_path Path to file to load/save rows that are retained. Used for
-#'  caching by 'drugseqr' app.
+#'  caching by 'dseqr' app.
 #'
 #' @return Expression set with unique features at probe or gene level.
 #' @export

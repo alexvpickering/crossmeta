@@ -24,8 +24,8 @@ or \code{"ENTREZID_HS"} (for probe level analysis).}
 
 \item{numsv}{Number of surrogate variables to model.}
 
-\item{filter}{For RNA-seq. Should genes with low counts be filtered? drugseqr shiny app performs this step
-separately. Should be \code{TRUE} (default) if used outside of drugseqr shiny app.}
+\item{filter}{For RNA-seq. Should genes with low counts be filtered? dseqr shiny app performs this step
+separately. Should be \code{TRUE} (default) if used outside of dseqr shiny app.}
 }
 \value{
 List with:
