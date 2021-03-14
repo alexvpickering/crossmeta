@@ -4,7 +4,7 @@
 \alias{add_adjusted}
 \title{Add expression data adjusted for pairs/surrogate variables}
 \usage{
-add_adjusted(eset, svobj = list(sv = NULL), numsv = 0, adj_path = NULL)
+add_adjusted(eset, svobj = list(sv = NULL), numsv = 0)
 }
 \arguments{
 \item{eset}{ExpressionSet}
@@ -12,8 +12,6 @@ add_adjusted(eset, svobj = list(sv = NULL), numsv = 0, adj_path = NULL)
 \item{svobj}{surrogate variable object}
 
 \item{numsv}{Number of surrogate variables to adjust for}
-
-\item{adj_path}{Path to file to restore/save adjuted data from/to for future speed}
 }
 \value{
 eset with \code{adjusted} element added

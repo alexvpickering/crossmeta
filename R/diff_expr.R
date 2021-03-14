@@ -243,7 +243,7 @@ run_limma <- function (eset, annot = "SYMBOL", svobj = list('sv' = NULL), numsv 
 #'
 #' @return \code{eset} with \code{'vsd'} \code{assayDataElement} added.
 #' @export
-add_vsd <- function(eset, rna_seq = TRUE, pbulk = FALSE, vsd_path = NULL) {
+add_vsd <- function(eset, rna_seq = TRUE) {
   
   # for cases where manually added (e.g. nanostring dataset)
   els <- Biobase::assayDataElementNames(eset)
@@ -253,26 +253,9 @@ add_vsd <- function(eset, rna_seq = TRUE, pbulk = FALSE, vsd_path = NULL) {
     # for microarray use exprs
     vsd <- Biobase::assayDataElement(eset, 'exprs')
     
-  } else if (!is.null(vsd_path) && file.exists(vsd_path)) {
-    vsd <- readRDS(vsd_path)
-    
-  } else if (pbulk) {
-    pdata <- Biobase::pData(eset)
-    dds <- DESeq2::DESeqDataSetFromMatrix(Biobase::exprs(eset), pdata, design = ~group)
-    dds <- DESeq2::estimateSizeFactors(dds)
-    vsd <- tryCatch(DESeq2::rlog(dds, blind = FALSE),
-                    warning = function(e) {
-                      if (grepl('varianceStabilizingTransformation', e$message))
-                        DESeq2::varianceStabilizingTransformation(dds, blind = FALSE)
-                    })
-    
-    vsd <- SummarizedExperiment::assay(vsd)
-    if (!is.null(vsd_path)) saveRDS(vsd, vsd_path)
-    
   } else {
     vsd <- get_vsd(eset)
     vsd <- SummarizedExperiment::assay(vsd)
-    if (!is.null(vsd_path)) saveRDS(vsd, vsd_path)
   }
   
   Biobase::assayDataElement(eset, 'vsd') <- vsd
@@ -285,17 +268,11 @@ add_vsd <- function(eset, rna_seq = TRUE, pbulk = FALSE, vsd_path = NULL) {
 #' @param eset ExpressionSet
 #' @param svobj surrogate variable object
 #' @param numsv Number of surrogate variables to adjust for
-#' @param adj_path Path to file to restore/save adjuted data from/to for future speed
 #'
 #' @return eset with \code{adjusted} element added
 #' @export
-add_adjusted <- function(eset, svobj = list(sv = NULL), numsv = 0, adj_path = NULL) {
+add_adjusted <- function(eset, svobj = list(sv = NULL), numsv = 0) {
   
-  
-  if (!is.null(adj_path) && file.exists(adj_path)) {
-    Biobase::assayDataElement(eset, 'adjusted') <- readRDS(adj_path)
-    return(eset)
-  }
   
   # get mods with group and pair effects
   mods <- get_sva_mods(eset@phenoData)
@@ -322,7 +299,6 @@ add_adjusted <- function(eset, svobj = list(sv = NULL), numsv = 0, adj_path = NU
     })
   
   Biobase::assayDataElement(eset, 'adjusted') <- adj
-  if (!is.null(adj_path)) saveRDS(adj, adj_path)
   return(eset)
 }
 
@@ -335,12 +311,10 @@ add_adjusted <- function(eset, svobj = list(sv = NULL), numsv = 0, adj_path = NU
 #' @param annot feature to use to remove replicates.
 #' @param rm.dup remove duplicates (same measure, multiple ids)? Used for Pathway analysis so that doesn't treat
 #'  probes that map to multiple genes as distinct measures.
-#' @param keep_path Path to file to load/save rows that are retained. Used for
-#'  caching by 'dseqr' app.
 #'
 #' @return Expression set with unique features at probe or gene level.
 #' @export
-iqr_replicates <- function(eset, annot = "SYMBOL", rm.dup = FALSE, keep_path = NULL) {
+iqr_replicates <- function(eset, annot = "SYMBOL", rm.dup = FALSE) {
   
   # for R CMD check
   iqrange = SYMBOL = NULL
@@ -350,13 +324,8 @@ iqr_replicates <- function(eset, annot = "SYMBOL", rm.dup = FALSE, keep_path = N
   annot.all <- Biobase::fData(eset)[, annot]
   annot.na  <- is.na(annot.all)
   annot.dup <- duplicated(annot.all[!annot.na])
-  
-  if (!is.null(keep_path) && file.exists(keep_path)) {
-    keep <- readRDS(keep_path)
-    eset <- eset[keep, ]
-    Biobase::featureNames(eset) <- fdata[keep, annot]
     
-  } else if (!any(annot.dup)) {
+  if (!any(annot.dup)) {
     eset <- eset[!annot.na, ]
     Biobase::featureNames(eset) <- fdata[!annot.na, annot]
     
@@ -370,9 +339,6 @@ iqr_replicates <- function(eset, annot = "SYMBOL", rm.dup = FALSE, keep_path = N
     
     # use annot for feature names
     Biobase::featureNames(eset) <-  Biobase::fData(eset)[, annot]
-    
-    # possibly save
-    if (!is.null(keep_path)) saveRDS(iqr_rows, keep_path)
   }
   
   if (rm.dup) {

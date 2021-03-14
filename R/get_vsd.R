@@ -8,7 +8,7 @@
 #'
 #' @return \code{DESeqTransform} with variance stabilized expression data.
 #' 
-#' @keywords internal
+#' @export
 #' 
 get_vsd <- function(eset, rlog_cutoff = 50) {
   trans_fun <- if (ncol(eset) > rlog_cutoff) DESeq2::vst else DESeq2::rlog

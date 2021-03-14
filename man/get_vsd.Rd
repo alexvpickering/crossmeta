@@ -20,4 +20,3 @@ Default is 50.}
 \description{
 Get variance stabilized data for exploratory data analysis
 }
-\keyword{internal}

@@ -4,7 +4,7 @@
 \alias{iqr_replicates}
 \title{Removes features with replicated annotation.}
 \usage{
-iqr_replicates(eset, annot = "SYMBOL", rm.dup = FALSE, keep_path = NULL)
+iqr_replicates(eset, annot = "SYMBOL", rm.dup = FALSE)
 }
 \arguments{
 \item{eset}{Annotated eset created by \code{load_raw}.}
@@ -13,9 +13,6 @@ iqr_replicates(eset, annot = "SYMBOL", rm.dup = FALSE, keep_path = NULL)
 
 \item{rm.dup}{remove duplicates (same measure, multiple ids)? Used for Pathway analysis so that doesn't treat
 probes that map to multiple genes as distinct measures.}
-
-\item{keep_path}{Path to file to load/save rows that are retained. Used for
-caching by 'dseqr' app.}
 }
 \value{
 Expression set with unique features at probe or gene level.
