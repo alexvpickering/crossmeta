@@ -508,7 +508,7 @@ run_lmfit <- function(eset, mod, rna_seq = TRUE) {
   } else if (rna_seq) {
     # rna-seq not paired
     # get normalized lib size and voom
-    v <- limma::voomWithQualityWeights(y, mod, lib.size = lib.size)
+    v <- limma::voom(y, mod, lib.size = lib.size)
     fit  <- limma::lmFit(v, design = mod)
     
   } else if (length(pair) & !rna_seq) {
