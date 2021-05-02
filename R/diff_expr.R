@@ -545,7 +545,7 @@ run_lmfit <- function(eset, mod, rna_seq = TRUE, quick = FALSE) {
 
 quickVoomWithQualityWeights <- function(y, mod, lib.size) {
   aw <- limma::arrayWeights(y, mod)
-  limma::voom(object, mod, lib.size)
+  limma::voom(y, mod, lib.size)
 }
 
 
