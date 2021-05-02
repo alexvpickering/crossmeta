@@ -4,7 +4,7 @@
 \alias{run_lmfit}
 \title{Perform lmFit analysis from limma.}
 \usage{
-run_lmfit(eset, mod, rna_seq = TRUE)
+run_lmfit(eset, mod, rna_seq = TRUE, quick = FALSE)
 }
 \arguments{
 \item{eset}{Annotated eset created by \code{load_raw}. Non-selected samples
@@ -15,6 +15,9 @@ and duplicate features removed by \code{add_contrasts} and
 or without surrogate variables.}
 
 \item{rna_seq}{Is this an RNA-seq \code{eset}? Default is \code{TRUE}.}
+
+\item{quick}{\code{TRUE} to speed up single-cell pseudobulk with a faster but less 
+accurate \code{\link[limma]{voomWithQualityWeights}}.}
 }
 \value{
 result from call to limma \code{lmFit}.

@@ -4,7 +4,7 @@
 \alias{fit_lm}
 \title{Run limma analysis.}
 \usage{
-fit_lm(eset, svobj = list(sv = NULL), numsv = 0, rna_seq = TRUE)
+fit_lm(eset, svobj = list(sv = NULL), numsv = 0, rna_seq = TRUE, quick = FALSE)
 }
 \arguments{
 \item{eset}{Annotated eset created by \code{load_raw}. Replicate features and
@@ -15,6 +15,9 @@ non-selected samples removed by \code{iqr_replicates}.}
 \item{numsv}{Number of surrogate variables to model.}
 
 \item{rna_seq}{Is this an RNA-seq \code{eset}? Default is \code{TRUE}.}
+
+\item{quick}{\code{TRUE} to speed up single-cell pseudobulk with a faster but less 
+accurate \code{\link[limma]{voomWithQualityWeights}}.}
 }
 \value{
 list with slots:
