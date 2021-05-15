@@ -167,10 +167,10 @@ run_limma_setup <- function(eset, prev) {
 #'
 #' @return result of \link[limma]{toptable}
 #' @export
-get_top_table <- function(lm_fit, groups = c('test', 'ctrl'), with.es = TRUE, robust = FALSE) {
+get_top_table <- function(lm_fit, groups = c('test', 'ctrl'), with.es = TRUE, robust = FALSE, allow.no.resid = FALSE) {
   contrast <- paste(make.names(groups[1]), make.names(groups[2]), sep = '-')
   
-  ebfit <- fit_ebayes(lm_fit, contrast, robust = robust)
+  ebfit <- fit_ebayes(lm_fit, contrast, robust, allow.no.resid)
   tt <- limma::topTable(ebfit, coef = contrast, n = Inf, sort.by = 'p')
   if (with.es) tt <- add_es(tt, ebfit, groups = groups)
   
@@ -557,11 +557,15 @@ quickVoomWithQualityWeights <- function(y, mod, lib.size) {
 #'
 #' @return result of \link[limma]{eBayes}
 #' @export
-fit_ebayes <- function(lm_fit, contrasts, robust = TRUE) {
+fit_ebayes <- function(lm_fit, contrasts, robust = TRUE, allow.no.resid = FALSE) {
   colnames(lm_fit$fit$coefficients) <- colnames(lm_fit$mod) <- make.names(colnames(lm_fit$mod))
   contrast_matrix <- limma::makeContrasts(contrasts = contrasts, levels = lm_fit$mod)
   
   eb_fit <- limma::contrasts.fit(lm_fit$fit, contrast_matrix)
+  
+  no.resid <- max(eb_fit$df.residual) == 0
+  if (no.resid & allow.no.resid) return(eb_fit)
+  
   eb_fit <- limma::eBayes(eb_fit, robust = robust)
   return (eb_fit)
 }
