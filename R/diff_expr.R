@@ -171,12 +171,54 @@ get_top_table <- function(lm_fit, groups = c('test', 'ctrl'), with.es = TRUE, ro
   contrast <- paste(make.names(groups[1]), make.names(groups[2]), sep = '-')
   
   ebfit <- fit_ebayes(lm_fit, contrast, robust, allow.no.resid)
-  tt <- limma::topTable(ebfit, coef = contrast, n = Inf, sort.by = 'p')
-  if (with.es) tt <- add_es(tt, ebfit, groups = groups)
+  
+  if (is.null(ebfit$t) && is.null(ebfit$F)) {
+    # only if no.resid and allow.no.resid
+    tt <- .topTableFC(ebfit, coef = contrast)
+    
+  } else {
+    tt <- limma::topTable(ebfit, coef = contrast, n = Inf, sort.by = 'p')
+    if (with.es) tt <- add_es(tt, ebfit, groups = groups)
+  }
   
   return(tt)
 }
 
+.topTableFC <- function(fit, coef) {
+  fit$coefficients <- as.matrix(fit$coefficients)
+  rn <- rownames(fit$coefficients)
+  if (length(coef) > 1) {
+    coef <- coef[1]
+    warning("Treat is for single coefficients: only first value of coef being used")
+  }
+  if (!is.null(genelist) && is.null(dim(genelist))) 
+    genelist <- data.frame(ID = genelist, stringsAsFactors = FALSE)
+  
+  if (is.null(rn)) {
+    rn <- 1:nrow(fit$coefficients)
+    
+  } else if (anyDuplicated(rn)) {
+    if (is.null(genelist)) 
+      genelist <- data.frame(ID = rn, stringsAsFactors = FALSE)
+    else if ("ID" %in% names(genelist)) 
+      genelist$ID0 <- rn
+    else genelist$ID <- rn
+    rn <- 1:nrow(fit$coefficients)
+  }
+  
+  genelist <- fit$genes
+  A <- fit$Amean
+  M <- fit$coefficients[, coef]
+  
+  if (is.null(genelist)) 
+    tab <- data.frame(logFC = M)
+  else 
+    tab <- data.frame(genelist, logFC = M, stringsAsFactors = FALSE)
+  
+  if (!is.null(A)) tab$AveExpr <- A
+  
+  tab[order(abs(tab$logFC), decreasing = TRUE), ]
+}
 
 #' Linear model fitting of eset with limma.
 #'
