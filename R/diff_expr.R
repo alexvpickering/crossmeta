@@ -217,7 +217,7 @@ get_top_table <- function(lm_fit, groups = c('test', 'ctrl'), with.es = TRUE, ro
   
   if (!is.null(A)) tab$AveExpr <- A
   
-  tab[order(abs(tab$logFC), decreasing = TRUE), ]
+  tab[order(abs(tab$logFC), decreasing = TRUE),, drop = FALSE]
 }
 
 #' Linear model fitting of eset with limma.
