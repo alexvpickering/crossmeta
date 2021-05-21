@@ -184,7 +184,7 @@ get_top_table <- function(lm_fit, groups = c('test', 'ctrl'), with.es = TRUE, ro
   return(tt)
 }
 
-.topTableFC <- function(fit, coef, genelist = NULL) {
+.topTableFC <- function(fit, coef, genelist = fit$genes) {
   fit$coefficients <- as.matrix(fit$coefficients)
   rn <- rownames(fit$coefficients)
   if (length(coef) > 1) {
