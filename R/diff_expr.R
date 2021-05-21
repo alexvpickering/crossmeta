@@ -167,10 +167,10 @@ run_limma_setup <- function(eset, prev) {
 #'
 #' @return result of \link[limma]{toptable}
 #' @export
-get_top_table <- function(lm_fit, groups = c('test', 'ctrl'), with.es = TRUE, robust = FALSE, allow.no.resid = FALSE) {
+get_top_table <- function(lm_fit, groups = c('test', 'ctrl'), with.es = TRUE, robust = FALSE, trend = FALSE, allow.no.resid = FALSE) {
   contrast <- paste(make.names(groups[1]), make.names(groups[2]), sep = '-')
   
-  ebfit <- fit_ebayes(lm_fit, contrast, robust, allow.no.resid)
+  ebfit <- fit_ebayes(lm_fit, contrast, robust, trend, allow.no.resid)
   
   # only happens if no.resid and allow.no.resid
   if (is.null(ebfit$t) && is.null(ebfit$F)) {
@@ -591,7 +591,7 @@ run_lmfit <- function(eset, mod, rna_seq = TRUE) {
 #'
 #' @return result of \link[limma]{eBayes}
 #' @export
-fit_ebayes <- function(lm_fit, contrasts, robust = TRUE, allow.no.resid = FALSE) {
+fit_ebayes <- function(lm_fit, contrasts, robust = TRUE, trend = FALSE, allow.no.resid = FALSE) {
   colnames(lm_fit$fit$coefficients) <- colnames(lm_fit$mod) <- make.names(colnames(lm_fit$mod))
   contrast_matrix <- limma::makeContrasts(contrasts = contrasts, levels = lm_fit$mod)
   
@@ -600,7 +600,7 @@ fit_ebayes <- function(lm_fit, contrasts, robust = TRUE, allow.no.resid = FALSE)
   no.resid <- max(eb_fit$df.residual) == 0
   if (no.resid & allow.no.resid) return(eb_fit)
   
-  eb_fit <- limma::eBayes(eb_fit, robust = robust)
+  eb_fit <- limma::eBayes(eb_fit, robust = robust, trend = trend)
   return (eb_fit)
 }
 
