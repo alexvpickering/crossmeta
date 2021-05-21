@@ -172,8 +172,8 @@ get_top_table <- function(lm_fit, groups = c('test', 'ctrl'), with.es = TRUE, ro
   
   ebfit <- fit_ebayes(lm_fit, contrast, robust, allow.no.resid)
   
+  # only happens if no.resid and allow.no.resid
   if (is.null(ebfit$t) && is.null(ebfit$F)) {
-    # only if no.resid and allow.no.resid
     tt <- .topTableFC(ebfit, coef = contrast)
     
   } else {
@@ -184,7 +184,7 @@ get_top_table <- function(lm_fit, groups = c('test', 'ctrl'), with.es = TRUE, ro
   return(tt)
 }
 
-.topTableFC <- function(fit, coef) {
+.topTableFC <- function(fit, coef, genelist = NULL) {
   fit$coefficients <- as.matrix(fit$coefficients)
   rn <- rownames(fit$coefficients)
   if (length(coef) > 1) {
@@ -238,8 +238,6 @@ get_top_table <- function(lm_fit, groups = c('test', 'ctrl'), with.es = TRUE, ro
 #' @param numsv Number of surrogate variables to model.
 #' @param filter For RNA-seq. Should genes with low counts be filtered? dseqr shiny app performs this step
 #'   separately. Should be \code{TRUE} (default) if used outside of dseqr shiny app.
-#' @param quick \code{TRUE} to speed up single-cell pseudobulk with a faster but less 
-#'   accurate \code{\link[limma]{voomWithQualityWeights}}.
 #'
 #' @export
 #'
@@ -248,7 +246,7 @@ get_top_table <- function(lm_fit, groups = c('test', 'ctrl'), with.es = TRUE, ro
 #'   \item{mod}{\code{model.matrix} used for \code{fit}}
 #'
 #'
-run_limma <- function (eset, annot = "SYMBOL", svobj = list('sv' = NULL), numsv = 0, filter = TRUE, quick = FALSE) {
+run_limma <- function (eset, annot = "SYMBOL", svobj = list('sv' = NULL), numsv = 0, filter = TRUE) {
   
   # determine if this is rna seq data
   rna_seq <- 'norm.factors' %in% colnames(Biobase::pData(eset))
@@ -269,8 +267,7 @@ run_limma <- function (eset, annot = "SYMBOL", svobj = list('sv' = NULL), numsv 
   lm_fit <- fit_lm(eset = eset,
                    svobj = svobj,
                    numsv = numsv,
-                   rna_seq = rna_seq,
-                   quick = quick)
+                   rna_seq = rna_seq)
   return (lm_fit)
 }
 
@@ -456,7 +453,7 @@ run_sva <- function(mods, eset, svanal = TRUE) {
 #'   
 #' @keywords internal
 #'
-fit_lm <- function(eset, svobj = list(sv = NULL), numsv = 0, rna_seq = TRUE, quick = FALSE){
+fit_lm <- function(eset, svobj = list(sv = NULL), numsv = 0, rna_seq = TRUE){
   
   # setup model matrix with surrogate variables
   group <- Biobase::pData(eset)$group
@@ -467,7 +464,7 @@ fit_lm <- function(eset, svobj = list(sv = NULL), numsv = 0, rna_seq = TRUE, qui
   if (length(svind)) colnames(svmod) <- paste0('SV', svind)
   mod <- cbind(mod, svmod)
   
-  lm_fit <- run_lmfit(eset, mod, rna_seq, quick)
+  lm_fit <- run_lmfit(eset, mod, rna_seq)
   
   # add enids for go/kegg pathway analyses
   # add PROBE for microarray dataset
@@ -494,7 +491,7 @@ fit_lm <- function(eset, svobj = list(sv = NULL), numsv = 0, rna_seq = TRUE, qui
 #' @return result from call to limma \code{lmFit}.
 #' @keywords internal
 #' 
-run_lmfit <- function(eset, mod, rna_seq = TRUE, quick = FALSE) {
+run_lmfit <- function(eset, mod, rna_seq = TRUE) {
   
   pdata <- Biobase::pData(eset)
   pair <- pdata$pair
@@ -554,8 +551,7 @@ run_lmfit <- function(eset, mod, rna_seq = TRUE, quick = FALSE) {
   } else if (rna_seq) {
     # rna-seq not paired
     # get normalized lib size and voom
-    if (quick) v <- quickVoomWithQualityWeights(y, mod, lib.size)
-    else v <- limma::voomWithQualityWeights(y, mod, lib.size)
+    v <- limma::voomWithQualityWeights(y, mod, lib.size)
     fit <- limma::lmFit(v, design = mod)
     
   } else if (length(pair) & !rna_seq) {
@@ -585,10 +581,6 @@ run_lmfit <- function(eset, mod, rna_seq = TRUE, quick = FALSE) {
   return(list(fit = fit, mod = mod))
 }
 
-quickVoomWithQualityWeights <- function(y, mod, lib.size) {
-  aw <- limma::arrayWeights(y, mod)
-  limma::voom(y, mod, lib.size)
-}
 
 
 #' Fit ebayes model
