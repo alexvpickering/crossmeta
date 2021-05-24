@@ -77,7 +77,7 @@ es_meta <- function(diff_exprs, cutoff = 0.3, by_source = FALSE) {
         # can't have negative variances
         # TODO: investigate how these arise
         var_cols <- seq(2, ncol(df), 2)
-        neg_var <- apply(df[, var_cols], 1, function(row) any(row < 0))
+        neg_var <- apply(df[, var_cols], 1, function(row) any(row < 0, na.rm = TRUE))
         df <- df[!neg_var, ]
         
         dp  <- df[, seq(1, ncol(df), 2)]
