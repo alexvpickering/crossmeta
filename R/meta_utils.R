@@ -71,7 +71,14 @@ es_meta <- function(diff_exprs, cutoff = 0.3, by_source = FALSE) {
         df <- es$filt
         row_nas <- rowSums(is.na(df))
         can_ma  <- row_nas < ncol(df) / 2
+        
         df <- df[can_ma, ]
+        
+        # can't have negative variances
+        # TODO: investigate how these arise
+        var_cols <- seq(2, ncol(df), 2)
+        neg_var <- apply(df[, var_cols], 1, function(row) any(row < 0))
+        df <- df[!neg_var, ]
         
         dp  <- df[, seq(1, ncol(df), 2)]
         var <- df[, seq(2, ncol(df), 2)]
