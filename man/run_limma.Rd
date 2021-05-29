@@ -9,8 +9,7 @@ run_limma(
   annot = "SYMBOL",
   svobj = list(sv = NULL),
   numsv = 0,
-  filter = TRUE,
-  quick = FALSE
+  filter = TRUE
 )
 }
 \arguments{
@@ -27,9 +26,6 @@ or \code{"ENTREZID_HS"} (for probe level analysis).}
 
 \item{filter}{For RNA-seq. Should genes with low counts be filtered? dseqr shiny app performs this step
 separately. Should be \code{TRUE} (default) if used outside of dseqr shiny app.}
-
-\item{quick}{\code{TRUE} to speed up single-cell pseudobulk with a faster but less 
-accurate \code{\link[limma]{voomWithQualityWeights}}.}
 }
 \value{
 List with:

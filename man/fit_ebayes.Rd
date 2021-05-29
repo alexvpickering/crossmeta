@@ -4,7 +4,13 @@
 \alias{fit_ebayes}
 \title{Fit ebayes model}
 \usage{
-fit_ebayes(lm_fit, contrasts, robust = TRUE)
+fit_ebayes(
+  lm_fit,
+  contrasts,
+  robust = TRUE,
+  trend = FALSE,
+  allow.no.resid = FALSE
+)
 }
 \arguments{
 \item{lm_fit}{Result of call to \link{run_limma}}
@@ -12,6 +18,8 @@ fit_ebayes(lm_fit, contrasts, robust = TRUE)
 \item{contrasts}{Character vector of contrasts to fit.}
 
 \item{robust}{logical, should the estimation of \code{df.prior} and \code{var.prior} be robustified against outlier sample variances?}
+
+\item{trend}{logical, should an intensity-trend be allowed for the prior variance? Default is that the prior variance is constant.}
 }
 \value{
 result of \link[limma]{eBayes}

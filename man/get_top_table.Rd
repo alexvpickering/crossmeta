@@ -8,7 +8,9 @@ get_top_table(
   lm_fit,
   groups = c("test", "ctrl"),
   with.es = TRUE,
-  robust = FALSE
+  robust = FALSE,
+  trend = FALSE,
+  allow.no.resid = FALSE
 )
 }
 \arguments{
@@ -20,6 +22,8 @@ get_top_table(
 \code{\link[metaMA]{effectsize}}? Default is \code{TRUE}.}
 
 \item{robust}{logical, should the estimation of \code{df.prior} and \code{var.prior} be robustified against outlier sample variances?}
+
+\item{trend}{logical, should an intensity-trend be allowed for the prior variance? Default is that the prior variance is constant.}
 }
 \value{
 result of \link[limma]{toptable}

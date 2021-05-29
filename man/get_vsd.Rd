@@ -4,18 +4,13 @@
 \alias{get_vsd}
 \title{Get variance stabilized data for exploratory data analysis}
 \usage{
-get_vsd(eset, rlog_cutoff = 50)
+get_vsd(eset)
 }
 \arguments{
-\item{eset}{ExpressionSet loaded with \link{load_raw}.
-Requires group column in \code{pData(eset)} specifying sample groupings.}
-
-\item{rlog_cutoff}{Sample number above which will use
-\code{\link[DESeq2]{vst}} instead of \code{\link[DESeq2]{rlog}}.
-Default is 50.}
+\item{eset}{ExpressionSet loaded with \link{load_raw}.}
 }
 \value{
-\code{DESeqTransform} with variance stabilized expression data.
+\code{matrix} with variance stabilized expression data.
 }
 \description{
 Get variance stabilized data for exploratory data analysis
