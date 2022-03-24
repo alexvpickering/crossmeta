@@ -1,8 +1,6 @@
 context("sanity check diff_expr")
 library(Biobase)
 library(limma)
-library(tximportData)
-
 
 # Simulate gene expression data for 100 probes and 6 microarrays
 # Microarray are in two groups
