@@ -10,12 +10,6 @@ add_vsd(eset, rna_seq = TRUE)
 \item{eset}{ExpressionSet with group column in \code{pData(eset)}}
 
 \item{rna_seq}{Is this an RNA-seq \code{eset}? Default is \code{TRUE}.}
-
-\item{pbulk}{Is this an pseudobulk single-cell \code{eset}? Default is \code{FALSE}.
-Used by package dseqr.}
-
-\item{vsd_path}{Path to save result to. Allows skipping running transform
-on each load.}
 }
 \value{
 \code{eset} with \code{'vsd'} \code{assayDataElement} added.

@@ -277,10 +277,6 @@ run_limma <- function (eset, annot = "SYMBOL", svobj = list('sv' = NULL), numsv 
 #' For microarray datasets duplicates exprs slot into vsd slot.
 #'
 #' @param eset ExpressionSet with group column in \code{pData(eset)}
-#' @param pbulk Is this an pseudobulk single-cell \code{eset}? Default is \code{FALSE}.
-#'  Used by package dseqr.
-#' @param vsd_path Path to save result to. Allows skipping running transform
-#'   on each load.
 #' @inheritParams run_lmfit
 #'
 #' @return \code{eset} with \code{'vsd'} \code{assayDataElement} added.
@@ -585,6 +581,9 @@ run_lmfit <- function(eset, mod, rna_seq = TRUE) {
 #'
 #' @param lm_fit Result of call to \link{run_limma}
 #' @param contrasts Character vector of contrasts to fit.
+#' @param allow.no.resid Allow no residual degrees of freedom? if \code{TRUE} and
+#' the fit contrast matrix has no residual degrees of freedom, \link[limma]{eBayes} fit is skipped 
+#' and the result of \link[limma]{contrasts.fit} is returned.
 #' @inheritParams limma::eBayes
 #'
 #' @return result of \link[limma]{eBayes}

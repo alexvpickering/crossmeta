@@ -27,9 +27,17 @@ filter_genes <- function(eset) {
   return(eset)
 }
 
-# adapted from DESeq2::makeExampleDESeqDataSet
+#' Make example ExpressionSet
+#' 
+#' adapted from DESeq2::makeExampleDESeqDataSet
+#'
+#' @inheritParams DESeq2::makeExampleDESeqDataSet
+#' @export
+#' @examples
+#' eset <- makeExampleCountsEset()
+#'
 makeExampleCountsEset <- function (n = 1000, m = 12, betaSD = 0, interceptMean = 4, interceptSD = 2, dispMeanRel = function(x) 4/x + 0.1, sizeFactors = rep(1, m)) {
-  beta <- cbind(rnorm(n, interceptMean, interceptSD), rnorm(n, 0, betaSD))
+  beta <- cbind(stats::rnorm(n, interceptMean, interceptSD), stats::rnorm(n, 0, betaSD))
   dispersion <- dispMeanRel(2^(beta[, 1]))
   colData <- data.frame(condition = factor(rep(c("A", "B"), 
                                               times = c(ceiling(m/2), floor(m/2)))))
@@ -40,7 +48,7 @@ makeExampleCountsEset <- function (n = 1000, m = 12, betaSD = 0, interceptMean =
     cbind(rep(1, m), rep(0, m))
   }
   mu <- t(2^(x %*% t(beta)) * sizeFactors)
-  countData <- matrix(rnbinom(m * n, mu = mu, size = 1/dispersion), 
+  countData <- matrix(stats::rnbinom(m * n, mu = mu, size = 1/dispersion), 
                       ncol = m)
   
   colnames(countData) <- paste("sample", 1:m, sep = "")
