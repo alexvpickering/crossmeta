@@ -1,6 +1,6 @@
 Package: crossmeta
 Title: Cross Platform Meta-Analysis of Microarray Data
-Version: 1.21.2
+Version: 1.21.3
 Author: Alex Pickering
 Maintainer: Alex Pickering <alexvpickering@gmail.com>
 Description: Implements cross-platform and cross-species meta-analyses of Affymentrix,
@@ -21,6 +21,8 @@ Encoding: UTF-8
 LazyData: TRUE
 RoxygenNote: 7.1.1
 VignetteBuilder: knitr
+URL: https://github.com/alexvpickering/crossmeta
+BugReports: https://github.com/alexvpickering/crossmeta/issues
 Suggests:
     knitr,
     rmarkdown,
