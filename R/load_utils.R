@@ -21,7 +21,7 @@ get_raw <- function (gse_names, data_dir = getwd()) {
 
         # get raw data
         if (!file.exists(gse_dir)) {
-            crossmeta:::getGEOSuppFiles(gse_name, baseDir = data_dir)
+            GEOquery::getGEOSuppFiles(gse_name, baseDir = data_dir)
         }
 
         # untar
@@ -516,6 +516,7 @@ entrez_map <- function(eset, ensql) {
     colnames(map) <- c('PROBE', 'ENTREZID')
 
     # get SYMBOL_taxid ----
+    if (all(is.na(map$ENTREZID))) stop("Couldn't find ENTREZIDs")
 
     if (is.null(ensql)) {
         # map from organism entrez id to organism symbol
