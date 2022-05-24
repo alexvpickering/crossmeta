@@ -67,6 +67,7 @@ load_raw <- function(gse_names, data_dir = getwd(), gpl_dir = '..', overwrite = 
     # no duplicates allowed
     gse_names <- unique(gse_names)
     esets <- list()
+    
     for (gse_name in gse_names) {
 
         gse_dir   <- file.path(data_dir, gse_name)
@@ -86,7 +87,8 @@ load_raw <- function(gse_names, data_dir = getwd(), gpl_dir = '..', overwrite = 
             esets <- c(esets, eset)
             
         } else {
-            esets <- c(esets, load_plat(gse_name, data_dir, gpl_dir, ensql))
+            eset.gse <- load_plat(gse_name, data_dir, gpl_dir, ensql)
+            esets <- c(esets, eset.gse)
         }
     }
     
@@ -114,9 +116,11 @@ load_plat <- function(gse_name, data_dir, gpl_dir, ensql) {
   gse_dir <- file.path(data_dir, gse_name)
   
   # get GSEMatrix for phenotype data
-  eset <- NULL
-  while (is.null(eset)) 
-    eset <- try(crossmeta:::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, getGPL = FALSE))
+  eset <- tryCatch(
+    {GEOquery::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, getGPL = FALSE)},
+    error = function(e) {
+      stop("GEOquery failed to get GSEMatrix for: ", gse_name)
+    })
   
   # check if have GPLs
   gpl_names <- paste0(sapply(eset, Biobase::annotation), '.soft', collapse = "|")
@@ -128,9 +132,12 @@ load_plat <- function(gse_name, data_dir, gpl_dir, ensql) {
   if (length(gpl_paths) > 0) file.copy(gpl_paths, gse_dir)
   
   # will use local GPL or download if couldn't copy
-  eset <- NULL
-  while (is.null(eset)) 
-    eset <- try(crossmeta:::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE))
+  eset <- tryCatch(
+    {GEOquery::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE)},
+    error = function(e) {
+      stop("GEOquery failed to get GSEMatrix for: ", gse_name)
+    })
+  
   
   # make sure eset uses GSM accession for sample names (e.g. GSE10653 doesn't)
   eset <- lapply(eset, function(x) {colnames(x) <- x$geo_accession; x})
@@ -531,127 +538,4 @@ entrez_map <- function(eset, ensql) {
 
     # remove duplicated rows
     return(unique(map))
-}
-
-
-
-
-# GEOquery functions ----
-
-getGEO <- function(GEO=NULL,
-                   filename=NULL,
-                   destdir=tempdir(),
-                   GSElimits=NULL,GSEMatrix=TRUE,
-                   AnnotGPL=FALSE,
-                   getGPL=TRUE) {
-    con <- NULL
-    if(!is.null(GSElimits)) {
-        if(length(GSElimits)!=2) {
-            stop('GSElimits should be an integer vector of length 2, like (1,10) to include GSMs 1 through 10')
-        }
-    }
-    if(is.null(GEO) & is.null(filename)) {
-        stop("You must supply either a filename of a GEO file or a GEO accession")
-    }
-    if(is.null(filename)) {
-        GEO <- toupper(GEO)
-        geotype <- toupper(substr(GEO,1,3))
-        if(GSEMatrix & geotype=='GSE') {
-            return(getAndParseGSEMatrices(GEO,destdir,AnnotGPL=AnnotGPL,getGPL=getGPL))
-        }
-        filename <- GEOquery::getGEOfile(GEO,destdir=destdir,AnnotGPL=AnnotGPL)
-    }
-    ret <- GEOquery::parseGEO(filename,GSElimits,destdir,AnnotGPL=AnnotGPL,getGPL=getGPL)
-    return(ret)
-}
-
-
-getAndParseGSEMatrices <- function(GEO, destdir, AnnotGPL, getGPL=TRUE) {
-    GEO <- toupper(GEO)
-    ## This stuff functions to get the listing of available files
-    ## for a given GSE given that there may be many GSEMatrix
-    ## files for a given GSE.
-    stub = gsub('\\d{1,3}$','nnn',GEO,perl=TRUE)
-    gdsurl <- 'https://ftp.ncbi.nlm.nih.gov/geo/series/%s/%s/matrix/'
-    b = crossmeta:::getDirListing(sprintf(gdsurl,stub,GEO))
-    message(sprintf('Found %d file(s)',length(b)))
-    ret <- list()
-    ## Loop over the files, returning a list, one element
-    ## for each file
-    for(i in 1:length(b)) {
-        message(b[i])
-        destfile=list.files(destdir, gsub('.gz$', '', b[i]), full.names = TRUE)[1]
-        if(file.exists(destfile)) {
-            message(sprintf('Using locally cached version: %s',destfile))
-        } else {
-            destfile=file.path(destdir,b[i])
-            utils::download.file(sprintf('https://ftp.ncbi.nlm.nih.gov/geo/series/%s/%s/matrix/%s',
-                                  stub,GEO,b[i]),destfile=destfile,mode='wb',
-                          method=getOption('download.file.method.GEOquery'))
-        }
-        ret[[b[i]]] <- GEOquery:::parseGSEMatrix(destfile,destdir=destdir,AnnotGPL=AnnotGPL,getGPL=getGPL)$eset
-    }
-    return(ret)
-}
-
-
-getGEOSuppFiles <- function(GEO,makeDirectory=TRUE,baseDir=getwd()) {
-    geotype <- toupper(substr(GEO,1,3))
-    storedir <- baseDir
-    fileinfo <- list()
-    stub = gsub('\\d{1,3}$','nnn',GEO,perl=TRUE)
-    if(geotype=='GSM') {
-        url <- sprintf("https://ftp.ncbi.nlm.nih.gov/geo/samples/%s/%s/suppl/",stub,GEO)
-    }
-    if(geotype=='GSE') {
-        url <- sprintf("https://ftp.ncbi.nlm.nih.gov/geo/series/%s/%s/suppl/",stub,GEO)
-    }
-    if(geotype=='GPL') {
-        url <- sprintf("https://ftp.ncbi.nlm.nih.gov/geo/platform/%s/%s/suppl/",stub,GEO)
-    }
-    fnames <- try(crossmeta:::getDirListing(url),silent=TRUE)
-    if(inherits(fnames,'try-error')) {
-        message('No supplemental files found.')
-        message('Check URL manually if in doubt')
-        message(url)
-        return(NULL)
-    }
-    if(makeDirectory) {
-        suppressWarnings(dir.create(storedir <- file.path(baseDir,GEO)))
-    }
-    for(i in fnames) {
-        utils::download.file(paste(file.path(url,i),'tool=geoquery',sep="?"),
-                      destfile=file.path(storedir,i),
-                      mode='wb',
-                      method=getOption('download.file.method.GEOquery'))
-        fileinfo[[file.path(storedir,i)]] <- file.info(file.path(storedir,i))
-    }
-    invisible(do.call(rbind,fileinfo))
-}
-
-getDirListing <- function(url) {
-    message(url)
-    # Takes a URL and returns a character vector of filenames
-    a <- RCurl::getURL(url)
-    ## Renaud Gaujoux reported problems behind firewall
-    ## where the ftp index was converted to html content
-    ## The IF statement here is his fix--harmless for the rest
-    ## of us.
-    if( grepl("<HTML", a, ignore.case=TRUE) ){ # process HTML content
-        doc <- XML::htmlParse(a)
-        links <- XML::xpathSApply(doc, "//a/@href")
-        XML::free(doc)
-
-        # make sure link doesn't end with '/'
-        links <- links[!grepl('/$', links)]
-
-        b <- as.matrix(links)
-        message('OK')
-    } else { # standard processing of txt content
-        tmpcon <- textConnection(a, "r")
-        b <- utils::read.table(tmpcon)
-        close(tmpcon)
-    }
-    b <- as.character(b[,ncol(b)])
-    return(b)
 }

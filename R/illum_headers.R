@@ -74,9 +74,9 @@ ilmn.nnum <- function(elist_paths) {
 #' 
 remove_autonamed <- function(ex) {
   cols <- colnames(ex)
-  vcols <- grep('^V\\d+$', cols)
-  is.auto <- sapply(vcols, function(j) cols[j] == paste0('V', j))
-  ex[, vcols[is.auto]] <- NULL
+  vcol.names <- paste0('V', seq_along(cols))
+  is.auto <- cols == vcol.names
+  ex[, cols[is.auto]] <- NULL
   return(ex)
 }
 

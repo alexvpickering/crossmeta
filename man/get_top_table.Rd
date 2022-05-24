@@ -23,7 +23,7 @@ get_top_table(
 
 \item{robust}{logical, should the estimation of \code{df.prior} and \code{var.prior} be robustified against outlier sample variances?}
 
-\item{trend}{logical, should an intensity-trend be allowed for the prior variance? Default is that the prior variance is constant.}
+\item{trend}{logical, should an intensity-dependent trend be allowed for the prior variance? If \code{FALSE} then the prior variance is constant. Alternatively, \code{trend} can be a row-wise numeric vector, which will be used as the covariate for the prior variance.}
 
 \item{allow.no.resid}{Allow no residual degrees of freedom? if \code{TRUE} and
 the fit contrast matrix has no residual degrees of freedom, \link[limma]{eBayes} fit is skipped 

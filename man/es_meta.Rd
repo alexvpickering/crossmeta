@@ -58,4 +58,5 @@ anals <- load_diff(gse_names, data_dir)
 
 # perform meta-analysis
 es <- es_meta(anals, by_source = TRUE)
+
 }
