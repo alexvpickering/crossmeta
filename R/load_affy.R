@@ -68,8 +68,8 @@ load_affy_plat <- function (eset, gse_name, gse_dir, ensql) {
 
             if (grepl("oligo", warn$message)) {
                 # is the warning to use oligo/xps?
-                raw_abatch <- oligo::read.celfiles(cel_paths)
-                return(oligo::rma(raw_abatch))
+                # throw error (handled below by trying oligo)
+                stop(warn)
 
             } else {
                 # if not, use affy
@@ -78,43 +78,26 @@ load_affy_plat <- function (eset, gse_name, gse_dir, ensql) {
             }
         },
         error = function(err) {
-          message('\n\n',
-                  'affy::ReadAffy failed:\n',
-                  '----------------------')
+          message(
+            '\naffy::ReadAffy failed:\n',
+            '----------------------'
+          )
           message(err$message)
           
             # is the error a corrupted CEL?
             if (grepl('corrupted', err$message)) {
-                message('Excluding corrupted samples')
               
                 # exclude corrupted and try again
                 corrupted <- stringr::str_extract(err$message, 'GSM\\d+')
+                message('Excluding corrupted sample: ', corrupted)
+                
                 cel_paths <- cel_paths[!grepl(corrupted, cel_paths)]
                 raw_abatch  <- affy::ReadAffy(filenames = cel_paths)
                 return(affy::rma(raw_abatch))
                 
             } else {
-                message('\n\n',
-                        'Trying oligo::read.celfiles instead:\n',
-                        '-----------------------------------')
-              
-                res <- tryCatch(oligo::read.celfiles(cel_paths),
-                                       error = function(err) {
-                                           if (grepl('pd.huex.1.0.st.v1', err$message))
-                                               return(oligo::read.celfiles(cel_paths, pkgname = 'pd.huex.1.0.st.v2'))
-                                           if (grepl('pd.hugene.2.0.st.v1', err$message))
-                                               return(oligo::read.celfiles(cel_paths, pkgname = 'pd.hugene.2.0.st'))
-                                           if (grepl('pd.mogene.2.0.st.v1', err$message))
-                                               return(oligo::read.celfiles(cel_paths, pkgname = 'pd.mogene.2.0.st'))
-                                         
-                                           return(err)
-                                       })
-                if (methods::is(res, 'error')) {
-                  message('oligo::read.celfiles failed.\n')
-                  stop(res)
-                }
-                
-                return (oligo::rma(res))
+              res <- use_oligo(cel_paths)
+              return(res)
             }
         }
     )
@@ -135,6 +118,35 @@ load_affy_plat <- function (eset, gse_name, gse_dir, ensql) {
     eset <- symbol_annot(eset, gse_name, ensql)
     
     return(eset)
+}
+
+use_oligo <- function(cel_paths) {
+  message(
+    '\nTrying oligo::read.celfiles instead:\n',
+    '-----------------------------------'
+  )
+  
+  res <- tryCatch(
+    oligo::read.celfiles(cel_paths),
+    
+    # handle some incorrect annotation package names
+    error = function(err) {
+      if (grepl('pd.huex.1.0.st.v1', err$message))
+        return(oligo::read.celfiles(cel_paths, pkgname = 'pd.huex.1.0.st.v2'))
+      if (grepl('pd.hugene.2.0.st.v1', err$message))
+        return(oligo::read.celfiles(cel_paths, pkgname = 'pd.hugene.2.0.st'))
+      if (grepl('pd.mogene.2.0.st.v1', err$message))
+        return(oligo::read.celfiles(cel_paths, pkgname = 'pd.mogene.2.0.st'))
+      
+      return(err)
+    })
+  
+  if (methods::is(res, 'error')) {
+    message('oligo::read.celfiles failed.\n')
+    stop(res)
+  }
+  
+  return (oligo::rma(res))
 }
 
 
