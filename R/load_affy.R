@@ -32,14 +32,14 @@ cel_dates <- function(cel_paths) {
 # @return Annotated eset with scan_date in pData slot.
 
 load_affy_plat <- function (eset, gse_name, gse_dir, ensql) {
-    
+  
     try(Biobase::fData(eset)[Biobase::fData(eset) == ""] <- NA)
     try(Biobase::fData(eset)[] <- lapply(Biobase::fData(eset), as.character))
     
     sample_names <- Biobase::sampleNames(eset)
     pattern <- paste(sample_names, ".*CEL$", collapse = "|", sep = "")
     
-    cel_paths <- tryCatch (
+    cel_paths <- tryCatch(
         list.files(gse_dir, pattern, full.names = TRUE, ignore.case = TRUE),
         
         # list.files fails if too many files
@@ -59,42 +59,62 @@ load_affy_plat <- function (eset, gse_name, gse_dir, ensql) {
     gsm_names  <- stringr::str_extract(cel_paths, "GSM[0-9]+")
     cel_paths <- cel_paths[!duplicated(gsm_names)]
     
-    abatch <- tryCatch (
+    abatch <- tryCatch(
         {
             raw_abatch <- affy::ReadAffy(filenames = cel_paths)
-            affy::rma(raw_abatch)
+            return(affy::rma(raw_abatch))
         },
-        warning = function(c) {
-            # is the warning to use oligo/xps?
-            if (grepl("oligo", c$message)) {
+        warning = function(warn) {
+
+            if (grepl("oligo", warn$message)) {
+                # is the warning to use oligo/xps?
                 raw_abatch <- oligo::read.celfiles(cel_paths)
                 return(oligo::rma(raw_abatch))
-                # if not, use affy
+
             } else {
+                # if not, use affy
                 raw_abatch <- affy::ReadAffy(filenames = cel_paths)
                 return(affy::rma(raw_abatch))
             }
         },
-        error = function(c) {
+        error = function(err) {
+          message('\n\n',
+                  'affy::ReadAffy failed:\n',
+                  '----------------------')
+          message(err$message)
+          
             # is the error a corrupted CEL?
-            if (grepl('corrupted', c$message)) {
+            if (grepl('corrupted', err$message)) {
+                message('Excluding corrupted samples')
+              
                 # exclude corrupted and try again
-                corrupted <- stringr::str_extract(c$message, 'GSM\\d+')
+                corrupted <- stringr::str_extract(err$message, 'GSM\\d+')
                 cel_paths <- cel_paths[!grepl(corrupted, cel_paths)]
                 raw_abatch  <- affy::ReadAffy(filenames = cel_paths)
                 return(affy::rma(raw_abatch))
                 
             } else {
-                raw_abatch <- tryCatch(oligo::read.celfiles(cel_paths),
-                                       error = function(d) {
-                                           if (grepl('pd.huex.1.0.st.v1', d$message))
+                message('\n\n',
+                        'Trying oligo::read.celfiles instead:\n',
+                        '-----------------------------------')
+              
+                res <- tryCatch(oligo::read.celfiles(cel_paths),
+                                       error = function(err) {
+                                           if (grepl('pd.huex.1.0.st.v1', err$message))
                                                return(oligo::read.celfiles(cel_paths, pkgname = 'pd.huex.1.0.st.v2'))
-                                           if (grepl('pd.hugene.2.0.st.v1', d$message))
+                                           if (grepl('pd.hugene.2.0.st.v1', err$message))
                                                return(oligo::read.celfiles(cel_paths, pkgname = 'pd.hugene.2.0.st'))
-                                           if (grepl('pd.mogene.2.0.st.v1', d$message))
+                                           if (grepl('pd.mogene.2.0.st.v1', err$message))
                                                return(oligo::read.celfiles(cel_paths, pkgname = 'pd.mogene.2.0.st'))
+                                         
+                                           return(err)
                                        })
-                return (oligo::rma(raw_abatch))
+                if (methods::is(res, 'error')) {
+                  message('oligo::read.celfiles failed.\n')
+                  stop(res)
+                }
+                
+                return (oligo::rma(res))
             }
         }
     )

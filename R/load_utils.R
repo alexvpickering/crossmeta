@@ -119,7 +119,8 @@ load_plat <- function(gse_name, data_dir, gpl_dir, ensql) {
   eset <- tryCatch(
     {GEOquery::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE, getGPL = FALSE)},
     error = function(e) {
-      stop("GEOquery failed to get GSEMatrix for: ", gse_name)
+      e$message <- paste0("GEOquery::getGEO failed to get GSEMatrix for: ", gse_name)
+      stop(e)
     })
   
   # check if have GPLs
@@ -135,7 +136,8 @@ load_plat <- function(gse_name, data_dir, gpl_dir, ensql) {
   eset <- tryCatch(
     {GEOquery::getGEO(gse_name, destdir = gse_dir, GSEMatrix = TRUE)},
     error = function(e) {
-      stop("GEOquery failed to get GSEMatrix for: ", gse_name)
+      e$message <- paste0("GEOquery::getGEO failed to get GSEMatrix for: ", gse_name)
+      stop(e)
     })
   
   
