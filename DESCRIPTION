@@ -28,7 +28,8 @@ Suggests:
     rmarkdown,
     lydata,
     org.Hs.eg.db,
-    testthat
+    testthat,
+    oligo
 Imports:
     affy (>= 1.52.0),
     affxparser (>= 1.46.0),
@@ -47,7 +48,6 @@ Imports:
     metaMA (>= 3.1.2),
     miniUI (>= 0.1.1),
     methods,
-    oligo (>= 1.38.0),
     reader(>= 1.0.6),
     RCurl (>= 1.95.4.11),
     RSQLite (>= 2.1.1),
